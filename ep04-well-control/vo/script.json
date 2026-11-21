@@ -1,0 +1,98 @@
+[
+ {
+  "id": 1,
+  "t": 0.8,
+  "end": 7.4,
+  "text": "ถ้าในหลุมเจาะเกิด Kick แล้วเราไม่รู้ตัว มันอาจกลายเป็น Blowout ได้"
+ },
+ {
+  "id": 2,
+  "t": 8.2,
+  "end": 13.6,
+  "text": "Kick คือตอนที่ Gas ดันเข้ามาในหลุม เพราะ Mud เบาเกินไป"
+ },
+ {
+  "id": 3,
+  "t": 14.0,
+  "end": 19.8,
+  "text": "Mud คือ Primary Barrier ส่วน BOP คือ Secondary Barrier"
+ },
+ {
+  "id": 4,
+  "t": 20.4,
+  "end": 26.8,
+  "text": "สัญญาณแรก Pit Gain ระดับ Mud ในบ่อสูงขึ้นเรื่อย ๆ"
+ },
+ {
+  "id": 5,
+  "t": 27.4,
+  "end": 33.6,
+  "text": "สัญญาณที่สอง Flow ที่ไหลกลับขึ้นมาแรงกว่าที่ปั๊มลงไป"
+ },
+ {
+  "id": 6,
+  "t": 34.4,
+  "end": 41.6,
+  "text": "ลองหยุด Pump แล้วทำ Flow Check ถ้ายังไหลอยู่ แปลว่าเกิด Kick แล้ว"
+ },
+ {
+  "id": 7,
+  "t": 42.4,
+  "end": 49.0,
+  "text": "ต้อง Shut-in ทันที ยก Pipe ให้ Tool Joint พ้น BOP แล้วหยุด Pump"
+ },
+ {
+  "id": 8,
+  "t": 49.4,
+  "end": 55.6,
+  "text": "ปิด Annular กับ Pipe Ram แล้วเปิด HCR Valve โดยที่ Choke ยังปิดอยู่"
+ },
+ {
+  "id": 9,
+  "t": 56.4,
+  "end": 62.8,
+  "text": "รอให้ Pressure นิ่ง แล้วอ่านค่า SIDPP กับ SICP"
+ },
+ {
+  "id": 10,
+  "t": 63.4,
+  "end": 69.6,
+  "text": "เอา SIDPP ไปคำนวณ Kill Mud Weight ได้ 11 ppg"
+ },
+ {
+  "id": 11,
+  "t": 70.4,
+  "end": 79.6,
+  "text": "Driller's Method รอบแรก ใช้ Mud เดิมไล่ Gas ออก โดยปรับ Choke ให้ Bottomhole Pressure คงที่"
+ },
+ {
+  "id": 12,
+  "t": 80.2,
+  "end": 86.0,
+  "text": "Gas จะผ่าน Mud Gas Separator แล้วไปเผาทิ้งที่ Flare"
+ },
+ {
+  "id": 13,
+  "t": 86.6,
+  "end": 99.4,
+  "text": "รอบที่สอง ปั๊ม Kill Mud ลงไป พอถึง Bit ความดัน Drill Pipe จะลดลง และเมื่อเต็ม Annulus Casing Pressure ก็เหลือศูนย์"
+ },
+ {
+  "id": 14,
+  "t": 100.4,
+  "end": 105.4,
+  "text": "Flow Check อีกครั้ง ไม่มีไหล แปลว่า Well Under Control"
+ },
+ {
+  "id": 15,
+  "t": 106.0,
+  "end": 111.2,
+  "text": "อีกวิธีคือ Wait and Weight ผสม Kill Mud ก่อน แล้วทำรอบเดียวจบ"
+ },
+ {
+  "id": 16,
+  "t": 111.8,
+  "end": 118.6,
+  "text": "จำไว้ว่า เห็นเร็ว ปิดหลุมไว ก็ไม่มี Blowout ครับ"
+ }
+]
