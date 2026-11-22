@@ -1191,7 +1191,9 @@ function ctaCard(ctx, t) {
   const bw = 420, bh = 84, bx = cx - bw / 2, by = y + 320;
   const press = t > 106.4 && t < 106.8 ? 0.94 : 1;
   ctx.save(); ctx.translate(cx, by + bh / 2); ctx.scale(press, press); ctx.translate(-cx, -(by + bh / 2));
-  ctx.fillStyle = tapped ? '#e2e8f0' : '#ef4444'; rr(ctx, bx, by, bw, bh, 42); ctx.fill();
+  const hover = !tapped && t > 105.8;
+  ctx.fillStyle = tapped ? '#e2e8f0' : hover ? '#dc2626' : '#ef4444'; rr(ctx, bx, by, bw, bh, 42); ctx.fill();
+  if (hover) { ctx.strokeStyle = 'rgba(239,68,68,0.35)'; ctx.lineWidth = 10; rr(ctx, bx - 5, by - 5, bw + 10, bh + 10, 47); ctx.stroke(); }
   ctx.fillStyle = tapped ? '#334155' : '#fff'; ctx.font = F(600, 38);
   ctx.fillText(tapped ? 'ติดตามแล้ว ✓' : '+ ติดตาม', cx + 22, by + bh / 2 + 2);
   // bell
@@ -1199,14 +1201,31 @@ function ctaCard(ctx, t) {
   ctx.beginPath(); ctx.moveTo(-14, 10); ctx.quadraticCurveTo(-14, -16, 0, -16); ctx.quadraticCurveTo(14, -16, 14, 10); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.arc(0, 14, 4, 0, 7); ctx.fill(); ctx.restore();
   ctx.restore();
-  // finger
-  const f = sstep(104.8, 106.2, t) * (1 - sstep(107.6, 108.4, t));
+  // mouse cursor: glides in on a curve, hovers, clicks (press + ripple), then drifts away
+  const f = sstep(104.6, 105.0, t) * (1 - sstep(107.8, 108.4, t));
   if (f > 0) {
-    const fx = lerp(860, cx + 90, eio(sstep(104.8, 106.2, t))), fy = lerp(1180, by + bh / 2 + 20, eio(sstep(104.8, 106.2, t))) + (t > 106.3 && t < 106.7 ? 8 : 0);
-    ctx.globalAlpha = a * f; ctx.fillStyle = '#fde68a'; ctx.strokeStyle = '#92400e'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.ellipse(fx, fy, 26, 34, -0.3, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(fx - 10, fy - 70, 22, 50, 11) : rr(ctx, fx - 10, fy - 70, 22, 50, 11); ctx.fill(); ctx.stroke();
-    if (t > 106.3 && t < 107.2) { ctx.globalAlpha = a * (1 - (t - 106.3) / 0.9); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(fx, fy - 70, 20 + (t - 106.3) * 70, 0, 7); ctx.stroke(); }
+    const tx = cx + 158, ty = by + bh / 2 + 4;
+    const u = eio(sstep(104.6, 106.0, t)), w2 = eio(sstep(107.2, 108.4, t));
+    const p0 = [930, 1250], p1 = [880, ty + 40];
+    let px = (1 - u) * (1 - u) * p0[0] + 2 * u * (1 - u) * p1[0] + u * u * tx;
+    let py = (1 - u) * (1 - u) * p0[1] + 2 * u * (1 - u) * p1[1] + u * u * ty;
+    px += w2 * 120; py += w2 * 70;
+    const click = t > 106.3 && t < 106.62 ? 0.86 : 1;
+    if (t > 106.3 && t < 107.3) {
+      const r = (t - 106.3) / 1.0;
+      for (const [d, col] of [[0, 'rgba(239,68,68,'], [0.18, 'rgba(255,255,255,']]) {
+        const q = clamp((r - d) / (1 - d));
+        if (q <= 0) continue;
+        ctx.globalAlpha = a * (1 - q); ctx.strokeStyle = col + '1)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(px, py, 8 + q * 46, 0, 7); ctx.stroke();
+      }
+    }
+    ctx.save(); ctx.globalAlpha = a * f; ctx.translate(px, py); ctx.scale(3.1 * click, 3.1 * click); ctx.rotate(-0.08);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 17); ctx.lineTo(4, 13.2); ctx.lineTo(7, 20); ctx.lineTo(9.6, 18.9); ctx.lineTo(6.7, 12.3); ctx.lineTo(12, 12.3); ctx.closePath();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 1.2; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.3; ctx.strokeStyle = '#0f172a'; ctx.stroke();
+    ctx.restore();
   }
   ctx.restore();
   // headline above
