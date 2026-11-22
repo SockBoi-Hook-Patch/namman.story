@@ -113,7 +113,7 @@
     sfxVerbIn.connect(sfxVerb); sfxVerb.connect(master);
 
     // section loudness arc (music only)
-    var arc = [[0, 0.8], [7, 0.84], [15.9, 0.88], [16, 0.98], [18, 0.93], [25.9, 0.92], [26, 0.86], [36, 0.88], [46, 0.85], [58, 0.9], [70, 0.87], [80, 0.89], [90, 0.85], [99.9, 0.9], [100, 0.98], [104, 0.95], [121.9, 0.97], [122, 0.92], [130, 0.88], [138, 0.88], [145, 1.0], [END, 1.0]];
+    var arc = [[0, 0.959], [7, 1.007], [15.9, 1.055], [16, 1.175], [18, 1.115], [25.9, 1.102], [26, 1.03], [36, 1.055], [46, 1.019], [58, 1.079], [70, 1.042], [80, 1.067], [90, 1.019], [99.9, 1.079], [100, 1.175], [104, 1.138], [121.9, 1.162], [122, 1.102], [130, 1.055], [138, 1.055], [145, 1.198], [END, 1.198]]; // ~+1.6 dB over Part 1's arc (keeps the mean level matched to Part 1)
     section.gain.setValueAtTime(arc[0][1], 0);
     for (var ai = 1; ai < arc.length; ai++) section.gain.linearRampToValueAtTime(arc[ai][1], arc[ai][0]);
 
@@ -595,7 +595,7 @@
     riser(14.6, 16, 0.07, 350, 4800);
 
     // ---- DERRICK / MAST & SUBSTRUCTURE 16–26: BIG and tall — arrival hit, heroic E–C–D, low pedal, climbing octave bells ----
-    kick(16, 0.58); crash(16, 0.09, { dec: 2.6 }); boom(16, 0.13, { dur: 1.8 }); tom(16, 55, 0.2, { dec: 0.9 });
+    kick(16, 0.46); crash(16, 0.07, { dec: 2.6 }); tom(16, 55, 0.16, { dec: 0.9 }); // (an 'impact' SFX usually lands here)
     stab(16, CH.E.pad.concat([71]), 0.1, { rel: 1.8, cut0: 3400, cut1: 700, wet: 0.6 });
     bass(16, 1.8, 28, { vol: 0.07 });
     for (s = 0; s < 4; s++) bell(16.04 + s * 0.08, [71, 76, 80, 83][s], 0.03, { dur: 2.0, pan: (s - 1.5) * 0.3, wet: 0.7 });
