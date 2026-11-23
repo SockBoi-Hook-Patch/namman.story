@@ -887,6 +887,7 @@ const K = [
   [143.01, 'L', [38, 17, 32, 16, 3, 0, 40]], [153, 'L', [36, 16, 30, 16, 3, 0, 40]],
 ];
 function shotFor(t) {
+  if (typeof window !== 'undefined' && window.COVER_CAM) return { set: 'L', v: window.COVER_CAM.slice() }; // used by brand/cover
   let i = 0; while (i < K.length - 1 && t >= K[i + 1][0]) i++;
   const a = K[i], b = K[Math.min(i + 1, K.length - 1)];
   if (a[1] === 'P') { // pan down the exploded drill string

@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{ "imports": {
+  "three": "/ep05-rig-p3-rotating/node_modules/three/build/three.module.js",
+  "three/addons/": "/ep05-rig-p3-rotating/node_modules/three/examples/jsm/" } }</script>
+</head><body>
+<canvas id="out" width="1640" height="624"></canvas>
+<script type="module">
+// Facebook cover (1640x624): low-poly rig render from the EP05 scene + channel title.
+import * as THREE from 'three';
+import Scene from '/ep05-rig-p3-rotating/scene3d.js';
+const W = 1640, H = 624;
+const q = new URLSearchParams(location.search);
+window.COVER_CAM = JSON.parse(q.get('cam') || '[34,17,40,-14,15,-2,40]');
+const T = +(q.get('t') || 136);
+await document.fonts.load('600 120px Kanit'); await document.fonts.load('400 40px Kanit');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+await Scene.init({ THREE, renderer, width: W, height: H });
+Scene.renderFrame(T);
+const c = document.getElementById('out'), x = c.getContext('2d');
+x.drawImage(renderer.domElement, 0, 0);
+// right-side shade for legibility
+const g = x.createLinearGradient(380, 0, 1640, 0);
+g.addColorStop(0, 'rgba(10,14,32,0)'); g.addColorStop(0.35, 'rgba(10,14,32,0.55)'); g.addColorStop(1, 'rgba(10,14,32,0.82)');
+x.fillStyle = g; x.fillRect(0, 0, W, H);
+const cx = 935;
+x.textAlign = 'center'; x.textBaseline = 'middle';
+x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 24;
+x.font = '600 30px Kanit'; x.fillStyle = '#ffd59a'; x.fillText('OIL & GAS 101', cx, 168);
+x.font = '600 120px Kanit'; x.fillStyle = '#ffffff'; x.fillText('namman.story', cx, 262);
+x.shadowBlur = 0; x.fillStyle = '#f97316'; x.beginPath(); x.roundRect(cx - 80, 338, 160, 9, 5); x.fill();
+x.shadowBlur = 18; x.font = '400 38px Kanit'; x.fillStyle = '#ffe3a3';
+x.fillText('เรื่องแท่นเจาะน้ำมัน เข้าใจง่ายในไม่กี่นาที', cx, 392);
+const chips = [['BOP', '#ef4444'], ['Well Control', '#a855f7'], ['Drilling Mud', '#14b8a6'], ['Drilling Rig 101', '#3b82f6']];
+x.font = '600 25px Kanit'; x.shadowBlur = 0;
+const ws = chips.map(([s]) => x.measureText(s).width + 64), gap = 16, tot = ws.reduce((a, b) => a + b, 0) + gap * (chips.length - 1);
+let px = cx - tot / 2;
+chips.forEach(([s, col], i) => {
+  x.fillStyle = 'rgba(10,18,36,0.85)'; x.beginPath(); x.roundRect(px, 452, ws[i], 56, 28); x.fill();
+  x.strokeStyle = col; x.lineWidth = 3; x.stroke();
+  x.fillStyle = col; x.beginPath(); x.arc(px + 26, 480, 7, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.textAlign = 'left'; x.fillText(s, px + 42, 481); x.textAlign = 'center';
+  px += ws[i] + gap;
+});
+window.done = true;
+</script></body></html>
