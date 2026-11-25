@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}#gl{position:absolute;left:-99999px}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="out" width="1080" height="1920"></canvas>
+<script src="music.js"></script>
+<script type="module">
+// Compositor: 3D frame (scene3d.js) + overlay (scene3d.drawOverlay) + burned-in Thai captions.
+import * as THREE from 'three';
+import Scene from './scene3d.js';
+
+const W = 1080, H = 1920;
+const out = document.getElementById('out');
+const o = out.getContext('2d');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.domElement.id = 'gl';
+document.body.appendChild(renderer.domElement);
+
+const caps = Scene.captions || [];
+const seg = new Intl.Segmenter('th', { granularity: 'word' });
+
+function wrap(text, font, maxW) {
+  o.font = font;
+  const lines = []; let cur = '';
+  for (const { segment: w } of seg.segment(text)) {
+    const test = cur + w;
+    if (o.measureText(test.trim()).width > maxW && cur.trim()) { lines.push(cur.trim()); cur = w.trimStart(); }
+    else cur = test;
+  }
+  if (cur.trim()) lines.push(cur.trim());
+  return lines;
+}
+
+function roundRect(x, y, w, h, r) {
+  o.beginPath();
+  o.moveTo(x + r, y); o.arcTo(x + w, y, x + w, y + h, r); o.arcTo(x + w, y + h, x, y + h, r);
+  o.arcTo(x, y + h, x, y, r); o.arcTo(x, y, x + w, y, r); o.closePath();
+}
+
+const ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+
+// Caption: centred card, y ≈ 1310–1560 (above Reels/TikTok UI)
+function drawCaption(t) {
+  const c = caps.find(c => t >= c.t0 && t < c.t1);
+  if (!c) return;
+  const inA = ease((t - c.t0) / 0.3), outA = ease((c.t1 - t) / 0.25);
+  const a = Math.min(inA, outA);
+  if (a <= 0) return;
+  const maxW = 860;
+  let size = 54, th;
+  for (;;) { th = wrap(c.th, `600 ${size}px Kanit`, maxW); if (th.length <= 2 || size <= 42) break; size -= 2; }
+  th = th.slice(0, 3);
+  const enSize = 30, en = c.en ? wrap(c.en, `400 ${enSize}px Kanit`, maxW).slice(0, 2) : [];
+  const lh = Math.round(size * 1.38), elh = Math.round(enSize * 1.35);
+  const padY = 30, gap = en.length ? 12 : 0;
+  const boxH = padY * 2 + th.length * lh + gap + en.length * elh;
+  o.font = `600 ${size}px Kanit`;
+  let boxW = Math.max(...th.map(l => o.measureText(l).width));
+  o.font = `400 ${enSize}px Kanit`;
+  if (en.length) boxW = Math.max(boxW, ...en.map(l => o.measureText(l).width));
+  boxW = Math.min(960, boxW + 80);
+  const cx = W / 2, cy = 1435 + (1 - inA) * 24;
+  const x = cx - boxW / 2, y = cy - boxH / 2;
+  o.save();
+  o.globalAlpha = a;
+  o.shadowColor = 'rgba(0,0,0,0.35)'; o.shadowBlur = 30; o.shadowOffsetY = 8;
+  o.fillStyle = 'rgba(12,18,34,0.78)';
+  roundRect(x, y, boxW, boxH, 28); o.fill();
+  o.shadowColor = 'transparent';
+  o.strokeStyle = 'rgba(255,255,255,0.14)'; o.lineWidth = 2; o.stroke();
+  // accent bar
+  o.fillStyle = '#ffb627'; roundRect(cx - 40, y - 4, 80, 8, 4); o.fill();
+  o.textAlign = 'center'; o.textBaseline = 'alphabetic';
+  let ty = y + padY + size;
+  o.font = `600 ${size}px Kanit`; o.fillStyle = '#ffffff';
+  for (const l of th) { o.fillText(l, cx, ty); ty += lh; }
+  ty += gap - lh + elh;
+  o.font = `400 ${enSize}px Kanit`; o.fillStyle = 'rgba(190,215,255,0.92)';
+  for (const l of en) { o.fillText(l, cx, ty); ty += elh; }
+  o.restore();
+}
+
+let initDone = false;
+async function ensureInit() {
+  if (initDone) return;
+  await document.fonts.load('600 54px Kanit'); await document.fonts.load('400 30px Kanit');
+  await Scene.init({ THREE, renderer, width: W, height: H });
+  initDone = true;
+}
+
+window.DURATION = Scene.DURATION || 75;
+window.renderFrame = async function (t, type = 'image/png', q) {
+  await ensureInit();
+  Scene.renderFrame(t);
+  o.globalAlpha = 1; o.setTransform(1, 0, 0, 1, 0, 0);
+  o.drawImage(renderer.domElement, 0, 0, W, H);
+  o.save(); try { Scene.drawOverlay && Scene.drawOverlay(o, t); } finally { o.restore(); }
+  drawCaption(t);
+  return out.toDataURL(type, q).split(',')[1];
+};
+window.renderAudio = async function () {
+  const bytes = await Score.renderWav(window.DURATION, Scene.cues || []);
+  let s = ''; const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(s);
+};
+window.ready = ensureInit().then(() => true);
+</script>
+</body>
+</html>
