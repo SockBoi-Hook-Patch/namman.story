@@ -2,9 +2,10 @@
 // Contract: see SPEC.md (+ ../bop-3d/SPEC.md). Rig, mud system and well-control kit reused from EP03/EP04; meshes are tagged by rig system for highlight mode. renderFrame(t) / drawOverlay(ctx,t) are pure functions of t.
 // Calmer pacing than EP02: captions 5–8 s, labels held ≥3 s, max 2 new labels at once, camera holds on key views.
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { applyLook, skyMaterial } from './look.js'; // LOOK UPGRADE
 
 const DURATION = 153;
-let THREE, renderer, scene, camera;
+let THREE, renderer, scene, camera, LOOK; // LOOK UPGRADE
 let W = 1080, H = 1920;
 
 // world sets (far apart; only the active one is visible)
@@ -928,6 +929,13 @@ async function init(opts) {
   O.mk.td = mark(O.topDrive, 0.7, 0.3, 0.6); O.mk.elev = mark(O.topDrive, 0.45, -3.35, 0.4);
   O.mk.tblock = mark(O.tblock, 0.8, 0.2, 0.5);
   O.mk.pipe = mark(O.sets.L, 0.2, 12, 0.2);
+  // ---- LOOK UPGRADE: PBR materials, IBL, shadows, sky, bloom (must run before O.tagged caches materials)
+  const DUSK = { top: 0x1f2a63, mid: 0x9a4f86, hor: 0xffab6b, low: 0x7a5a44, glow: 0xffb27a, ground: 0x8a6448, sunDir: new THREE.Vector3(-0.62, 0.05, -0.78) };
+  O.skyL.material = skyMaterial(DUSK);
+  LOOK = await applyLook({ THREE, renderer, scene, sets: O.sets, light: O.dir, presets: {
+    L: { env: 'gradient', sky: DUSK, exposure: 1.15, envIntensity: 1.0, lightDir: [70, 52, 22] },
+    S: { env: 'room', exposure: 1.1, envIntensity: 0.6, shadowMin: 10 },
+  }, opts: (typeof window !== 'undefined' && window.LOOK_OPTS) || {} });
   O.tagged = []; const seen = new Set();
   O.sets.L.traverse(m => {
     if (!m.isMesh || !m.userData.sys || !m.material || seen.has(m.material)) return;
@@ -1051,7 +1059,9 @@ function applyState(t) {
 function renderFrame(t) {
   applyState(t);
   envSet(O.shot.set);
-  renderer.render(scene, camera);
+  const o = OFF[O.shot.set], v = O.shot.v; // LOOK UPGRADE
+  LOOK.frame(O.shot.set, camera, O.v3b.set(v[3] + o[0], v[4] + o[1], v[5] + o[2]));
+  LOOK.render(scene, camera);
 }
 
 function stateLand(t, v) {
