@@ -34,15 +34,14 @@ export const KINDS = {
   steel:  { metalness: 0.7,  roughness: 0.42 },  // bare / galvanised steel, pipe, drill pipe
   paint:  { metalness: 0.12, roughness: 0.58 },  // painted machinery (brand colours)
   white:  { metalness: 0.08, roughness: 0.5 },   // white/cream painted steel (derrick, tanks)
-  dark:   { metalness: 0.35, roughness: 0.55 },  // dark painted steel, skids
+  dark:   { metalness: 0.25, roughness: 0.5 },  // dark painted steel, skids
   rubber: { metalness: 0.0,  roughness: 0.75 },  // hoses, cables, near-black
   ground: { metalness: 0.0,  roughness: 0.95, flat: true }, // terrain, pad, mesas, rocks, studio floor
   label:  { metalness: 0.0,  roughness: 0.7 },   // textured signs / sacks
-  wet:    { metalness: 0.0,  roughness: 0.3 },   // mud surface
+  wet:    { metalness: 0.0,  roughness: 0.5, env: 0.35 }, // mud surface (wet but not a mirror)
   skin:   { metalness: 0.0,  roughness: 0.7 },
 };
 
-const _hsl = { h: 0, s: 0, l: 0 };
 // Guess a kind from an (sRGB) colour. chroma = max-min of the sRGB channels.
 export function guessKind(color) {
   const c = color.clone().convertLinearToSRGB();
@@ -58,7 +57,41 @@ export function guessKind(color) {
   return 'paint';
 }
 
-const ALL = []; // every standard material made here (for per-set envMapIntensity)
+const ALL = []; // every standard material made here
+
+// ------------------------------------------------------------------ cheap analytic environment reflection
+// A PMREM env map costs ~550 ms/frame on SwiftShader at 1080x1920 (textureCubeUV does many fetches per
+// pixel). Instead every look material gets a few ALU ops: the reflected ray picks a colour from a
+// sky/horizon/ground gradient (widened by roughness) plus a sun lobe. It feeds three's physical
+// indirect-specular term, so Fresnel / metalness / roughness behave as with a real env map.
+export const ENV = {
+  lkTop: { value: null }, lkHor: { value: null }, lkGround: { value: null },
+  lkSunDir: { value: null }, lkSunCol: { value: null }, lkEnvI: { value: 1 },
+};
+const ENV_DECL = `
+uniform vec3 lkTop, lkHor, lkGround, lkSunDir, lkSunCol; uniform float lkEnvI, lkMatI;
+vec3 lkEnv(vec3 rv, float r) {
+  float y = rv.y;
+  vec3 c = y > 0.0 ? mix(lkHor, lkTop, smoothstep(0.0, 0.45 + 0.5 * r, y))
+                   : mix(lkHor, lkGround, smoothstep(0.0, 0.06 + 0.5 * r, -y));
+  float sp = exp2(mix(9.0, 2.0, r));
+  c += lkSunCol * pow(max(dot(rv, lkSunDir), 0.0), sp) * (0.15 + 0.85 * (1.0 - r));
+  return c * lkEnvI * lkMatI;
+}`;
+const ENV_USE = `#include <lights_fragment_maps>
+#if defined( RE_IndirectSpecular ) && !defined( USE_ENVMAP )
+  radiance += lkEnv( inverseTransformDirection( reflect( -geometryViewDir, geometryNormal ), viewMatrix ), material.roughness );
+#endif
+`;
+function addEnv(m) {
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, ENV, { lkMatI: { value: m.userData.envScale ?? (KINDS[m.userData.kind] || {}).env ?? 1 } });
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + ENV_DECL)
+      .replace('#include <lights_fragment_maps>', ENV_USE);
+  };
+  m.customProgramCacheKey = () => 'lkEnv1';
+}
+function register(m) { addEnv(m); ALL.push(m); return m; }
 
 // New material for new code: stdMat(0x9ca3af, 'steel'), stdMat(0xdc2626) (kind guessed), stdMat(c, 'ground', {map})
 export function stdMat(color, kind, o = {}) {
@@ -67,8 +100,7 @@ export function stdMat(color, kind, o = {}) {
   const k = KINDS[kind] || KINDS.paint;
   const m = new T.MeshStandardMaterial({ color: col, metalness: k.metalness, roughness: k.roughness, flatShading: !!k.flat, ...o });
   m.userData.kind = kind;
-  ALL.push(m);
-  return m;
+  return register(m);
 }
 
 const COPY = ['map', 'emissiveMap', 'alphaMap', 'transparent', 'opacity', 'side', 'depthWrite', 'depthTest', 'blending',
@@ -94,8 +126,7 @@ function convert(old, meshes) {
   // transparent smoke etc.: matte, no reflections
   if (old.transparent) { m.metalness = 0; m.roughness = 1; }
   m.userData = { ...old.userData, kind, from: old.type };
-  ALL.push(m);
-  return m;
+  return register(m);
 }
 
 // Convert Lambert/Phong under `root`, returns Map(old -> new).
@@ -147,15 +178,15 @@ void main(){
          : (y < 0.18 ? mix(cHor, cMid, smoothstep(0.0, 0.18, y)) : mix(cMid, cTop, clamp((y - 0.18) / 0.5, 0.0, 1.0)));
   float s = max(dot(d, normalize(sunDir)), 0.0);
   float hz = exp(-abs(y) * 9.0);                       // horizon haze band
-  c = mix(c, cHor * 1.08, hz * 0.35);
-  c += cGlow * (pow(s, 6.0) * 0.55 + pow(s, 48.0) * 0.6) * (0.6 + 0.4 * hz);
+  c = mix(c, cHor, hz * 0.25);
+  c += cGlow * (pow(s, 14.0) * 0.3 + pow(s, 90.0) * 0.5) * (0.5 + 0.5 * hz);
   c += cSun * smoothstep(0.9993, 0.9997, s) * 2.0;     // sun disc
   if (clouds > 0.0 && y > 0.02) {                       // soft stylised cloud streaks
     vec2 p = d.xz / (y + 0.12) * vec2(1.2, 3.2);
     float k = n(p) * 0.6 + n(p * 2.3 + 7.1) * 0.4;
     float a = smoothstep(0.55, 0.85, k) * smoothstep(0.02, 0.12, y) * (1.0 - smoothstep(0.35, 0.7, y)) * clouds;
     vec3 cc = mix(cMid * 0.85 + cHor * 0.25, cGlow * 1.2 + cHor * 0.3, pow(s, 3.0));
-    c = mix(c, cc, a * 0.55);
+    c = mix(c, cc, a * 0.4);
   }
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>
@@ -199,12 +230,12 @@ export function makeEnv(renderer, preset) {
 // opts: { bloom: {strength, radius, threshold} | false, shadowMapSize: 2048, msaa: 4 }
 export async function applyLook({ THREE, renderer, scene, sets, light, presets = {}, opts = {} }) {
   T = THREE;
-  const o = { bloom: { strength: 0.32, radius: 0.55, threshold: 0.82 }, shadowMapSize: 2048, msaa: 4, ...opts };
+  const o = { bloom: false, glow: true, grade: true, shadowMapSize: 2048, msaa: 4, shadows: true, ibl: 'analytic', shadowType: 'pcfsoft', ...opts };
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = !!o.shadows;
+  renderer.shadowMap.type = { basic: T.BasicShadowMap, pcf: T.PCFShadowMap, pcfsoft: T.PCFSoftShadowMap, vsm: T.VSMShadowMap }[o.shadowType];
   renderer.shadowMap.autoUpdate = true;
 
   const roots = sets ? Object.values(sets) : [scene];
@@ -212,6 +243,7 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
   for (const r of roots) { upgradeMaterials(r, map); markShadows(r); }
 
   // shadows
+  if (!o.shadows) light = null;
   if (light) {
     light.castShadow = true;
     light.shadow.mapSize.set(o.shadowMapSize, o.shadowMapSize);
@@ -222,7 +254,19 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
 
   // environments per set
   const envs = {};
-  for (const k of Object.keys(presets)) envs[k] = makeEnv(renderer, presets[k]);
+  if (o.ibl === 'pmrem') for (const k of Object.keys(presets)) envs[k] = makeEnv(renderer, presets[k]);
+  // analytic reflection colours per set (linear), from preset.refl or derived from preset.sky
+  const refl = {};
+  for (const k of Object.keys(presets)) {
+    const p = presets[k], r = p.refl || {}, sk = p.sky || {};
+    const C = (x, d) => new T.Color(x ?? d);
+    refl[k] = {
+      top: r.top != null ? C(r.top) : C(sk.top, 0x8899bb).lerp(C(sk.mid, 0x8899bb), 0.5),
+      hor: C(r.hor ?? sk.hor, 0x99aabb), ground: C(r.ground ?? sk.ground ?? sk.low, 0x333333),
+      sunDir: new T.Vector3(...(r.sunDir || (sk.sunDir ? sk.sunDir.toArray() : [0.3, 0.8, 0.5]))).normalize(),
+      sunCol: C(r.sun ?? sk.glow, 0xffffff).multiplyScalar(r.sunK ?? 3), i: o.ibl === 'analytic' ? (p.envIntensity ?? 1) : 0,
+    };
+  }
 
   // composer (bloom) — optional
   let composer = null, bloom = null;
@@ -237,6 +281,16 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
     composer.addPass(new OutputPass());
   }
 
+  // camera-relative rim light (always present so the light count never changes -> no recompiles)
+  const rim = new T.DirectionalLight(0xffffff, 0); scene.add(rim); scene.add(rim.target);
+  // optional studio backdrop: a gradient dome per set (preset.backdrop = {top, mid, hor, low})
+  for (const k of Object.keys(presets)) {
+    const bd = presets[k].backdrop; if (!bd || !sets || !sets[k]) continue;
+    const m = new T.Mesh(new T.SphereGeometry(bd.radius || 1500, 32, 16), skyMaterial({ glow: 0x000000, sun: 0x000000, sunDir: new T.Vector3(0, 1, 0), clouds: 0, ...bd }));
+    m.renderOrder = -10; m.frustumCulled = false; sets[k].add(m); presets[k]._backdrop = m;
+  }
+  ENV.lkTop.value = new T.Color(); ENV.lkHor.value = new T.Color(); ENV.lkGround.value = new T.Color();
+  ENV.lkSunDir.value = new T.Vector3(0, 1, 0); ENV.lkSunCol.value = new T.Color(); ENV.lkEnvI.value = 0;
   const v = new T.Vector3(), dirN = new T.Vector3(), lm = new T.Matrix4(), lmi = new T.Matrix4();
   let curSet = null;
   const look = {
@@ -247,13 +301,24 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
       const p = presets[setKey] || {};
       scene.environment = envs[setKey] || null;
       renderer.toneMappingExposure = p.exposure || 1;
-      if (curSet !== setKey) { // envMapIntensity per set (cheap loop, only on set change)
+      if (curSet !== setKey) { // per-set reflection environment (only on set change)
         const ei = p.envIntensity == null ? 1 : p.envIntensity;
         for (const m of ALL) m.envMapIntensity = ei * (m.userData.envScale || 1);
+        const r = refl[setKey];
+        if (r) { ENV.lkTop.value = r.top; ENV.lkHor.value = r.hor; ENV.lkGround.value = r.ground; ENV.lkSunDir.value = r.sunDir; ENV.lkSunCol.value = r.sunCol; ENV.lkEnvI.value = r.i; }
         curSet = setKey;
       }
       if (bloom && p.bloom) { bloom.strength = p.bloom.strength; bloom.threshold = p.bloom.threshold; bloom.radius = p.bloom.radius ?? bloom.radius; }
       else if (bloom) { bloom.strength = o.bloom.strength; bloom.threshold = o.bloom.threshold; bloom.radius = o.bloom.radius; }
+      // rim: from behind the subject as seen by the camera, raised
+      if (p.rim) {
+        rim.color.set(p.rim.color ?? 0xffffff); rim.intensity = p.rim.intensity ?? 1.5;
+        v.subVectors(target, camera.position).setY(0).normalize(); v.y = p.rim.lift ?? 0.9;
+        if (p.rim.side) v.addScaledVector(dirN.set(-v.z, 0, v.x), p.rim.side);
+        rim.target.position.copy(target); rim.position.copy(target).addScaledVector(v.normalize(), 50);
+        rim.target.updateMatrixWorld(); rim.updateMatrixWorld();
+      } else rim.intensity = 0;
+      if (p._backdrop) p._backdrop.position.set(camera.position.x, 0, camera.position.z).sub(p._backdrop.parent.position).setY(0);
       if (!light) return;
       light.castShadow = p.shadow !== false;
       if (!light.castShadow) return;
@@ -277,10 +342,43 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
       c.updateProjectionMatrix();
       light.target.updateMatrixWorld(); light.updateMatrixWorld();
     },
+    // 2D post: soft glow (bloom) from the bright parts of the rendered WebGL canvas onto the 2D compositor
+    // canvas. Call right after ctx.drawImage(renderer.domElement, ...), before overlays / captions.
+    post(ctx, src, setKey) {
+      const p = presets[setKey] || {};
+      const g = o.glow === false ? false : (p.glow ?? o.glow);
+      const grade = o.grade === false ? false : (p.grade ?? o.grade);
+      if (grade) { // mild saturation/contrast punch to undo ACES' desaturation of brand colours
+        ctx.save(); ctx.globalCompositeOperation = 'copy';
+        ctx.filter = `saturate(${grade.saturate ?? 1.12}) contrast(${grade.contrast ?? 1.04})`;
+        ctx.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      }
+      if (g) glow2D(ctx, src, g === true ? {} : g);
+    },
     render(scene_, camera) {
       if (composer) { composer.passes[0].scene = scene_; composer.passes[0].camera = camera; composer.render(); }
       else renderer.render(scene_, camera);
     },
   };
   return look;
+}
+
+// ------------------------------------------------------------------ cheap bloom on the 2D compositor
+// Bright-pass via CSS filters (brightness+contrast act as a soft threshold on the tone-mapped image), blur
+// at 1/4 resolution, then add back with 'lighter'. ~15-25 ms at 1080x1920 vs ~650 ms for UnrealBloomPass.
+// threshold: 0..1 (tone-mapped sRGB); strength: 0..1; blur: px at the reduced scale.
+let _gc = null;
+export function glow2D(ctx, src, { strength = 0.45, threshold = 0.78, blur = 6, scale = 0.25, knee = 4 } = {}) {
+  const w = Math.round(ctx.canvas.width * scale), h = Math.round(ctx.canvas.height * scale);
+  if (!_gc || _gc.width !== w || _gc.height !== h) { _gc = document.createElement('canvas'); _gc.width = w; _gc.height = h; }
+  const g = _gc.getContext('2d');
+  // contrast(c) maps v -> (v-0.5)c+0.5, so after brightness(b) the cut is at v*b = 0.5-0.5/c
+  const b = (0.5 - 0.5 / knee) / threshold;
+  g.globalCompositeOperation = 'copy'; g.filter = `brightness(${b.toFixed(3)}) contrast(${knee}) blur(${blur}px)`;
+  g.drawImage(src, 0, 0, w, h);
+  g.filter = 'none';
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = strength; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(_gc, 0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
 }

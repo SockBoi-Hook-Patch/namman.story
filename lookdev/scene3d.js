@@ -5,6 +5,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { applyLook, skyMaterial } from './look.js'; // LOOK UPGRADE
 
 const DURATION = 153;
+// LOOK UPGRADE: 2D post hook used by frame.html (bloom/glow); pure function of the rendered frame
+function post(ctx, glCanvas, t) { if (LOOK && O.shot) LOOK.post(ctx, glCanvas, O.shot.set); }
 let THREE, renderer, scene, camera, LOOK; // LOOK UPGRADE
 let W = 1080, H = 1920;
 
@@ -296,7 +298,7 @@ function buildLand(G) {
   O.sunL = add(G, new THREE.CircleGeometry(60, 28), basic(0xfff1c9, { fog: false }), ...sunDir.clone().multiplyScalar(2300).toArray());
   O.sunL.lookAt(0, 0, 0);
   const sg2 = add(G, new THREE.CircleGeometry(240, 28), basic(0xffb27a, { fog: false, transparent: true, opacity: 0.35, depthWrite: false }), ...sunDir.clone().multiplyScalar(2320).toArray());
-  sg2.lookAt(0, 0, 0);
+  sg2.lookAt(0, 0, 0); sg2.visible = false; // LOOK UPGRADE: the sky shader draws a soft sun glow instead
   // drill pad with cellar opening
   const pad = new THREE.Shape(); pad.moveTo(-45, -45); pad.lineTo(45, -45); pad.lineTo(45, 45); pad.lineTo(-45, 45); pad.closePath();
   const hole = new THREE.Path(); hole.moveTo(-2.5, -2.5); hole.lineTo(-2.5, 2.5); hole.lineTo(2.5, 2.5); hole.lineTo(2.5, -2.5); hole.closePath();
@@ -933,8 +935,11 @@ async function init(opts) {
   const DUSK = { top: 0x1f2a63, mid: 0x9a4f86, hor: 0xffab6b, low: 0x7a5a44, glow: 0xffb27a, ground: 0x8a6448, sunDir: new THREE.Vector3(-0.62, 0.05, -0.78) };
   O.skyL.material = skyMaterial(DUSK);
   LOOK = await applyLook({ THREE, renderer, scene, sets: O.sets, light: O.dir, presets: {
-    L: { env: 'gradient', sky: DUSK, exposure: 1.15, envIntensity: 1.0, lightDir: [70, 52, 22] },
-    S: { env: 'room', exposure: 1.1, envIntensity: 0.6, shadowMin: 10 },
+    L: { env: 'gradient', sky: DUSK, exposure: 1.08, envIntensity: 1.0, lightDir: [70, 52, 22], glow: { strength: 0.35, threshold: 0.86 },
+         rim: { color: 0xffb27a, intensity: 1.2, lift: 0.35 } },
+    S: { env: 'room', refl: { top: 0xe6eefc, hor: 0x5a6b8a, ground: 0x1a2840, sun: 0xffffff, sunK: 3, sunDir: [0.4, 0.7, 0.6] }, exposure: 1.0, envIntensity: 1.1, shadowMin: 10, glow: { strength: 0.4, threshold: 0.8 },
+         lightDir: [45, 55, 40], rim: { color: 0x9cc4ff, intensity: 2.2, lift: 0.6, side: 0.5 },
+         backdrop: { top: 0x0a1222, mid: 0x1c2f52, hor: 0x0d1a2e, low: 0x0d1a2e } },
   }, opts: (typeof window !== 'undefined' && window.LOOK_OPTS) || {} });
   O.tagged = []; const seen = new Set();
   O.sets.L.traverse(m => {
@@ -1567,4 +1572,4 @@ const cues = [
   { t: 142.8, sfx: 'whoosh' }, { t: 144.0, sfx: 'bubble' },
 ];
 
-export default { DURATION, init, renderFrame, drawOverlay, captions, cues };
+export default { DURATION, init, renderFrame, post, drawOverlay, captions, cues };
