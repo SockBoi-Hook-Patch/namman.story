@@ -14,7 +14,7 @@ const only = args.filter(a => !a.startsWith('--'));
 const guides = !args.includes('--no-guides');
 const sheets = !args.includes('--no-sheets');
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css' };
 function serve() {
   const srv = http.createServer((req, res) => {
     const p = path.normalize(path.join(ROOT, decodeURIComponent(req.url.split('?')[0])));
