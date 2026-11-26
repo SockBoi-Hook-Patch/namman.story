@@ -294,9 +294,12 @@ export function sectionHeader(ctx, t, o) {
   const h = 60;
   ctx.save();
   const bw = Math.max(48, measure(ctx, index, 600, 22, 1) + 28);
-  const lw = Math.min(measure(ctx, label, 600, 28), 600);
-  const sw = sub ? Math.min(measure(ctx, sub, 400, 24), 860 - bw - lw - 60) : 0;
-  const full = Math.min(900, 6 + bw + 18 + lw + (sub ? 34 + sw : 0) + 26);
+  const avail = 900 - 6 - bw - 18 - 26;
+  let showSub = !!sub, subW = sub ? measure(ctx, sub, 400, 24) : 0;
+  let lw = Math.min(measure(ctx, label, 600, 28), avail - (showSub ? 34 + Math.min(subW, 240) : 0));
+  let sw = showSub ? Math.min(subW, avail - lw - 34) : 0;
+  if (showSub && sw < 120) { showSub = false; sw = 0; lw = Math.min(measure(ctx, label, 600, 28), avail); }
+  const full = Math.min(900, 6 + bw + 18 + lw + (showSub ? 34 + sw : 0) + 26);
   const grow = eio((t - t0 - 0.12) / 0.55) * (1 - E.o);
   const cw = lerp(h, full, grow);
   ctx.globalAlpha = E.a;
@@ -311,7 +314,7 @@ export function sectionHeader(ctx, t, o) {
   ctx.globalAlpha = E.a * tk;
   const tx = x + 6 + bw + 18 + (1 - tk) * 14;
   text(ctx, label, tx, y + h / 2 + 1, { w: 600, size: 28, color: '#fff', maxW: lw });
-  if (sub) {
+  if (showSub) {
     ctx.fillStyle = hexA(color, 0.9); ctx.beginPath(); ctx.arc(tx + lw + 17, y + h / 2, 4, 0, 7); ctx.fill();
     text(ctx, sub, tx + lw + 34, y + h / 2 + 1, { w: 400, size: 24, color: C.text2, maxW: sw });
   }
@@ -325,7 +328,7 @@ export function factCard(ctx, t, o) {
   const E = env(t, t0, t1, 0.55, 0.35); if (!E.live || E.a <= 0) return;
   const dark = theme === 'dark';
   const ink = dark ? '#fff' : C.ink, ink2 = dark ? C.text2 : C.ink2, acc = dark ? light(color, 0.35) : deep(color, 0.3);
-  const pad = 36, headH = kicker ? 72 : 58, lh = 56, bigW = big ? 290 : 0;
+  const pad = 36, headH = kicker ? 84 : 58, lh = 56, bigW = big ? 290 : 0;
   const n = Math.min(3, lines.length);
   let h = pad + headH + (n ? 18 + n * lh : 0) + pad - 6;
   if (big) h = Math.max(h, 236);
@@ -340,8 +343,8 @@ export function factCard(ctx, t, o) {
   iconBadge(ctx, iconName, ix, iy, 58, color, { solid: true, lw: 2.6 });
   const tx = ix + 29 + 20 + (1 - hk) * 12;
   if (kicker) {
-    text(ctx, kicker, tx, iy - 18, { w: 600, size: 20, ls: 2.5, color: acc, maxW: colW - 70 });
-    text(ctx, title, tx, iy + 14, { w: 600, size: 38, color: ink, maxW: colW - 70 });
+    text(ctx, kicker, tx, iy - 22, { w: 600, size: 20, ls: 2.5, color: acc, maxW: colW - 70 });
+    text(ctx, title, tx, iy + 20, { w: 600, size: 38, color: ink, maxW: colW - 70 });
   } else text(ctx, title, tx, iy + 1, { w: 600, size: 40, color: ink, maxW: colW - 70 });
   ctx.restore();
   // lines
@@ -473,7 +476,7 @@ export function flowPathMap(ctx, t, o) {
     if (n >= 6) { const r = n >= 9 ? 2 : 1, rest = n - 1 - r, tp = Math.ceil(rest / 2); sides = [1, tp, r, rest - tp]; }
     else { const tp = Math.ceil(n / 2); sides = [0, tp, 0, n - tp]; }
   }
-  const lx = x + 56, ly = y + 124, lw = w - 112, lh = h - 210, R = 44;
+  const lx = x + 56, ly = y + 150, lw = w - 112, lh = h - 232, R = 44;
   const G = loopGeom(lx, ly, lw, lh, R);
   // node arc positions
   const S = [], side = [];
@@ -612,7 +615,7 @@ export function sizeFunnel(ctx, t, o) {
     title = 'Solids Control', kicker = 'PARTICLE SIZE · µm', outlet = 'Mud สะอาด กลับสู่ Active Tank', fine = 'ละเอียด', coarse = 'หยาบ' } = o;
   const E = env(t, t0, t1, 0.55, 0.4); if (!E.live || E.a <= 0) return;
   const n = stages.length, lc = light(color, 0.45);
-  const yb0 = y + 108, bandH = rowH - 20, outY = yb0 + n * rowH, scaleY = outY + 92, h = scaleY - y + 118;
+  const yb0 = y + 108, bandH = rowH - 20, outY = yb0 + n * rowH, scaleY = outY + 96, h = scaleY - y + 104;
   const fcx = x + 236, wTop = i => lerp(380, 120, i / n);
   const shade = i => mix(color, '#e0f2f1', 0.1 + 0.5 * i / Math.max(1, n - 1));
   const cardX = x + 486, cardW = x + w - 28 - cardX;
@@ -651,12 +654,13 @@ export function sizeFunnel(ctx, t, o) {
     const cy0 = yt + 4, ch = bandH - 8;
     ctx.fillStyle = on ? hexA(sc, 0.2) : 'rgba(255,255,255,0.045)'; rr(ctx, cardX, cy0, cardW, ch, 18); ctx.fill();
     ctx.strokeStyle = on ? hexA(sc, 0.9) : 'rgba(255,255,255,0.10)'; ctx.lineWidth = on ? 2.5 : 1.5; ctx.stroke();
-    text(ctx, st.name, cardX + 22, cy0 + 32, { w: 600, size: 30, color: '#fff', maxW: cardW - 44 });
-    if (st.th) text(ctx, st.th, cardX + 22, cy0 + 66, { w: 400, size: 22, color: C.text2, maxW: cardW - 44 });
     const tag = `${st.prefix ?? ''}${st.cut} ${st.unit ?? 'µm'}`;
-    const tw = Math.min(measure(ctx, tag, 600, 24) + 30, cardW - 44);
-    ctx.fillStyle = on ? '#fff' : sc; rr(ctx, cardX + 20, cy0 + ch - 44, tw, 34, 17); ctx.fill();
-    text(ctx, tag, cardX + 20 + tw / 2, cy0 + ch - 26, { w: 600, size: 24, align: 'center', color: C.ink, maxW: tw - 20 });
+    const tw = Math.min(measure(ctx, tag, 600, 24) + 30, cardW * 0.45);
+    const ny0 = cy0 + (st.th ? ch / 2 - 18 : ch / 2);
+    text(ctx, st.name, cardX + 22, ny0, { w: 600, size: 30, color: '#fff', maxW: cardW - 44 - tw - 12 });
+    if (st.th) text(ctx, st.th, cardX + 22, ny0 + 38, { w: 400, size: 22, color: C.text2, maxW: cardW - 44 });
+    ctx.fillStyle = on ? '#fff' : sc; rr(ctx, cardX + cardW - 20 - tw, ny0 - 18, tw, 36, 18); ctx.fill();
+    text(ctx, tag, cardX + cardW - 20 - tw / 2, ny0 + 1, { w: 600, size: 24, align: 'center', color: C.ink, maxW: tw - 20 });
     ctx.restore();
   });
   // outlet spout + label
@@ -673,9 +677,9 @@ export function sizeFunnel(ctx, t, o) {
   // particles (pure: index-hashed)
   const pa = clamp((t - t0 - 0.8) / 0.6) * (1 - E.o);
   if (pa > 0) {
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 4, yb0 - 40, w - 8, outY - yb0 + 60); ctx.clip();
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 4, yb0 - 6, w - 8, outY - yb0 + 26); ctx.clip();
     const radii = i => lerp(11, 2.6, i / n);
-    const yS = yb0 - 34, yE = outY + 10;
+    const yS = yb0 - 10, yE = outY + 10;
     for (let j = 0; j < 46; j++) {
       const cls = Math.floor(hash(j, 1) * (n + 1)), P = 2.8 + hash(j, 2) * 1.0;
       const u = fract((t - t0) / P + hash(j, 3)), yy = lerp(yS, yE, Math.pow(u, 1.15));
@@ -711,7 +715,7 @@ export function sizeFunnel(ctx, t, o) {
       ctx.fillStyle = major ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)'; ctx.fillRect(xx - 1, scaleY + 9, 2, major ? 12 : 7);
       text(ctx, String(v), xx, scaleY + 36, { w: major ? 600 : 400, size: major ? 20 : 17, align: 'center', color: major ? C.text2 : C.text3 });
     }
-    text(ctx, 'µm', sx1 + 10, scaleY + 36, { w: 600, size: 18, color: C.text3 });
+    text(ctx, o.scaleLabel || 'ขนาดอนุภาค (ไมครอน, µm)', (sx0 + sx1) / 2, scaleY + 70, { w: 400, size: 20, align: 'center', color: C.text3, maxW: sx1 - sx0 });
     text(ctx, fine, sx0, scaleY - 30, { w: 600, size: 20, color: lc });
     text(ctx, coarse, sx1, scaleY - 30, { w: 600, size: 20, align: 'right', color: '#e7c08f' });
     // stage markers
@@ -748,16 +752,16 @@ export function formulaCard(ctx, t, o) {
   const { t0, t1, title, kicker = 'FORMULA', lines = [], result = null, color = SYS.circ, x = 60, y = 300, w = 900, step = 0.9, first = 0.6 } = o;
   const E = env(t, t0, t1, 0.55, 0.4); if (!E.live || E.a <= 0) return;
   const lc = light(color, 0.45), pad = 36, rowH = 96, labW = 132, resH = result ? 150 : 0;
-  const h = 118 + lines.length * rowH + (result ? resH + 22 : 0) + pad - 10;
+  const h = 136 + lines.length * rowH + (result ? resH + 22 : 0) + pad - 10;
   ctx.save(); ctx.globalAlpha = E.a; ctx.translate(0, (1 - E.i) * 40 - E.o * 24);
   glass(ctx, x, y, w, h, 34);
-  iconBadge(ctx, 'calc', x + pad + 28, y + 62, 58, color, { solid: true });
-  text(ctx, kicker, x + pad + 76, y + 44, { w: 600, size: 20, ls: 3, color: lc, maxW: w - 180 });
-  text(ctx, title, x + pad + 76, y + 78, { w: 600, size: 38, color: '#fff', maxW: w - 180 });
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x + pad, y + 116, w - pad * 2, 1.5);
+  iconBadge(ctx, 'calc', x + pad + 28, y + 70, 58, color, { solid: true });
+  text(ctx, kicker, x + pad + 76, y + 46, { w: 600, size: 20, ls: 3, color: lc, maxW: w - 180 });
+  text(ctx, title, x + pad + 76, y + 92, { w: 600, size: 38, color: '#fff', maxW: w - 180 });
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x + pad, y + 134, w - pad * 2, 1.5);
   lines.forEach((ln, i) => {
     const ts = t0 + first + i * step, u = eio((t - ts) / 0.55); if (u <= 0) return;
-    const yy = y + 118 + i * rowH + rowH / 2, last = i === lines.length - 1 && !result;
+    const yy = y + 136 + i * rowH + rowH / 2, last = i === lines.length - 1 && !result;
     ctx.save(); ctx.globalAlpha = E.a * clamp(u * 2);
     // step label tag
     if (ln.label) {
@@ -777,11 +781,11 @@ export function formulaCard(ctx, t, o) {
   if (result) {
     const ts = t0 + first + lines.length * step, u = eback((t - ts) / 0.55, 1.4);
     if (u > 0) {
-      const ry = y + 118 + lines.length * rowH + 22, rx = x + pad, rw = w - pad * 2;
+      const ry = y + 136 + lines.length * rowH + 22, rx = x + pad, rw = w - pad * 2;
       ctx.save(); ctx.globalAlpha = E.a * clamp(u * 1.6);
       ctx.translate(rx + rw / 2, ry + resH / 2); ctx.scale(0.92 + 0.08 * u, 0.92 + 0.08 * u); ctx.translate(-(rx + rw / 2), -(ry + resH / 2));
       ctx.shadowColor = hexA(color, 0.6); ctx.shadowBlur = 30;
-      const g = ctx.createLinearGradient(rx, ry, rx + rw, ry + resH); g.addColorStop(0, deep(color, 0.05)); g.addColorStop(1, deep(color, 0.4));
+      const g = ctx.createLinearGradient(rx, ry, rx + rw, ry + resH); g.addColorStop(0, deep(color, 0.22)); g.addColorStop(1, deep(color, 0.55));
       ctx.fillStyle = g; rr(ctx, rx, ry, rw, resH, 26); ctx.fill(); noShadow(ctx);
       ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; rr(ctx, rx + 1, ry + 1, rw - 2, resH - 2, 25); ctx.stroke();
       iconBadge(ctx, 'check', rx + 64, ry + resH / 2, 64, '#ffffff', { solid: false, ink: '#fff', lw: 3.4 });
@@ -831,7 +835,11 @@ export function gaugeDial(ctx, t, o) {
     ctx.strokeStyle = mj ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)'; ctx.lineWidth = mj ? 3 : 2; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(cx + Math.cos(q) * r1, cy + Math.sin(q) * r1); ctx.lineTo(cx + Math.cos(q) * r2, cy + Math.sin(q) * r2); ctx.stroke();
   }
-  if (r >= 100) for (const v of [min, (min + max) / 2, max]) { const q = ang(v); text(ctx, fmtNum(v, 0), cx + Math.cos(q) * (r - 54), cy + Math.sin(q) * (r - 54), { w: 400, size: Math.round(r * 0.13), align: 'center', color: C.text3 }); }
+  if (r >= 100) {
+    const fs = Math.round(r * 0.13), q = ang((min + max) / 2);
+    text(ctx, fmtNum((min + max) / 2, 0), cx + Math.cos(q) * (r - 54), cy + Math.sin(q) * (r - 54), { w: 400, size: fs, align: 'center', color: C.text3 });
+    for (const [v, sx] of [[min, -1], [max, 1]]) text(ctx, fmtNum(v, 0), cx + sx * Math.cos(Math.PI / 4) * r, cy + Math.sin(Math.PI / 4) * r + 26, { w: 400, size: fs, align: 'center', color: C.text3 });
+  }
   // needle
   const q = ang(shown);
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(q); shadow(ctx, 8, 3, 0.5);
@@ -1056,7 +1064,7 @@ export function wipe(ctx, t, o) {
   } else if (type === 'iris') {
     const R = Math.hypot(W, H);
     if (p < 0.5) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, R * cin, 0, 7); ctx.fill(); ctx.strokeStyle = accent; ctx.lineWidth = 12; ctx.stroke(); }
-    else { const r = R * cout; ctx.fillStyle = color; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(cx, cy, r, 0, 7, true); ctx.fill('evenodd'); ctx.strokeStyle = accent; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke(); }
+    else { const r = R * cout; ctx.fillStyle = color; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.moveTo(cx + r, cy); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath(); ctx.fill('evenodd'); ctx.strokeStyle = accent; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); }
   } else if (type === 'slide') {
     const top = p < 0.5 ? H * (1 - cin) : 0, bot = p < 0.5 ? H : H * (1 - cout);
     ctx.fillStyle = color; ctx.fillRect(0, top, W, bot - top);

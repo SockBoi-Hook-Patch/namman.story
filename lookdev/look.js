@@ -1,30 +1,34 @@
-// look.js: namman.story "look upgrade" for the stylised three.js rig scenes (three@0.160).
-// Drop-in. scene3d.js builds its sets with Lambert/Phong as before, then calls
-//   LOOK = await applyLook({ THREE, renderer, scene, sets: O.sets, light: O.dir, presets: {...} })
-// once at the end of init (BEFORE it caches materials for the highlight system), and per frame
+// look.js: namman.story "look upgrade" for the stylised three.js rig scenes (three@0.160). See LOOKDEV.md.
+// Drop-in. scene3d.js builds its sets with Lambert/Phong as before, then once at the end of init
+// (BEFORE it caches materials for the highlight system) calls
+//   LOOK = await applyLook({ THREE, renderer, scene, camera, sets: O.sets, light: O.dir, presets: {...} })
+// and per frame, after its own envSet():
 //   LOOK.frame(setKey, camera, target); LOOK.render(scene, camera)   (instead of renderer.render)
-// Everything here is deterministic: no frame history, no temporal accumulation.
+// plus, in the compositor right after drawing the WebGL canvas:  LOOK.post(ctx2d, glCanvas, setKey)
+// Everything is deterministic: no frame history, no temporal accumulation.
 //
-// What it does
+// Defaults (what ships):
 //  1. ACES Filmic tone mapping + sRGB output, per-set exposure.
-//  2. Converts every MeshLambertMaterial / MeshPhongMaterial under the sets to MeshStandardMaterial
-//     (one new material per old one, so sharing and the highlight system keep working). Roughness /
-//     metalness come from a "kind" (steel, paint, dark, rubber, ground, label, wet), inferred from colour
-//     and mesh size unless material.userData.kind is set. Smooth shading for machinery, flat for
-//     terrain, rocks and anything large (landscape).
-//  3. Image-based lighting: a PMREM environment per set (dusk gradient + sun for the land set, a
-//     RoomEnvironment for the studio), so steel picks up sky reflections.
-//  4. A directional-light shadow map (PCF soft, 2048) whose ortho camera is fitted to the shot
-//     every frame (centre on the camera target, radius from camera distance, texel-snapped).
-//  5. Optional gradient sky shader (sun glow, horizon haze, soft cloud streaks) for a sky dome mesh.
-//  6. Optional bloom (UnrealBloomPass at reduced resolution) through an EffectComposer with a 4x MSAA
-//     half-float target.
+//  2. Lambert/Phong -> MeshStandardMaterial (one new material per old one, so sharing and the highlight
+//     system keep working). Roughness/metalness from a "kind" (steel, paint, white, dark, rubber, ground,
+//     label, wet) inferred from colour and mesh size unless material.userData.kind is set. Smooth shading
+//     for machinery, flat for terrain / mesas / rocks / displaced planes.
+//  3. Cheap analytic reflection environment (sky/horizon/ground gradient + sun lobe) injected into the
+//     standard shader: steel reflects the dusk sky for a few ALU ops instead of a PMREM lookup.
+//  4. Directional-light shadow map (PCF soft, 2048), ortho camera fitted to the shot every frame
+//     (centre = camera target, radius from camera distance, texel-snapped).
+//  5. Camera-relative rim light per set; optional gradient backdrop dome (studio).
+//  6. Gradient sky shader (sun glow, horizon haze, soft cloud streaks) for the sky dome.
+//  7. 2D post on the compositor canvas: mild saturation/contrast grade + cheap 1/4-res glow (bloom).
+// Opt-in (tested, too slow on SwiftShader for the default): opts.ibl = 'pmrem' (real PMREM env map,
+// +~550 ms/frame), opts.bloom = {...} (UnrealBloomPass, +~650 ms), opts.ao = true (GTAOPass, +~2.2 s).
 
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 
 import * as THREE_NS from 'three';
 let T = THREE_NS; // same module instance as the scene (import map); applyLook({THREE}) may override
@@ -228,7 +232,7 @@ export function makeEnv(renderer, preset) {
 // presets: { L: { exposure, envIntensity, env: 'gradient'|'room', sky: {top,mid,hor,low,glow,sunDir,ground},
 //                 lightDir: [x,y,z] (optional, overrides the key direction), shadow: true }, S: {...} }
 // opts: { bloom: {strength, radius, threshold} | false, shadowMapSize: 2048, msaa: 4 }
-export async function applyLook({ THREE, renderer, scene, sets, light, presets = {}, opts = {} }) {
+export async function applyLook({ THREE, renderer, scene, camera: cam0 = null, sets, light, presets = {}, opts = {} }) {
   T = THREE;
   const o = { bloom: false, glow: true, grade: true, shadowMapSize: 2048, msaa: 4, shadows: true, ibl: 'analytic', shadowType: 'pcfsoft', ...opts };
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -269,15 +273,22 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
   }
 
   // composer (bloom) — optional
-  let composer = null, bloom = null;
-  if (o.bloom) {
+  let composer = null, bloom = null, look_ao = null;
+  if (o.bloom || o.ao) {
     const size = renderer.getSize(new T.Vector2());
     const rt = new T.WebGLRenderTarget(size.x, size.y, { type: T.HalfFloatType, samples: o.msaa });
     composer = new EffectComposer(renderer, rt);
     composer.setPixelRatio(1); composer.setSize(size.x, size.y);
     composer.addPass(new RenderPass(scene, null));
-    bloom = new UnrealBloomPass(new T.Vector2(size.x, size.y), o.bloom.strength, o.bloom.radius, o.bloom.threshold);
-    composer.addPass(bloom);
+    if (o.ao) { // tested: GTAO (see LOOKDEV.md for cost); off by default
+      const ao = new GTAOPass(scene, cam0, size.x, size.y);
+      ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1, thickness: 1, scale: 1, samples: 8 });
+      ao.blendIntensity = 0.8; composer.addPass(ao); look_ao = ao;
+    }
+    if (o.bloom) {
+      bloom = new UnrealBloomPass(new T.Vector2(size.x, size.y), o.bloom.strength, o.bloom.radius, o.bloom.threshold);
+      composer.addPass(bloom);
+    }
     composer.addPass(new OutputPass());
   }
 
@@ -356,7 +367,7 @@ export async function applyLook({ THREE, renderer, scene, sets, light, presets =
       if (g) glow2D(ctx, src, g === true ? {} : g);
     },
     render(scene_, camera) {
-      if (composer) { composer.passes[0].scene = scene_; composer.passes[0].camera = camera; composer.render(); }
+      if (composer) { composer.passes[0].scene = scene_; composer.passes[0].camera = camera; if (look_ao) look_ao.camera = camera; composer.render(); }
       else renderer.render(scene_, camera);
     },
   };

@@ -934,7 +934,7 @@ async function init(opts) {
   // ---- LOOK UPGRADE: PBR materials, IBL, shadows, sky, bloom (must run before O.tagged caches materials)
   const DUSK = { top: 0x1f2a63, mid: 0x9a4f86, hor: 0xffab6b, low: 0x7a5a44, glow: 0xffb27a, ground: 0x8a6448, sunDir: new THREE.Vector3(-0.62, 0.05, -0.78) };
   O.skyL.material = skyMaterial(DUSK);
-  LOOK = await applyLook({ THREE, renderer, scene, sets: O.sets, light: O.dir, presets: {
+  LOOK = await applyLook({ THREE, renderer, scene, camera, sets: O.sets, light: O.dir, presets: {
     L: { env: 'gradient', sky: DUSK, exposure: 1.08, envIntensity: 1.0, lightDir: [70, 52, 22], glow: { strength: 0.35, threshold: 0.86 },
          rim: { color: 0xffb27a, intensity: 1.2, lift: 0.35 } },
     S: { env: 'room', refl: { top: 0xe6eefc, hor: 0x5a6b8a, ground: 0x1a2840, sun: 0xffffff, sunK: 3, sunDir: [0.4, 0.7, 0.6] }, exposure: 1.0, envIntensity: 1.1, shadowMin: 10, glow: { strength: 0.4, threshold: 0.8 },
