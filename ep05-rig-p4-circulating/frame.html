@@ -107,6 +107,7 @@ window.renderFrame = async function (t, type = 'image/png', q) {
   Scene.renderFrame(t);
   o.globalAlpha = 1; o.setTransform(1, 0, 0, 1, 0, 0);
   o.drawImage(renderer.domElement, 0, 0, W, H);
+  if (Scene.post) Scene.post(o, renderer.domElement, t); // look upgrade: glow / post on the 3D layer
   o.save(); try { Scene.drawOverlay && Scene.drawOverlay(o, t); } finally { o.restore(); }
   drawCaption(t);
   return out.toDataURL(type, q).split(',')[1];
