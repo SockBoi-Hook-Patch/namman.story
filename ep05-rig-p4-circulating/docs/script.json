@@ -1,0 +1,543 @@
+{
+ "duration": 170,
+ "vo": [
+  {
+   "id": 1,
+   "t": 0.6,
+   "end": 7.8,
+   "text": "Part 4 มาดู เซอร์คิวเลติ้ง ซิสเต็ม ระบบไหลเวียนของ Mud"
+  },
+  {
+   "id": 2,
+   "t": 8.4,
+   "end": 15.4,
+   "text": "ตาม Mud หนึ่งหยด วิ่งเป็นวงปิด ลงหลุมแล้วกลับถังเดิม"
+  },
+  {
+   "id": 3,
+   "t": 16.0,
+   "end": 22.2,
+   "text": "จากแอคทีฟแท้งค์ ชาร์จปั๊มป้อน Mud ให้ Mud Pump"
+  },
+  {
+   "id": 4,
+   "t": 22.8,
+   "end": 29.6,
+   "text": "Mud Pump ปัจจุบันเป็นทริปเพล็กซ์ สามลูกสูบ อัดทางเดียว"
+  },
+  {
+   "id": 5,
+   "t": 30.0,
+   "end": 37.2,
+   "text": "ไลเนอร์เล็ก แรงดันสูงแต่ไหลน้อย ไลเนอร์ใหญ่ตรงกันข้าม"
+  },
+  {
+   "id": 6,
+   "t": 37.8,
+   "end": 45.2,
+   "text": "แดมเปนเนอร์อัดไนโตรเจนลดแรงกระชาก ป๊อปออฟวาล์วกันแรงดันเกิน"
+  },
+  {
+   "id": 7,
+   "t": 45.8,
+   "end": 53.2,
+   "text": "ไลเนอร์หกนิ้ว ร้อยชักต่อนาที ได้ราวสี่ร้อยสี่สิบ จี-พี-เอ็ม"
+  },
+  {
+   "id": 8,
+   "t": 53.8,
+   "end": 61.2,
+   "text": "จากปั๊ม ผ่านสแตนด์ไปป์ แมนิโฟลด์ ขึ้นสแตนด์ไปป์ตามเสาแท่น"
+  },
+  {
+   "id": 9,
+   "t": 61.8,
+   "end": 69.2,
+   "text": "แล้วเข้าเคลลี่โฮส สายยางแรงดันสูงที่ขึ้นลงตาม Top Drive"
+  },
+  {
+   "id": 10,
+   "t": 69.8,
+   "end": 76.6,
+   "text": "ผ่านกูสเน็คและวอชไปป์ ซีลที่ให้ Mud เข้าเพลาที่หมุน"
+  },
+  {
+   "id": 11,
+   "t": 77.2,
+   "end": 83.4,
+   "text": "Mud ไหลลงก้านเจาะ แล้วพุ่งแรงออกนอซเซิลที่ Bit"
+  },
+  {
+   "id": 12,
+   "t": 84.0,
+   "end": 90.4,
+   "text": "แล้วพาเศษหินขึ้นทางแอนนูลัส ช่องว่างรอบก้านเจาะ"
+  },
+  {
+   "id": 13,
+   "t": 91.0,
+   "end": 98.4,
+   "text": "ออกที่เบลนิปเปิ้ลบน บี-โอ-พี ไหลลงโฟลว์ไลน์ด้วยแรงโน้มถ่วง"
+  },
+  {
+   "id": 14,
+   "t": 99.0,
+   "end": 106.2,
+   "text": "ถ้าโคลนไหลออกมากกว่าที่ปั๊มลงไป อาจเป็นสัญญาณแรกของคิก"
+  },
+  {
+   "id": 15,
+   "t": 106.8,
+   "end": 113.6,
+   "text": "แล้วคัดของแข็งจากหยาบไปละเอียด เริ่มที่เชลเชคเกอร์"
+  },
+  {
+   "id": 16,
+   "t": 114.2,
+   "end": 121.4,
+   "text": "ดีแก๊สเซอร์ดูดแก๊สออก ก่อนถึงเครื่องที่ใช้ปั๊มหอยโข่ง"
+  },
+  {
+   "id": 17,
+   "t": 122.0,
+   "end": 129.4,
+   "text": "ดีแซนเดอร์กรวยใหญ่แยกทราย ดีซิลเตอร์กรวยเล็กแยกตะกอนละเอียด"
+  },
+  {
+   "id": 18,
+   "t": 130.0,
+   "end": 137.4,
+   "text": "เซ็นตริฟิวจ์ แยกอนุภาคเล็กที่สุด หรือเก็บแบไรต์กลับมาใช้"
+  },
+  {
+   "id": 19,
+   "t": 138.0,
+   "end": 145.5,
+   "text": "Driller ดู เอส-พี-พี และ พี-วี-ที ที่เตือนถ้าโคลนเพิ่มหรือลด"
+  },
+  {
+   "id": 20,
+   "t": 146.0,
+   "end": 153.4,
+   "text": "ถัง ปั๊ม ลงหลุม ขึ้นมาคัดกรอง ครบวง เซอร์คิวเลติ้ง ซิสเต็ม"
+  },
+  {
+   "id": 21,
+   "t": 154.0,
+   "end": 161.0,
+   "text": "กดติดตามไว้ เพื่อไม่พลาดตอนต่อไปนะครับ"
+  },
+  {
+   "id": 22,
+   "t": 161.6,
+   "end": 168.8,
+   "text": "ตอนต่อไป เราจะไปดู Well Control System ระบบกันหลุมพ่น"
+  }
+ ],
+ "captions": [
+  {
+   "t0": 0,
+   "t1": 8.0,
+   "th": "Part 4: Circulating System ระบบไหลเวียน Mud",
+   "en": "Part 4: the circulating system"
+  },
+  {
+   "t0": 8.0,
+   "t1": 15.7,
+   "th": "Mud วิ่งเป็นวงปิด: ถัง → หลุม → ถัง",
+   "en": "Mud runs in a closed loop: tank, hole, tank"
+  },
+  {
+   "t0": 15.7,
+   "t1": 22.5,
+   "th": "Active Tank → Charge Pump → Mud Pump",
+   "en": "Active tank, charge pump, then the mud pump"
+  },
+  {
+   "t0": 22.5,
+   "t1": 29.7,
+   "th": "Triplex Pump: 3 ลูกสูบ อัดทางเดียว",
+   "en": "Triplex pump: three single-acting pistons"
+  },
+  {
+   "t0": 29.7,
+   "t1": 37.5,
+   "th": "Liner เล็ก = แรงดันสูง แต่ไหลน้อย",
+   "en": "Smaller liner: more pressure, less flow"
+  },
+  {
+   "t0": 37.5,
+   "t1": 45.5,
+   "th": "Dampener ลดกระชาก · Pop-off กันแรงดันเกิน",
+   "en": "Dampener smooths pulses; pop-off stops overpressure"
+  },
+  {
+   "t0": 45.5,
+   "t1": 53.5,
+   "th": "Liner 6 in · 100 SPM ≈ 441 gpm",
+   "en": "6-in liner at 100 SPM: about 441 gpm"
+  },
+  {
+   "t0": 53.5,
+   "t1": 61.5,
+   "th": "Standpipe Manifold → Standpipe ขึ้นเสาแท่น",
+   "en": "Manifold to standpipe, up the mast"
+  },
+  {
+   "t0": 61.5,
+   "t1": 69.5,
+   "th": "Kelly Hose ขยับขึ้นลงตาม Top Drive",
+   "en": "The kelly hose moves with the top drive"
+  },
+  {
+   "t0": 69.5,
+   "t1": 76.9,
+   "th": "Gooseneck → Washpipe ซีลเข้าเพลาที่หมุน",
+   "en": "Gooseneck and washpipe: the rotating seal"
+  },
+  {
+   "t0": 76.9,
+   "t1": 83.7,
+   "th": "Mud ลงก้านเจาะ พุ่งออก Nozzle ที่ Bit",
+   "en": "Down the drill string, out of the bit nozzles"
+  },
+  {
+   "t0": 83.7,
+   "t1": 90.7,
+   "th": "เศษหินขึ้นทาง Annulus รอบก้านเจาะ",
+   "en": "Cuttings ride up the annulus"
+  },
+  {
+   "t0": 90.7,
+   "t1": 98.7,
+   "th": "Bell Nipple → Flowline ไหลด้วยแรงโน้มถ่วง",
+   "en": "Bell nipple to flowline, by gravity"
+  },
+  {
+   "t0": 98.7,
+   "t1": 106.5,
+   "th": "Flow Out มากกว่า Flow In: ระวัง Kick",
+   "en": "More flow out than in: a possible kick"
+  },
+  {
+   "t0": 106.5,
+   "t1": 113.9,
+   "th": "Solids Control: หยาบ → ละเอียด เริ่ม Shaker",
+   "en": "Solids control, coarse to fine: shakers first"
+  },
+  {
+   "t0": 113.9,
+   "t1": 121.7,
+   "th": "Degasser ดึงแก๊สออก ก่อนถึงปั๊มหอยโข่ง",
+   "en": "The degasser removes gas before centrifugal pumps"
+  },
+  {
+   "t0": 121.7,
+   "t1": 129.7,
+   "th": "Desander แยกทราย · Desilter แยกตะกอน",
+   "en": "Desander takes sand; desilter takes silt"
+  },
+  {
+   "t0": 129.7,
+   "t1": 137.7,
+   "th": "Centrifuge: อนุภาคเล็กสุด / เก็บ Barite",
+   "en": "Centrifuge: finest solids, or barite recovery"
+  },
+  {
+   "t0": 137.7,
+   "t1": 145.7,
+   "th": "Driller ดู SPP และ PVT เตือนเพิ่ม/ลด",
+   "en": "The driller watches SPP and PVT alarms"
+  },
+  {
+   "t0": 145.7,
+   "t1": 153.7,
+   "th": "ครบวง: นี่คือ Circulating System",
+   "en": "Full loop: that is the circulating system"
+  },
+  {
+   "t0": 153.7,
+   "t1": 161.3,
+   "th": "กดติดตามไว้ เพื่อไม่พลาดตอนต่อไป",
+   "en": "Follow so you don’t miss the next part"
+  },
+  {
+   "t0": 161.3,
+   "t1": 169.3,
+   "th": "ตอนต่อไป: Well Control System",
+   "en": "Next: the well control system"
+  }
+ ],
+ "cards": [
+  {
+   "t0": 0.4,
+   "t1": 7.8,
+   "kind": "title",
+   "title": "DRILLING RIG 101 · EP.05",
+   "lines": [
+    "PART 4 / 5",
+    "Circulating System",
+    "Mud 1 หยด เดินทางผ่านอะไรบ้าง?"
+   ]
+  },
+  {
+   "t0": 8.6,
+   "t1": 15.4,
+   "kind": "fact",
+   "title": "Circulating System",
+   "lines": [
+    "Closed loop · วงปิด",
+    "ขาลง: ปั๊มอัดแรงดันสูง",
+    "ขาขึ้น: กลับมาคัดกรองที่ผิวดิน"
+   ]
+  },
+  {
+   "t0": 16.2,
+   "t1": 22.4,
+   "kind": "fact",
+   "title": "Mud Tanks",
+   "lines": [
+    "Active Tank: Mud ที่หมุนเวียน",
+    "Trip Tank: ถังแคบ วัดตอนถอนท่อ",
+    "Charge Pump: ป้อน Mud ให้ปั๊มใหญ่"
+   ]
+  },
+  {
+   "t0": 23.0,
+   "t1": 29.4,
+   "kind": "fact",
+   "title": "Triplex Mud Pump",
+   "lines": [
+    "3 ลูกสูบ · Single-acting",
+    "ตัวอย่าง: 1,600 hp · 120 SPM",
+    "Stroke 12 in · 5,000 / 7,500 psi"
+   ]
+  },
+  {
+   "t0": 30.2,
+   "t1": 37.2,
+   "kind": "fact",
+   "title": "Liner Size",
+   "lines": [
+    "7 in → 720 gpm · 3,429 psi",
+    "4½ in → 297 gpm · 7,500 psi",
+    "ข้อมูล FC-1600 @ 120 SPM"
+   ]
+  },
+  {
+   "t0": 38.0,
+   "t1": 45.2,
+   "kind": "fact",
+   "title": "Pump Safety",
+   "lines": [
+    "Pulsation Dampener: อัด N₂",
+    "ลดแรงกระชากของแรงดัน",
+    "Pop-off Valve: กันแรงดันเกิน"
+   ]
+  },
+  {
+   "t0": 46.0,
+   "t1": 53.4,
+   "kind": "calc",
+   "title": "Pump Output (Triplex)",
+   "lines": [
+    "bbl/stk = 0.000243 × D² × L",
+    "6 in × 12 in = 0.105 bbl/stk",
+    "× 100 SPM ≈ 441 gpm*"
+   ],
+   "note": "* ที่ 100% efficiency (95% ≈ 419 gpm)"
+  },
+  {
+   "t0": 54.0,
+   "t1": 61.2,
+   "kind": "fact",
+   "title": "Standpipe",
+   "lines": [
+    "Manifold: วาล์วแยกทาง Mud",
+    "SPP Gauge ให้ Driller ดู",
+    "ท่อเหล็กขึ้นเสา ~2/3 ความสูง"
+   ]
+  },
+  {
+   "t0": 62.0,
+   "t1": 69.2,
+   "kind": "fact",
+   "title": "Rotary / Kelly Hose",
+   "lines": [
+    "สายยางเสริมเหล็ก แรงดันสูง",
+    "ขยับขึ้นลงตาม Top Drive",
+    "ต่อเข้า Gooseneck ไม่ใช่ Kelly"
+   ]
+  },
+  {
+   "t0": 70.0,
+   "t1": 76.6,
+   "kind": "fact",
+   "title": "Gooseneck + Washpipe",
+   "lines": [
+    "Gooseneck: ท่อโค้ง อยู่กับที่",
+    "Washpipe: ซีลระหว่างนิ่งกับหมุน",
+    "Packing สึกหรอ ต้องเปลี่ยน"
+   ]
+  },
+  {
+   "t0": 77.4,
+   "t1": 83.4,
+   "kind": "fact",
+   "title": "Bit Nozzles",
+   "lines": [
+    "ขนาดเป็น 1/32 in (12 = 12/32)",
+    "แรงดันราว ½–⅔ ของ SPP ใช้ที่ Bit",
+    "เมื่อออกแบบ Hydraulics ให้เหมาะ"
+   ]
+  },
+  {
+   "t0": 84.2,
+   "t1": 90.4,
+   "kind": "fact",
+   "title": "Annulus",
+   "lines": [
+    "ช่องว่างรอบ Drill String",
+    "พา Cuttings ขึ้นผิวดิน",
+    "AV ทั่วไป ~100–200 ft/min"
+   ]
+  },
+  {
+   "t0": 91.2,
+   "t1": 98.4,
+   "kind": "fact",
+   "title": "Return Line",
+   "lines": [
+    "Bell Nipple: บนสุดของ BOP Stack",
+    "ไม่ได้ใช้ปิดหลุม",
+    "Flowline: ลาดลง ไม่มีแรงดัน"
+   ]
+  },
+  {
+   "t0": 99.2,
+   "t1": 106.2,
+   "kind": "fact",
+   "title": "Flow Check",
+   "lines": [
+    "Flow Paddle วัด Flow Out (%)",
+    "Flow Out ↑ ขณะปั๊มเท่าเดิม",
+    "= สัญญาณ Kick แรกสุดบนผิวดิน"
+   ]
+  },
+  {
+   "t0": 107.0,
+   "t1": 137.4,
+   "kind": "diagram",
+   "title": "Solids Control: หยาบ → ละเอียด",
+   "lines": [],
+   "tiers": [
+    {
+     "t": 107.4,
+     "label": "Shale Shaker",
+     "size": "> ~75 µm (API 200)"
+    },
+    {
+     "t": 122.2,
+     "label": "Desander",
+     "size": "D50 ~40–50 µm"
+    },
+    {
+     "t": 125.6,
+     "label": "Desilter",
+     "size": "D50 ~15–20 µm"
+    },
+    {
+     "t": 130.2,
+     "label": "Centrifuge",
+     "size": "~2–7 µm"
+    }
+   ],
+   "note": "ค่าประมาณทั่วไป · Degasser อยู่หลัง Shaker (ไม่ได้แยกตามขนาด)"
+  },
+  {
+   "t0": 108.4,
+   "t1": 113.6,
+   "kind": "fact",
+   "title": "Shale Shaker",
+   "lines": [
+    "ตะแกรงสั่น Linear Motion ~4–7 G",
+    "API 200 ≈ 69–82.5 µm",
+    "เลข API ไม่ใช่ Mesh"
+   ]
+  },
+  {
+   "t0": 114.4,
+   "t1": 121.4,
+   "kind": "fact",
+   "title": "Vacuum Degasser",
+   "lines": [
+    "ดูดแก๊สที่ปนในโคลนออก",
+    "อยู่ก่อนเครื่องที่ใช้ปั๊มหอยโข่ง",
+    "≠ Mud Gas Separator (Part 5)"
+   ]
+  },
+  {
+   "t0": 122.6,
+   "t1": 129.4,
+   "kind": "fact",
+   "title": "Hydrocyclones",
+   "lines": [
+    "Desander: กรวย 10 in · ~500 gpm",
+    "Desilter: กรวย 4 in · ~60 gpm",
+    "Desander ต้องมาก่อน Desilter"
+   ]
+  },
+  {
+   "t0": 131.0,
+   "t1": 137.4,
+   "kind": "fact",
+   "title": "Centrifuge",
+   "lines": [
+    "ถังหมุนแนวนอน + Screw Conveyor",
+    "Mud หนัก: เก็บ Barite (~650 G)",
+    "Mud เบา: ทิ้งของแข็งละเอียด"
+   ]
+  },
+  {
+   "t0": 138.2,
+   "t1": 145.4,
+   "kind": "fact",
+   "title": "Driller Monitors",
+   "lines": [
+    "SPP: แรงดันที่ Standpipe",
+    "PVT: รวมปริมาตรทุกถัง",
+    "เตือน Pit Gain / Loss"
+   ]
+  },
+  {
+   "t0": 146.2,
+   "t1": 153.4,
+   "kind": "recap",
+   "title": "Circulating System",
+   "lines": [
+    "Tank → Pump → Standpipe → Hose",
+    "Top Drive → Drill String → Bit",
+    "Annulus → Flowline → Solids Control"
+   ]
+  },
+  {
+   "t0": 154.2,
+   "t1": 161.0,
+   "kind": "cta",
+   "title": "กดติดตาม",
+   "lines": [
+    "namman.story"
+   ]
+  },
+  {
+   "t0": 161.8,
+   "t1": 169.0,
+   "kind": "teaser",
+   "title": "PART 5 / 5",
+   "lines": [
+    "Well Control System",
+    "BOP · Choke Manifold · MGS"
+   ]
+  }
+ ]
+}
