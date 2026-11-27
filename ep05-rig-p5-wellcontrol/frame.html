@@ -25,7 +25,8 @@ const o = out.getContext('2d');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1);
-renderer.setSize(W, H, false);
+const RS = window.RS || +(new URLSearchParams(location.search).get('rs') || 1); // 3D render scale (overlays stay full-res)
+renderer.setSize(Math.round(W * RS), Math.round(H * RS), false);
 renderer.domElement.id = 'gl';
 document.body.appendChild(renderer.domElement);
 
@@ -106,6 +107,7 @@ window.renderFrame = async function (t, type = 'image/png', q) {
   await ensureInit();
   Scene.renderFrame(t);
   o.globalAlpha = 1; o.setTransform(1, 0, 0, 1, 0, 0);
+  o.imageSmoothingEnabled = true; o.imageSmoothingQuality = 'high';
   o.drawImage(renderer.domElement, 0, 0, W, H);
   if (Scene.post) Scene.post(o, renderer.domElement, t); // look upgrade: glow / post on the 3D layer
   o.save(); try { Scene.drawOverlay && Scene.drawOverlay(o, t); } finally { o.restore(); }

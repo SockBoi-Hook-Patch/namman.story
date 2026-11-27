@@ -112,18 +112,17 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.11, 0.105, 0.10), wChip);`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   roughnessFactor = clamp(roughnessFactor + (wN.r - 0.5) * 2.0 * wP.w + wStreak * wP.w * 0.8 + wChip * 0.25, 0.04, 1.0);`)
-        .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
   #if NUM_CLIPPING_PLANES > 0
-  // cap: clean solid section colour (back faces of closed solids seen through the cut). Front faces that lie in the
-  // cut plane (within 3 mm) are capped too, so coplanar faces never z-fight with the cap (no streaks / stripes).
-  // Caps also win depth ties (a small view-relative bias toward the camera, ~0.04 % of the distance), so contact faces
-  // between touching solids (bonnet flange on body, ring gasket faces) can't shimmer through the section.
+  // cap: clean solid section colour (back faces of closed solids seen through the cut). Front faces lying in the cut
+  // plane (within 3 mm) are capped too, so coplanar faces never z-fight with the cap (no streaks / stripes). Caps also
+  // win depth ties (a small view-relative bias toward the camera), and they return before any lighting (cheap).
   float wCd = clippingPlanes[0].w - dot(vClipPosition, clippingPlanes[0].xyz);
   gl_FragDepth = gl_FragCoord.z;
   if (capOn > 0.5 && (!gl_FrontFacing || wCd < 0.003)) {
-    float wTone = 0.975 + 0.035 * (wN.r - 0.5);
-    gl_FragColor = vec4(capCol * wTone, 1.0);
+    gl_FragColor = vec4(capCol, 1.0);
     gl_FragDepth = gl_FragCoord.z - (1.0 - gl_FragCoord.z) * 0.0004;
+    return;
   }
   #endif`);
     };
@@ -1067,7 +1066,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   function gateValve(o = {}) {
     const kind = o.kind || 'manual', f = FL[o.size || '3-1/16x10M'], k = f.R / FL['3-1/16x10M'].R;
     const g = asset('gateValve_' + kind);
-    const P = o.pal || palette(o.colors), B = bin(), bolts = o.bolts || boltSet();
+    const P = o.pal || palette(o.colors), B = bin(), bolts = boltSet(); // own bolt set: the frames below are valve-local (a shared parent set would leave them floating)
     const ftf = (o.ftf || 0.52) * k, hw = ftf / 2, bodyW = 0.27 * k;
     const bodyKey = o.bodyKey || 'grey';
     // body (chamfered block) + end hubs + flanges
@@ -1120,7 +1119,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       g.api.setOpen = () => {};
     }
     B.build(g, P, 'valve');
-    if (!o.bolts) bolts.build(g, P);
+    bolts.build(g, P);
     // end-flange studs (the mating flange's nuts) are added by whoever bolts it in; anchors at both faces
     g.anchor('in', [-hw, 0, 0]); g.anchor('out', [hw, 0, 0]); g.anchor('top', [0, top + 0.45 * k, 0]);
     g.userData.ftf = ftf; g.userData.flange = f;
@@ -1743,7 +1742,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   // manual: bonnet + handwheel + position scale; hydraulic: actuator + position transmitter.
   // api.setOpen(u) (0 = needle in the seat .. 1 = full open), api.setCut(u) (body half-section)
   function adjustableChoke(o = {}) {
-    const g = asset(o.hydraulic ? 'chokeHydraulic' : 'chokeManual'); const P = o.pal || palette(), B = bin(), bolts = o.bolts || boltSet();
+    const g = asset(o.hydraulic ? 'chokeHydraulic' : 'chokeManual'); const P = o.pal || palette(), B = bin(), bolts = boltSet(); // own bolt set: its frames are choke-local
     const CP = tintCaps(palette({ grey: (P.grey && P.grey.color && P.grey.color.getHex()) || 0x5d646d }), 0xb9bdc2, 1);
     const F3 = FL['3-1/16x10M'], CB = bin();
     // body: side profile (x-y) with passages as voids, extruded along z; solid side plates close it
@@ -1804,7 +1803,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       const ind = new THREE.Mesh(cyl(0.015, 0.12, 10), P.yellow); g.add(g.part('indicator', ind));
       setOp = u => { ind.position.y = 0.75 + 0.04 + u * 0.06; };
     }
-    B.build(g, P, 'chokeTop'); if (!o.bolts) bolts.build(g, P);
+    B.build(g, P, 'chokeTop'); bolts.build(g, P);
     g.api.setOpen = u => { u = clamp(u); needle.position.y = -0.012 + 0.0 + u * 0.075; setOp(u); };
     const cmats = [...collectMats(g).filter(m => Object.values(CP).includes(m))];
     const cut = cutter(g, cmats, { extent: 0.14 });

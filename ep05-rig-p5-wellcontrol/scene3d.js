@@ -1190,8 +1190,8 @@ const SHOTS = [
     if (j < ks.length - 1 && keys[j + 1][1] === keys[j][1]) c = push(c, t, ks[j], ks[j + 1], 0.02);
     return c;
   } },
-  { id: 5, t0: 36.8, t1: 43.6, set: 'S', sub: 'ANN', cam: t => K(t, [[36.8, [1.0, 1.02, 3.6], [0, 0.64, 0], 34, [40, 130]], [43.6, [0.84, 0.94, 3.1], [0, 0.64, 0], 34, [40, 130]]]) },
-  { id: 6, t0: 43.6, t1: 50.1, set: 'S', sub: 'ANN', cam: t => K(t, [[43.6, [0.84, 0.94, 3.1], [0, 0.64, 0], 34, [40, 130]], [47.0, [0.8, 0.92, 2.98], [0, 0.64, 0], 34, [40, 130]], [49.8, [0.8, 0.9, 2.96], [0, 0.6, 0], 34, [40, 130]]]) },
+  { id: 5, t0: 36.8, t1: 43.6, set: 'S', sub: 'ANN', cam: t => K(t, [[36.8, [1.3, 1.25, 5.0], [0, 0.64, 0], 34, [40, 110]], [43.6, [1.1, 1.12, 4.3], [0, 0.64, 0], 34, [40, 110]]]) },
+  { id: 6, t0: 43.6, t1: 50.1, set: 'S', sub: 'ANN', cam: t => K(t, [[43.6, [1.1, 1.12, 4.3], [0, 0.64, 0], 34, [40, 110]], [47.0, [1.0, 1.06, 4.0], [0, 0.64, 0], 34, [40, 110]], [49.8, [1.0, 1.02, 3.95], [0, 0.6, 0], 34, [40, 110]]]) },
   { id: 7, t0: 50.1, t1: 56.3, set: 'S', sub: 'RAM', cam: t => K(t, [[50.1, [0, 4.7, 1.35], [0, 1.17, -0.03], 40, [40, 150]], [53.2, [0, 4.6, 1.33], [0, 1.17, -0.03], 40, [40, 150]], [56.3, [0, 2.55, 0.6], [0, 1.17, 0], 40, [40, 150]]]) },
   { id: 8, t0: 56.3, t1: 63.7, set: 'S', sub: 'RAM', cam: t => {
     if (t < 58.6) return K(t, [[56.3, [0, 2.55, 0.6], [0, 1.17, 0], 40, [40, 150]], [58.6, [0, 2.3, 0.62], [0, 0.6, 0], 40, [40, 150]]]);
@@ -1206,11 +1206,11 @@ const SHOTS = [
     const j = shudder(t, 73.6, 0.0035); c.p = [c.p[0], c.p[1] + j, c.p[2]]; return c;
   } },
   { id: 11, t0: 77.6, t1: 84.6, set: 'L', cam: t => {
-    const A = [[-2.06, 8.72, 0.28], [-2.06, 8.68, 2.45]];
-    if (t < 78.6) return { p: A[0], l: A[1], fov: 40, vo: [0, 200] };
+    const A = [[-2.22, 8.72, -0.2], [-2.22, 8.68, 2.45]];
+    if (t < 78.6) return { p: A[0], l: A[1], fov: 40, vo: [0, 90] };
     if (t < 80.8) { const P = spline('s11p', [A[0], [-1.6, 8.2, -0.6], [3.0, 6.4, -9.6], [7.2, 4.0, -15.5], [6.0, 1.7, -18.6]], t, 78.6, 80.8);
       const L = spline('s11l', [A[1], [0.0, 7.5, -2.0], [3.6, 2.5, -8.0], [6.0, 1.15, -12.6]], t, 78.6, 80.8);
-      return { p: P, l: L, fov: 40, vo: V([0, 200, 0], [0, 40, 0], eio5((t - 78.6) / 2.2)).slice(0, 2) }; }
+      return { p: P, l: L, fov: 40, vo: V([0, 90, 0], [0, 40, 0], eio5((t - 78.6) / 2.2)).slice(0, 2) }; }
     return push({ p: [6.0, 1.7, -18.6], l: [6.0, 1.15, -12.6], fov: 40, vo: [0, 40] }, t, 80.8, 84.6, 0.035);
   } },
   { id: 12, t0: 84.6, t1: 91.4, set: 'L', blend: 0.8, cam: t => K(t, [[84.6, [7.95, 1.3, -15.6], [8.3, 1.05, -13.2], 36, [0, 60]], [88.2, [7.9, 1.3, -15.4], [8.3, 1.05, -13.2], 36, [0, 60]], [89.2, [6.25, 1.72, -14.75], [6.0, 1.6, -12.8], 36, [0, 40]], [91.4, [6.2, 1.7, -14.6], [6.0, 1.58, -12.8], 36, [0, 40]]]) },
@@ -1223,7 +1223,7 @@ const SHOTS = [
   { id: 16.2, t0: 116.2, t1: 119.2, set: 'L', cam: t => push({ p: [4.6, 8.72, -5.6], l: [3.05, 8.62, -5.6], fov: 36, vo: [0, 40] }, t, 116.2, 119.2, 0.03) },
   { id: 17, t0: 119.2, t1: 126.4, set: 'L', cam: t => K(t, [[119.2, [-20.0, 4.6, 23.5], [-14, 4.2, 4], 34, [-170, -150]], [122.4, [-19.6, 4.5, 21.8], [-14, 4.2, 4], 34, [-170, -150]], [124.2, [-19.6, 4.8, 21.8], [-14.4, 12.5, 4.5], 34, [-170, -150]], [126.4, [-19.2, 3.4, 20.4], [-14.6, 2.0, 4.4], 34, [-170, -60]]]) },
   { id: 18, t0: 126.4, t1: 133.4, set: 'L', cam: t => K(t, [[126.4, [-19.2, 3.4, 20.4], [-14.6, 2.0, 4.4], 34, [-170, -60]], [128.0, [-17.6, 2.0, 12.9], [-14.8, 1.7, 4.3], 34, [-120, 40]], [133.4, [-17.4, 1.95, 12.2], [-14.8, 1.7, 4.3], 34, [-120, 40]]]) },
-  { id: 19, t0: 133.4, t1: 135.2, set: 'L', cam: t => K(t, [[133.4, [-2.7, 8.4, 2.2], [0, 10.0, 0], 40], [135.2, [-2.65, 8.45, 2.15], [0, 11.4, 0], 40]]) },
+  { id: 19, t0: 133.4, t1: 135.2, set: 'L', cam: t => K(t, [[133.4, [1.6, 12.0, -15.5], [0, 12.6, 0], 42], [135.2, [1.55, 12.3, -15.3], [0, 13.4, 0], 42]]) },
   { id: 19.2, t0: 135.2, t1: 139.6, set: 'L', cam: t => K(t, [[135.2, [30.0, 2.6, 0.9], [28.1, 2.15, -5.0], 36, [0, 40]], [139.6, [29.75, 2.5, 0.3], [28.1, 2.1, -5.0], 36, [0, 40]]]) },
   { id: 20, t0: 139.6, t1: 141.0, set: 'L', cam: t => K(t, [[139.6, [2.6, 19.4, 3.0], [0, 19.4, 0], 36], [141.0, [2.2, 19.2, 2.5], [0, 19.2, 0], 36]]) },
   { id: 20.2, t0: 141.0, t1: 145.2, set: 'S', sub: 'IBOP', cam: t => K(t, [[141.0, [0.62, 1.0, 2.15], [0, 0.78, 0], 32, [40, 60]], [145.2, [0.52, 0.92, 1.85], [0, 0.76, 0], 32, [40, 60]]]) },
@@ -1236,7 +1236,7 @@ const SHOTS = [
   { id: 23.3, t0: 163.3, t1: 166.1, set: 'L', cam: t => push({ p: [-1.3, 1.3, -9.4], l: [0, 1.0, 0], fov: 40, vo: [0, 40] }, t, 163.3, 166.1, 0.03) },
   { id: 24, t0: 166.1, t1: 172.4, set: 'L', cam: t => K(t, [[166.1, [112, 34, -14], [-2, 13, 1], 26, [0, -380]], [171.0, [150, 56, -20], [-2, 14, 1], 22, [0, -380]], [172.4, [150, 56, -20], [-2, 14, 1], 22, [0, -380]]]) },
   { id: 25, t0: 172.4, t1: 177.4, set: 'L', cam: t => K(t, [[172.4, [150, 56, -20], [-2, 14, 1], 22, [0, -380]], [177.4, [146, 55, -19.5], [-2, 14, 1], 22, [0, -380]]]) },
-  { id: 26, t0: 177.4, t1: 183.61, set: 'W', base: [80, 0, 0], cam: t => K(t, [[177.4, [8, 11, 31], [0, -1, 0], 40], [183.0, [6.5, -13, 27], [0, -23, 0], 40]]) },
+  { id: 26, t0: 177.4, t1: 183.61, set: 'W', base: [80, 0, 0], cam: t => K(t, [[177.4, [5, 17, 17], [0, 3, -1], 40], [180.0, [6, 9, 22], [0, -4, -1], 40], [183.0, [6.5, -10, 26], [0, -20, -1], 40]]) },
 ];
 function shotFor(t) {
   let i = 0; while (i < SHOTS.length - 1 && t >= SHOTS[i + 1].t0) i++;
@@ -1320,6 +1320,11 @@ async function init(opts) {
   for (const g of [O.stack, O.man, O.mgs, O.acc, O.fosv, O.trip, O.div, O.sANN, O.sRAM, O.sBSR, O.sIBOP, O.wBOP, O.wFloat]) if (g.api.refreshCut) g.api.refreshCut();
   // shared clip planes of the cut assets (for the oblique / horizontal sections)
   const planeOf = g => { let p = null; g.traverse(m => { if (!p && m.isMesh) for (const mm of [].concat(m.material)) if (mm && mm.userData && mm.userData.clipPlane) { p = mm.userData.clipPlane; break; } }); return p; };
+  O.cam = camera; O.THREE = THREE;
+  O.stand.material.color.setHex(0x8792a2); if (O.stand.material.emissive) O.stand.material.emissive.setHex(0x000000);
+  // shadow pass budget: bolts / nuts / small instanced parts do not cast
+  for (const g of [O.stack, O.man, O.mgs, O.acc, O.dpanel, O.cpanel, O.trip, O.rec, O.sANN, O.sRAM, O.sBSR, O.sIBOP]) g.traverse(m => { if (m.isInstancedMesh) m.castShadow = false; else if (m.isMesh && m.geometry) { if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.06) m.castShadow = false; } });
+  O.capMats = []; { const seen2 = new Set(); for (const g of [O.stack, O.mgs, O.acc, O.tplug]) g.traverse(m => { if (m.isMesh) for (const mm of [].concat(m.material)) if (mm && mm.userData && mm.userData.wU && !seen2.has(mm)) { seen2.add(mm); O.capMats.push([mm.userData.wU.capCol.value, mm.userData.wU.capCol.value.clone()]); } }); }
   O.ramPlane = planeOf(O.sRAM); O.mgsPlane = planeOf(O.mgs); O.chokePlane = planeOf(O.man.parts.chokeA);
   O.lastT = null;
 }
@@ -1361,7 +1366,7 @@ function applyHighlight(t, id) {
     const sweep = F.sweep != null && e.sys === 'wc' ? sstep(F.sweep + 0.5, F.sweep - 0.5, e.y) : 1;
     const l = lift * sweep;
     e.mat.color.copy(e.col).multiplyScalar(e.sys === 'grey' ? 1 - 0.35 * F.dim : (F.lift[e.sys] ? 1 : 1 - F.dim));
-    if (e.em) { e.mat.emissive.copy(e.em); if (l > 0.001) e.mat.emissive.add(O.hc.setHex(SYSCOL[e.sys]).multiplyScalar((t >= 166.1 ? 0.34 : 0.045) * l)); }
+    if (e.em) { e.mat.emissive.copy(e.em); if (l > 0.001) e.mat.emissive.add(O.hc.setHex(SYSCOL[e.sys]).multiplyScalar((t >= 166.1 ? 0.62 : 0.045) * l)); }
   }
 }
 // S4: the current component gets a full lift, the rest of the stack drops back
@@ -1472,6 +1477,7 @@ function vbrState(t) { // upper pipe ram (VBR) in the land stack
 }
 function stateWC(t, s) {
   const id = s.id, st = O.stack;
+  { const k = DARK(t) ? 0.6 : 0.78; for (const [c, b] of O.capMats) c.copy(b).multiplyScalar(k); }
   // stack: cut-away (x-ray) in the trench shots that show the rams working
   const cutOn = id === 13.3 ? 1 : id === 15 ? eio((t - 107.0) / 0.6) : id === 23 || id === 23.3 ? 1 : 0;
   st.api.setCut(cutOn);
@@ -1508,7 +1514,7 @@ function stateWC(t, s) {
   dp.api.setLamp('upperPipe.open', t < 78.15 ? 1 : 0); dp.api.setLamp('upperPipe.close', t < 78.15 ? 0 : 1);
   dp.api.setLamp('annular.open', 1); dp.api.setLamp('blindShear.open', 1); dp.api.setLamp('lowerPipe.open', 1); dp.api.setLamp('chokeHCR.close', 1); dp.api.setLamp('killHCR.close', 1);
   dp.api.setGuard(0);
-  const hv = id === 11 && t < 79.0;
+  const hv = false; // (low-poly gloves read as blocks: the press reads from the button travel + lamps)
   O.handL.visible = O.handR.visible = hv;
   if (hv) {
     const ma = wa(dp, 'master'), up = wa(dp, 'upperPipe.close');
@@ -1614,7 +1620,7 @@ function stateWC(t, s) {
   done(O.plume, np);
   done(O.drops, 0);
   // the hand on the manual choke valve (S14)
-  O.handV.visible = id === 14 && t > 100.0 && t < 102.2;
+  O.handV.visible = false;
   if (O.handV.visible) { const c = wa(st, 'chokeManual'); const a = (t < 101.5 ? (t - 100.4) * 1.1 : 1.21 - 0.25 * eout((t - 101.5) / 0.2)) * 2 * Math.PI; O.handV.position.set(c[0] + 0.0 + 0.2 * Math.cos(a), c[1] + 0.2 * Math.sin(a), c[2] - 0.45); O.handV.rotation.set(0, Math.PI, a); }
   // ghost / memory look for S22: hide the bits that would clutter the aerial
   O.trip.visible = true;
