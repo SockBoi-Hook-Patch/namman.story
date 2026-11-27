@@ -2064,7 +2064,7 @@ function drawOverlay(ctx, t) {
   // ---- callouts (max 2 at once)
   const S = O.stack;
   if (id === 2) {
-    co(ctx, t, 8.9, 12.0, inW([1.15, -20, 0.3]), 700, 880, 'Primary: Mud', 'โคลน', { color: MUDC });
+    co(ctx, t, 8.9, 12.0, inW([1.15, -20, 0.3]), 700, 880, 'Primary: Mud', 'Hydrostatic', { color: MUDC });
     co(ctx, t, 10.9, 13.2, inW([0, 2.6, 0.4]), 300, 760, 'Secondary: Equipment', 'BOP');
   }
   if (id === 3) {
@@ -2152,7 +2152,7 @@ function drawOverlay(ctx, t) {
   card(ctx, t, { t0: 91.6, t1: 97.9, title: 'Closing Time (API 53)', lines: ['ใช้พลังงานในถัง ไฟดับก็ปิดได้', 'Ram ≤ 30 s · Annular 13-5/8 in ≤ 30 s', 'หลังปิดยังเหลือ ≥ 1,200 psi'], lineAt: [92.4, 93.4, 95.2], note: '30 s คือเวลาสูงสุดที่ยอมให้ ไม่ใช่เวลาปกติ', noteAt: 96.4, x: 150, w: 650 });
   card(ctx, t, { t0: 98.4, t1: 111.5, title: 'Choke & Kill Lines', lines: ['Choke: Manual (ใน) + HCR (นอก)', 'HCR = Gate Valve เปิด/ปิดสุด ≠ Choke', 'Kill Line: สูบเข้า Annulus ใต้ BOP'], lineAt: [98.9, 104.8, 108.6], note: 'ท่อ Choke ใหญ่กว่าหรือเท่าท่อ Kill', noteAt: 110.2 });
   card(ctx, t, { t0: 112.0, t1: 118.9, title: 'Choke Manifold', lines: ['Adjustable Choke: Manual + Remote', 'Panel: DP Pressure · Casing Pressure · Strokes', 'Choke หรี่ได้ แต่ไม่ใช่ตัวปิดสนิท'], lineAt: [112.5, 116.5, 117.3], note: 'Kill ตาม EP04: คุม Bottomhole Pressure ให้คงที่', noteAt: 118.1 });
-  card(ctx, t, { t0: 119.4, t1: 133.1, x: 520, w: 440, title: 'Mud Gas Separator', lines: ['แก๊ส → Vent Line → Flare', 'โคลน → Shaker / Pits', 'Mud Leg ≥ 10 ft ≈ 5 psi'], lineAt: [122.9, 124.8, 129.6], note: '≠ Vacuum Degasser (Part 4)', noteAt: 131.2 });
+  card(ctx, t, { t0: 119.4, t1: 133.1, x: 520, w: 440, title: 'Mud Gas Separator', lines: ['แก๊ส → Vent Line → Flare', 'Mud → Shaker / Pits', 'Mud Leg ≥ 10 ft ≈ 5 psi'], lineAt: [122.9, 124.8, 129.6], note: '≠ Vacuum Degasser (Part 4)', noteAt: 131.2 });
   card(ctx, t, { t0: 133.6, t1: 139.3, title: 'Trip Tank', lines: ['ถังแคบ สูง มีสเกลวัด', 'เติมน้อยกว่าที่คำนวณ = ระวัง Kick', 'ร่วมกับ Flow Sensor · PVT (Part 4)'], lineAt: [134.1, 136.6, 137.6] });
   card(ctx, t, { t0: 139.8, t1: 151.8, title: 'ปิดข้างในก้านเจาะ', lines: ['Upper IBOP: Remote · Lower IBOP: Manual', 'FOSV: Ball Valve เปิดค้าง พร้อมขันเข้า', 'Float Valve: Check Valve เหนือ Bit'], lineAt: [142.4, 145.6, 149.5], note: 'BOP ปิด Annulus · วาล์วเหล่านี้ปิดใน Drill String', noteAt: 140.4 });
   card(ctx, t, { t0: 152.3, t1: 158.9, title: 'Diverter', lines: ['ติดบน Conductor ก่อนติด BOP', 'ปิดแล้วเปิด Vent Line ออกห่างแท่น', 'เบี่ยงทาง ไม่หยุดการไหล'], lineAt: [152.8, 155.6, 157.0], note: 'ปิดหลุมตื้นอาจทำให้ชั้นหินแตก แก๊สขึ้นรอบแท่น', noteAt: 157.9 });
@@ -2182,11 +2182,11 @@ const captions = [
   { t0: 84.6, t1: 91.4, th: 'N₂ Precharge 1,000 psi · ชาร์จถึง 3,000 psi', en: '1,000 psi nitrogen precharge, charged to 3,000' },
   { t0: 91.4, t1: 98.2, th: 'ไฟดับก็ยังปิดได้ · Ram ปิด ≤ 30 วินาที', en: 'Works with rig power off; rams close in ≤30 s' },
   { t0: 98.2, t1: 104.4, th: 'Choke Line: Manual Valve + HCR', en: 'Choke line: inner manual valve, outer HCR' },
-  { t0: 104.4, t1: 111.8, th: 'HCR เปิด/ปิดสุด · Kill Line สูบโคลนเข้า', en: 'HCR is on/off; the kill line pumps in' },
+  { t0: 104.4, t1: 111.8, th: 'HCR เปิด/ปิดสุด · Kill Line สูบ Mud เข้า', en: 'HCR is on/off; the kill line pumps in' },
   { t0: 111.8, t1: 119.2, th: 'Choke Manifold: หรี่โช้ก คุม BHP คงที่', en: 'The choke manifold holds bottomhole pressure' },
-  { t0: 119.2, t1: 126.4, th: 'MGS: แก๊ส → Flare · โคลน → ถัง', en: 'MGS: gas to the flare, mud back to the tanks' },
+  { t0: 119.2, t1: 126.4, th: 'MGS: แก๊ส → Flare · Mud → ถัง', en: 'MGS: gas to the flare, mud back to the tanks' },
   { t0: 126.4, t1: 133.4, th: 'Mud Seal ตัว U รับได้แค่ ~5 psi', en: 'A U-tube mud seal holds only about 5 psi' },
-  { t0: 133.4, t1: 139.6, th: 'Trip Tank: วัดโคลนที่เติมตอนถอนท่อ', en: 'Trip tank: checks hole fill while tripping' },
+  { t0: 133.4, t1: 139.6, th: 'Trip Tank: วัด Mud ที่เติมตอนถอนท่อ', en: 'Trip tank: checks hole fill while tripping' },
   { t0: 139.6, t1: 145.2, th: 'IBOP บน Top Drive ปิดในก้านเจาะ', en: 'IBOPs on the top drive close the bore' },
   { t0: 145.2, t1: 152.1, th: 'FOSV เปิดค้างไว้ · Float Valve เหนือ Bit', en: 'FOSV kept open; float valve above the bit' },
   { t0: 152.1, t1: 159.2, th: 'Diverter: เบี่ยงแก๊สตื้น ไม่ได้ปิดหลุม', en: 'A diverter redirects shallow gas' },
