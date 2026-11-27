@@ -1,15 +1,16 @@
-// scene3d.js — namman.story EP05 "Drilling Rig 101" Part 4/5: CIRCULATING SYSTEM, 170 s, 1080x1920.
-// Contract: see ../SPEC.md. Sets: L = land rig (Part 3 rig + mud system + NEW circulating assets), W = well cutaway
-// (ported from EP03), S = studio (triplex overview, pump section, washpipe, driller's cabin).
-// The hero is one teal drop of mud followed through one lap of the loop. renderFrame(t) / drawOverlay(ctx,t) are pure
-// functions of t. Look: ./look.js (copied from ../lookdev). Overlays: ./overlay_kit.js ("Field Manual").
+// scene3d.js — namman.story EP05 "Drilling Rig 101" Part 5/5: WELL CONTROL SYSTEM, 183.6 s, 1080x1920.
+// Contract: see ../SPEC.md. Sets: L = land rig (Part 1-4 rig + mud system + the Part 5 well-control equipment from
+// assets_p5.js, with a section trench in front of the cellar), W = well cut-away (EP03) + nested casing (teaser),
+// S = studio macros (annular, rams, blind-shear, IBOP half-sections). Shot list: docs/storyboard.md (S1-S26).
+// renderFrame(t) / drawOverlay(ctx,t) are pure functions of t. Look: ./look.js. Overlays: ./overlay_kit.js.
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { applyLook, skyMaterial, stdMat } from './look.js';
 import { createAssets } from './assets_p4.js';
+import { createAssetsP5 } from './assets_p5.js';
 import * as KIT from './overlay_kit.js';
 
-const DURATION = 170;
-let THREE, renderer, scene, camera, LOOK, A;
+const DURATION = 183.6;
+let THREE, renderer, scene, camera, LOOK, A, P5, LOOKP;
 function post(ctx, glCanvas, t) { if (LOOK && O.shot) LOOK.post(ctx, glCanvas, O.shot.set); }
 let W = 1080, H = 1920;
 
@@ -279,21 +280,6 @@ const RET_PTS = [[0, 4.8, 0], [0, 6.0, 0], [0.4, 6.0, -0.4], [10.75, 5.15, -4.9]
   [12.25, 4.45, -1.6], [12.25, 2.8, -2.4], [14.2, 2.8, -3.6], [15.25, 3.3, -3.8], [16.5, 2.8, -3.8], [20.0, 2.8, -3.2],
   [21.25, 3.3, -3.4], [22.4, 2.8, -3.8], [24.0, 2.8, -4.2]];
 
-function buildSurfaceBOP(G) {
-  const g = new THREE.Group(); g.position.set(0, -2.4, 0); G.add(g);
-  const body = lam(0xcbd5e1), conn = lam(0x8b5cf6), pipe = lam(0x3b82f6), shear = lam(0xef4444), ann = lam(0xf59e0b), nip = lam(0x9ca3af);
-  add(g, cyl(0.5, 0.5, 12), lam(0x94a3b8), 0, 0.25, 0);
-  add(g, cyl(0.68, 0.16, 14), conn, 0, 0.58, 0);
-  add(g, cyl(0.42, 0.62, 12), body, 0, 0.97, 0);
-  add(g, box(1.25, 0.66, 0.95), body, 0, 1.73, 0);
-  add(g, box(1.25, 1.36, 0.95), body, 0, 2.86, 0);
-  for (const [yc, m] of [[1.73, pipe], [2.52, pipe], [3.2, shear]]) for (const s of [1, -1]) add(g, xCyl(0.29, 0.72, 12), m, s * 0.98, yc, 0);
-  const prof = [[0.35, 3.64], [0.78, 3.64], [0.86, 3.86], [0.84, 4.42], [0.7, 4.68], [0.46, 4.8], [0.33, 4.82]].map(([r, y]) => new THREE.Vector2(r, y));
-  add(g, new THREE.LatheGeometry(prof, 14), ann);
-  add(g, cyl(0.36, 0.5, 12), nip, 0, 5.05, 0);
-  add(g, cyl(0.3, 3.7, 10), nip, 0, 7.1, 0); // riser / bell nipple up to the flowline
-  add(g, cyl(0.42, 0.5, 10), nip, 0, 8.4, 0);
-}
 
 function buildLand(G) {
   O.skyL = makeSky(0x1f2a63, 0x9a4f86, 0xffab6b, 0x7a5a44); G.add(O.skyL);
@@ -304,10 +290,10 @@ function buildLand(G) {
   sg2.lookAt(0, 0, 0); sg2.visible = false; // look.js sky shader draws the sun glow
   // drill pad with cellar opening
   const pad = new THREE.Shape(); pad.moveTo(-45, -45); pad.lineTo(45, -45); pad.lineTo(45, 45); pad.lineTo(-45, 45); pad.closePath();
-  const hole = new THREE.Path(); hole.moveTo(-2.5, -2.5); hole.lineTo(-2.5, 2.5); hole.lineTo(2.5, 2.5); hole.lineTo(2.5, -2.5); hole.closePath();
+  const hole = new THREE.Path(); hole.moveTo(-3.2, -3.2); hole.lineTo(-3.2, 3.2); hole.lineTo(3.2, 3.2); hole.lineTo(3.2, -3.2); hole.closePath();
   pad.holes.push(hole);
   const pg = new THREE.ExtrudeGeometry(pad, { depth: 0.6, bevelEnabled: false }); pg.rotateX(-Math.PI / 2); pg.translate(0, -0.6, 0);
-  add(G, pg, lam(0xcdb48a));
+  O.padMesh = add(G, pg, lam(0xcdb48a));
   // desert terrain
   const tg = new THREE.PlaneGeometry(2400, 2400, 56, 56); tg.rotateX(-Math.PI / 2);
   const tp = tg.attributes.position;
@@ -316,7 +302,7 @@ function buildLand(G) {
     const n = Math.sin(x * 0.012) * Math.cos(z * 0.01) * 9 + Math.sin(x * 0.031 + z * 0.023) * 3.5 + (hash(i, 3) - 0.5) * 1.5;
     tp.setY(i, -0.35 + n * sstep(80, 260, r));
   }
-  add(G, tg, lam(0xe0b47e));
+  O.terrMesh = add(G, tg, lam(0xe0b47e));
   const mesa = [];
   for (let i = 0; i < 16; i++) {
     const a = hash(i, 11) * Math.PI * 2, r = 600 + hash(i, 12) * 600, s = 40 + hash(i, 13) * 70;
@@ -334,10 +320,11 @@ function buildLand(G) {
   add(G, strip(scrub), lam(0x7d8f52)); add(G, strip(rocks), lam(0xa57e5c));
   // cellar
   const conc = lam(0x9ca3af);
-  add(G, box(5, 0.2, 5), lam(0x7b8794), 0, -2.5, 0);
-  add(G, strip([box(5, 2.4, 0.3).translate(0, -1.2, -2.35), box(5, 2.4, 0.3).translate(0, -1.2, 2.35),
-    box(0.3, 2.4, 5).translate(-2.35, -1.2, 0), box(0.3, 2.4, 5).translate(2.35, -1.2, 0)]), conc);
-  SYS.cur = 'wc'; buildSurfaceBOP(G);
+  // cellar 5.8 x 5.8 m inside (the -z wall is the one the section trench removes: it is a separate mesh)
+  O.cellarFloor = add(G, box(6.4, 0.2, 6.4), lam(0x7b8794), 0, -2.5, 0);
+  add(G, strip([box(6.4, 2.4, 0.3).translate(0, -1.2, 3.05),
+    box(0.3, 2.4, 6.4).translate(-3.05, -1.2, 0), box(0.3, 2.4, 6.4).translate(3.05, -1.2, 0)]), conc);
+  O.cellarWallS = add(G, box(6.4, 2.4, 0.3), conc, 0, -1.2, -3.05);
   SYS.cur = 'hoist';
   // substructure
   const sgm = [];
@@ -359,10 +346,10 @@ function buildLand(G) {
   // rig lights (dusk)
   const lg = [];
   for (const [y, s] of [[14, 3.6], [24, 2.8], [34, 1.95]]) for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1]]) lg.push(box(0.45, 0.3, 0.3).translate(sx * s, y, sz * s));
-  add(G, strip(lg), basic(0xfff3c4));
+  O.lgMesh = add(G, strip(lg), basic(0xfff3c4));
   // doghouse + V-door + pipe racks
   add(G, box(4, 3, 5), lam(0x7aa6d6), -5.4, 8.7, 5);
-  add(G, box(4.1, 0.9, 5.1), basic(0xffe9b0), -5.4, 9.2, 5);
+  O.dogWin = add(G, box(4.1, 0.9, 5.1), basic(0xffe9b0), -5.4, 9.2, 5);
   add(G, cylBetween([0, 7.0, -7.7], [0, 1.2, -21], 0.9, 4), lam(0x6b7280));
   add(G, box(1.8, 1.2, 14), lam(0x6b7280), 0, 0.6, -28);
   const pr = [];
@@ -401,7 +388,7 @@ function buildLand(G) {
   SYS.cur = null;
   // ---- mud system + well-control equipment
   SYS.cur = 'circ'; buildMudSystem(G);
-  SYS.cur = 'wc'; buildWellControl(G);
+  buildWellControlP5(G);
   SYS.cur = null;
   // workers
   const w3 = buildHuman(); w3.position.set(2.4, 7.35, 3.2); w3.rotation.y = 0.5; G.add(w3);
@@ -543,92 +530,6 @@ function buildMudSystem(G) {
   for (const m of [O.shCut, O.shDrip]) { m.frustumCulled = false; G.add(m); }
 }
 
-// ---------------------------------------------------------------- LAND set: well-control equipment
-// choke line (BOP → choke manifold) · choke manifold · Mud Gas Separator (MGS) · flare line + flare pit
-const CHK_PTS = [[0, -0.9, 0.47], [0, -0.9, 1.6], [-1.6, -0.9, 1.6], [-1.6, 0.7, 1.6], [-1.6, 0.7, 4.0], [-8.2, 0.7, 4.0],
-  [-8.2, 1.6, 4.0], [-8.2, 1.6, 3.0], [-11.6, 1.6, 3.0], [-11.6, 1.6, 4.0], [-12.3, 1.6, 4.0], [-12.3, 3.6, 4.0], [-13.0, 3.6, 4.0]];
-const GAS_PTS = [[-14, 7.4, 4], [-14, 8.0, 4], [-15.4, 8.0, 4], [-15.4, 0.7, 4], [-44.2, 0.7, 4]];
-const MGSR_PTS = [[-14, 1.5, 5.0], [-14, 1.5, 11], [9, 1.5, 11], [9, 1.5, -1.5], [9, 3.3, -1.5], [10.2, 3.3, -1.5]];
-function mgsStencilTex() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const x = c.getContext('2d');
-  x.fillStyle = '#d97706'; x.fillRect(0, 0, 1024, 512);
-  x.fillStyle = 'rgba(0,0,0,0.12)'; for (let i = 0; i < 8; i++) x.fillRect(0, i * 64, 1024, 3);
-  x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.fillStyle = '#1f2937'; fitFont(x, 'MUD GAS SEPARATOR', 600, 92, 940); x.fillText('MUD GAS SEPARATOR', 512, 120);
-  x.fillStyle = '#1f2937'; x.fillRect(80, 196, 864, 8);
-  x.fillStyle = '#fff7e6'; fitFont(x, 'namman.story', 600, 170, 900); x.fillText('namman.story', 512, 330);
-  x.fillStyle = '#1f2937'; fitFont(x, 'MAX 150 PSI · VENT TO FLARE', 600, 46, 860); x.fillText('MAX 150 PSI · VENT TO FLARE', 512, 452);
-  grime(x, 1024, 512, 420, 611, 0.22);
-  return canvasTex(c);
-}
-function valve(G, x, y, z, axis = 'x', col = 0xdc2626) {
-  add(G, box(0.55, 0.55, 0.55), lam(0x475569), x, y, z);
-  add(G, cylBetween([x, y, z], [x, y + 0.75, z], 0.06, 5), lam(0x94a3b8));
-  const w = add(G, new THREE.TorusGeometry(0.28, 0.05, 4, 12), lam(col), x, y + 0.78, z);
-  w.rotation.x = Math.PI / 2;
-}
-function buildWellControl(G) {
-  const pipeM = lam(0x9ca3af), red = lam(0xdc2626), skid = lam(0x334155);
-  // choke line from the BOP (front outlet, below the rams) through the cellar to the manifold
-  add(G, pipeRun(CHK_PTS.slice(0, 6), 0.15, 8), lam(0x8b5cf6));
-  // HCR valve on the choke line (inside the cellar)
-  add(G, box(0.5, 0.5, 0.5), red, -0.8, -0.9, 1.6);
-  add(G, box(0.35, 0.6, 0.35), lam(0x1f2937), -0.8, -0.4, 1.6);
-  // choke manifold
-  add(G, box(4.6, 0.3, 3.2), skid, -10.0, 0.15, 4.0);
-  add(G, pipeRun([[-8.2, 0.7, 4.0], [-8.2, 1.6, 4.0]], 0.17, 8), pipeM);
-  add(G, pipeRun([[-8.2, 1.6, 3.0], [-8.2, 1.6, 5.0]], 0.17, 8), pipeM);
-  add(G, pipeRun([[-8.2, 1.6, 3.0], [-11.6, 1.6, 3.0], [-11.6, 1.6, 5.0], [-8.2, 1.6, 5.0]], 0.17, 8), pipeM);
-  add(G, pipeRun([[-11.6, 1.6, 4.0], [-12.3, 1.6, 4.0], [-12.3, 3.6, 4.0], [-13.0, 3.6, 4.0]], 0.17, 8), pipeM);
-  for (const z of [3.0, 5.0]) {
-    valve(G, -9.0, 1.6, z);
-    // adjustable choke (orange body + actuator)
-    add(G, box(0.8, 0.7, 0.7), lam(0xf59e0b), -10.5, 1.6, z);
-    add(G, cylBetween([-10.5, 1.95, z], [-10.5, 2.6, z], 0.2, 8), lam(0x1f2937));
-  }
-  const supp = [];
-  for (const x of [-8.2, -11.6]) for (const z of [3.0, 5.0]) supp.push(box(0.12, 1.3, 0.12).translate(x, 0.95, z));
-  add(G, strip(supp), skid);
-  O.chokeMarker = new THREE.Object3D(); O.chokeMarker.position.set(-10.5, 2.4, 4.0); G.add(O.chokeMarker);
-  // Mud Gas Separator: vertical vessel on legs
-  add(G, cyl(1.0, 6.0, 16), lam(0xf59e0b), -14, 4.2, 4);
-  add(G, new THREE.SphereGeometry(1.0, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2), lam(0xf59e0b), -14, 7.2, 4);
-  add(G, new THREE.SphereGeometry(1.0, 16, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), lam(0xd97706), -14, 1.2, 4);
-  add(G, strip([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => cylBetween([-14 + a * 0.75, 0, 4 + b * 0.75], [-14 + a * 0.62, 1.4, 4 + b * 0.62], 0.08, 5))), skid);
-  for (const y of [2.2, 6.2]) add(G, cyl(1.05, 0.12, 16), lam(0xb45309), -14, y, 4);
-  const lab = mgsStencilTex(); lab.wrapS = THREE.RepeatWrapping;
-  O.mgsLabel = add(G, new THREE.CylinderGeometry(1.02, 1.02, 1.7, 20, 1, true, Math.PI / 4 - 0.95, 1.9), new THREE.MeshLambertMaterial({ map: lab, emissive: 0x1a1a1a }), -14, 4.4, 4);
-  O.mgsLabelTex = lab;
-  // gas vent → flare line → flare pit
-  add(G, pipeRun(GAS_PTS, 0.2, 8), lam(0xcbd5e1));
-  const sup2 = [];
-  for (let x = -18; x > -44; x -= 4) sup2.push(box(0.15, 0.5, 0.6).translate(x, 0.25, 4));
-  add(G, strip(sup2), skid);
-  // flare pit: low earth berm (U shape, open toward the pipe)
-  add(G, strip([box(8, 1.2, 1.2).translate(-49, 0.4, 0.2), box(8, 1.2, 1.2).translate(-49, 0.4, 7.8), box(1.2, 1.2, 8.8).translate(-53.4, 0.4, 4)]), lam(0xb08455));
-  add(G, box(7.5, 0.1, 6.6), lam(0x3b2f28), -49, 0.02, 4);
-  // flame (additive cones) + glow
-  O.flare = new THREE.Group(); O.flare.position.set(-44.6, 0.7, 4); G.add(O.flare);
-  O.flameM = [0xff4d00, 0xff9a1f, 0xffe07a].map(c => basic(c, { transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }));
-  O.flames = [];
-  for (let i = 0; i < 9; i++) {
-    const g = new THREE.ConeGeometry(0.9 - (i % 3) * 0.22, 3.4 - (i % 3) * 0.8, 7, 1, true); g.translate(0, (3.4 - (i % 3) * 0.8) / 2, 0);
-    const m = add(O.flare, g, O.flameM[i % 3], 0, 0, 0);
-    m.userData.k = i; O.flames.push(m);
-  }
-  O.flareGlow = add(O.flare, new THREE.SphereGeometry(5.5, 12, 8), basic(0xff7a1a, { transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }), -2.0, 2.2, 0);
-  // MGS liquid outlet back to tank A
-  add(G, pipeRun(MGSR_PTS, 0.16, 8), pipeM);
-  // paths for arrows
-  O.pathCHK = new Poly(CHK_PTS);
-  O.pathGAS = new Poly(GAS_PTS);
-  O.pathMGSR = new Poly(MGSR_PTS);
-  O.arrowsG = new THREE.InstancedMesh(new THREE.ConeGeometry(0.3, 0.8, 6), basic(0xf8fafc), 160);
-  O.arrowsG.frustumCulled = false; G.add(O.arrowsG);
-  // worker at the choke
-  const ch = buildHuman(0xf97316, 0xffffff); ch.position.set(-10.5, 0, 6.5); ch.rotation.y = 3.0; G.add(ch);
-}
 
 // ---------------------------------------------------------------- POWER system (Part 1 focus)
 const GENX = [-17, -20.6, -24.2];
@@ -646,7 +547,7 @@ function labelTex(lines, bg = '#e5e7eb', fg = '#1f2937', w = 1024, h = 256) {
 const CAB = {
   gen: GENX.map((gx, i) => [[gx + 0.9, 0.9, -11.7], [gx + 0.9, 0.22, -12.3 - 0.32 * i], [-13.1, 0.22, -12.3 - 0.32 * i]]),
   dw: [[-5.0, 0.22, -11.6], [-3.0, 0.22, -11.6], [-3.0, 0.22, 9.4], [1.5, 0.22, 9.4], [1.5, 7.1, 9.4], [1.5, 7.45, 7.0]],
-  pump: [[-5.0, 0.22, -12.9], [29.2, 0.22, -12.9], [29.2, 0.22, 7.2], [28.3, 0.7, 7.2]],
+  pump: [[-5.0, 0.22, -12.9], [-5.0, 0.22, -15.4], [29.2, 0.22, -15.4], [29.2, 0.22, 7.2], [28.3, 0.7, 7.2]],
   td: [[1.5, 7.45, 7.0], [3.8, 7.45, 3.8], [3.8, 15.5, 3.2], [1.4, 19.4, 1.1], [0.7, 20.6, 0.6]],
 };
 function buildPower(G) {
@@ -980,15 +881,6 @@ function buildCircAdds(G) {
   O.dsl = place(A.hydrocyclones({ kind: 'desilter' }), [19.8, 3.0, -5.6]);
   O.cf = place(A.centrifuge(), [25.7, 4.6, -5.6]);
   O.fp = place(A.flowPaddle({ dir: FLOW_DIR }), PADDLE);
-  // trip tank: tall and narrow, beside the active tank (no volume marked)
-  const TT0 = new THREE.Group(); TT0.position.set(28.1, 0, -5.5); G.add(TT0); O.trip = TT0;
-  add(TT0, box(1.2, 4.2, 1.2), lam(0x56677d), 0, 2.1, 0);
-  add(TT0, strip([box(1.3, 0.12, 0.14).translate(0, 4.2, 0.6), box(1.3, 0.12, 0.14).translate(0, 4.2, -0.6), box(0.14, 0.12, 1.3).translate(0.6, 4.2, 0), box(0.14, 0.12, 1.3).translate(-0.6, 4.2, 0)]), lam(0xfbbf24));
-  add(TT0, box(0.2, 3.7, 0.04), lam(0x1f2937), 0.35, 2.15, 0.61);
-  add(TT0, box(0.12, 3.6, 0.03), basic(0xbfe9e4, { transparent: true, opacity: 0.55 }), 0.35, 2.15, 0.635);
-  O.tripFloat = add(TT0, box(0.16, 0.12, 0.05), basic(0x14b8a6), 0.35, 2.4, 0.65);
-  add(TT0, new THREE.PlaneGeometry(0.42, 2.6), new THREE.MeshLambertMaterial({ map: tripStencilTex(), emissive: 0x222222 }), -0.22, 2.2, 0.605);
-  add(TT0, pipeRun([[0, 0.5, -0.6], [0, 0.5, -1.0], [-1.2, 0.5, -1.0]], 0.09, 8), lam(0x6b7280));
   // gooseneck on the land top drive (static): the kelly hose lands here
   O.tdGoose = add(O.topDrive, new THREE.TorusGeometry(0.35, 0.12, 8, 14, Math.PI).rotateY(Math.PI / 2), lam(0x94a3b8), 0.0, 1.95, 0.0);
   // pop-off valve on the land pump discharge, vented back to the tanks
@@ -997,344 +889,376 @@ function buildCircAdds(G) {
   SYS.cur = null;
 }
 
-// ================================================================ STUDIO set: slots for the new studio models
-const SLOT = { PUMP_A: [100, -0.3, 0], PUMP_B: [100, 1.95, 40], WASH: [60, 0.1, 40], CAB: [20, -0.3, 40] };
-function windowTex() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 384;
-  const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 0, 384);
-  g.addColorStop(0, '#1f2a63'); g.addColorStop(0.55, '#9a4f86'); g.addColorStop(0.82, '#ffab6b'); g.addColorStop(1, '#ffc58f');
-  x.fillStyle = g; x.fillRect(0, 0, 1024, 384);
-  x.fillStyle = '#3a2a2e'; x.fillRect(0, 330, 1024, 54);
-  // flat derrick silhouette seen through the window
-  x.strokeStyle = '#2a1f26'; x.lineWidth = 6; x.fillStyle = '#2a1f26';
-  const L = (a, b, c2, d) => { x.beginPath(); x.moveTo(a, b); x.lineTo(c2, d); x.stroke(); };
-  L(600, 340, 680, 30); L(800, 340, 720, 30); L(680, 30, 720, 30);
-  for (let k = 0; k < 7; k++) { const y0 = 340 - k * 44, y1 = y0 - 44, u0 = k / 7, u1 = (k + 1) / 7; L(600 + 80 * u0, y0, 800 - 80 * u1, y1); L(800 - 80 * u0, y0, 600 + 80 * u1, y1); L(600 + 80 * u0, y0, 800 - 80 * u0, y0); }
-  x.fillRect(560, 320, 280, 20);
-  return canvasTex(c);
+// ================================================================ PART 5: well-control equipment on the land rig
+// The P5 stack is built with its camera side at local +z and choke at local +x. It is turned 180 deg in the rig so the
+// choke outlet faces world -x (toward the choke manifold) and its section side faces world -z (the trench cameras):
+// seen from the trench (camera at z < 0 looking +z) world -x is screen-right, so the choke is always on screen-right.
+const STACK_Y = -2.4;
+const ACC_POS = [6.0, 0, -12.5], PANEL_POS = [-2.2, 7.33, 2.6], CPANEL_POS = [2.8, 7.33, -5.6], FOSV_POS = [-2.4, 7.33, -3.4];
+const MAN_POS = [-9.3, 0.25, 4.0], MGS_POS = [-14, 0, 4], TRIP_POS = [28.1, 0, -5.5], REC_POS = [-4.4, 0, -9.2];
+const CMD_PTS = [[-2.2, 7.6, 2.4], [-2.2, 7.4, 2.2], [-2.2, 6.2, 2.2], [-2.2, 6.2, -6.8], [3.65, 6.2, -6.8], [3.65, 0.3, -6.8], [3.65, 0.3, -10.6], [4.6, 0.6, -11.3]];
+const HOSE_PTS = [[6.0, 1.14, -11.45], [6.0, 0.3, -11.0], [6.0, 0.3, -7.5], [6.0, 0.55, -7.0], [6.0, 0.3, -6.5], [6.0, 0.3, -1.6], [3.9, 0.3, -1.6], [3.5, 0.55, -1.6], [3.15, 0.3, -1.6], [2.8, 0.2, -1.6], [2.8, -0.6, -1.6]];
+const KILL_PUMP = [[2.76, -2.05, 0.6], [2.76, -2.05, 2.2], [2.76, 0.55, 2.2], [2.76, 0.55, 4.4], [7.7, 0.55, 4.4], [8.0, 0.45, 4.4]];
+function wpos(o) { o.updateWorldMatrix(true, false); o.getWorldPosition(O.v3); return [O.v3.x, O.v3.y, O.v3.z]; }
+const wa = (g, k) => wpos(g.anchors[k]);
+function tube(pts, r, mat, seg = 6) { return add(O.sets.L, pipeRun(pts, r, seg), mat); }
+function dashMesh(n, color, r = 0.05, len = 0.4) {
+  const g = new THREE.CylinderGeometry(r, r, len, 6); const m = new THREE.InstancedMesh(g, basic(color, { transparent: true, opacity: 0.95, depthWrite: false }), n);
+  m.frustumCulled = false; m.count = 0; m.renderOrder = 12; m.userData.sys = null; return m;
 }
-function sideScreenTex(k) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 384;
-  const x = c.getContext('2d');
-  x.fillStyle = '#0b1220'; x.fillRect(0, 0, 512, 384);
-  x.strokeStyle = 'rgba(20,184,166,0.5)'; x.lineWidth = 3;
-  for (let j = 0; j < 3; j++) {
-    x.beginPath();
-    for (let i = 0; i <= 60; i++) { const px = 30 + i * 7.5, py = 70 + j * 110 + 26 * Math.sin(i * 0.3 + j * 2 + k) * (0.4 + 0.6 * hash(i, j + k * 9)); i ? x.lineTo(px, py) : x.moveTo(px, py); }
-    x.stroke();
+// one gas bubble = white core + thin purple rim (a back-face shell, slightly larger)
+function bubbleMesh(G, n) {
+  const core = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), basic(0xf8fafc), n);
+  const rim = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.16, 2), basic(0xa855f7, { side: THREE.BackSide }), n);
+  for (const m of [core, rim]) { m.frustumCulled = false; m.count = 0; m.userData.sys = null; G.add(m); }
+  return { core, rim };
+}
+function buildWellControlP5(G) {
+  SYS.cur = 'wc';
+  // ---- BOP stack in the cellar
+  const st = O.stack = P5.bopStack({ pipe: true, lines: true });
+  st.position.set(0, STACK_Y, 0); st.rotation.y = Math.PI; G.add(st);
+  O.stackTop = STACK_Y + (st.userData.height || 5.9);
+  // riser from the bell nipple up to the Part 4 flowline (grey, never purple)
+  SYS.cur = null;
+  add(G, cyl(0.3, 6.45 - O.stackTop, 18).translate(0, (6.45 + O.stackTop) / 2, 0), lam(0x9ca3af));
+  add(G, cyl(0.42, 0.18, 18), lam(0x8b939e), 0, O.stackTop + 0.09, 0);
+  SYS.cur = 'wc';
+  // ---- choke manifold (inlet faces the rig: +x), MGS, flare at the vent top
+  const man = O.man = P5.chokeManifold(); man.position.set(...MAN_POS); man.rotation.y = Math.PI; G.add(man);
+  const mgs = O.mgs = P5.mudGasSeparator({ ventHeight: 9 }); mgs.position.set(...MGS_POS); mgs.rotation.y = -1.265; G.add(mgs);
+  // ---- accumulator (Koomey) unit: front (control manifold, nameplate) faces -z
+  const acc = O.acc = P5.accumulatorUnit(); acc.position.set(...ACC_POS); acc.rotation.y = Math.PI; G.add(acc);
+  // ---- driller's BOP remote panel (faces -z), remote choke panel (faces +x), FOSV rack
+  const dp = O.dpanel = P5.drillerPanel(); dp.position.set(...PANEL_POS); dp.rotation.y = Math.PI; G.add(dp);
+  const cp = O.cpanel = P5.chokePanel(); cp.position.set(...CPANEL_POS); cp.rotation.y = Math.PI / 2; G.add(cp);
+  const fv = O.fosv = P5.fosv(); fv.position.set(...FOSV_POS); fv.rotation.y = Math.PI * 0.85; G.add(fv);
+  // ---- trip tank (replaces the Part 4 box), test plug + chart recorder, diverter (S22 only)
+  SYS.cur = 'circ';
+  const tt = O.trip = P5.tripTank(); tt.position.set(...TRIP_POS); G.add(tt);
+  tt.traverse(m => { if (m.isMesh) m.userData.sys = 'circ'; });
+  SYS.cur = 'wc';
+  const tp = O.tplug = P5.testPlug(); tp.position.set(0, STACK_Y + 0.315, 0); G.add(tp); tp.visible = false;
+  const rec = O.rec = P5.chartRecorder(); rec.position.set(...REC_POS); rec.rotation.y = 2.45; G.add(rec);
+  add(G, box(1.4, 0.8, 0.9), lam(0x334155), REC_POS[0] - 0.95, 0.4, REC_POS[2] - 0.35); // air-driven test pump skid
+  add(G, cyl(0.12, 0.55, 10), lam(0x9ca3af), REC_POS[0] - 0.95, 1.05, REC_POS[2] - 0.35);
+  const dv = O.div = P5.diverter({ ventLength: 22 }); dv.position.set(0, -0.85, 0); G.add(dv); dv.visible = false;
+  G.updateMatrixWorld(true);
+  // ---- lines: choke (spool -> manifold), manifold -> MGS, MGS liquid return, kill line from the pump
+  const pM = lam(0x8f99a6), dark = lam(0x1f2937);
+  const ce = wa(st, 'chokeLineEnd'), ke = wa(st, 'killLineEnd'), inl = wa(man, 'inlet'), toM = wa(man, 'toMGS'), mi = wa(mgs, 'inlet');
+  O.CHK = [ce, [ce[0], ce[1], 2.2], [ce[0], 0.55, 2.2], [ce[0], 0.55, inl[2]], [inl[0] + 0.6, 0.55, inl[2]], [inl[0] + 0.6, inl[1], inl[2]], inl];
+  tube(O.CHK, 0.055, pM, 10);
+  O.TOMGS = [toM, [toM[0], mi[1], toM[2]], [toM[0], mi[1], mi[2]], mi];
+  tube(O.TOMGS, 0.06, pM, 10);
+  const mo = wa(mgs, 'mudOut');
+  O.MGSR = [mo, [mo[0], 0.45, mo[2]], [mo[0], 0.45, 8.4], [9, 0.45, 8.4], [9, 0.45, -1.5], [9, 3.3, -1.5], [10.2, 3.3, -1.5]];
+  tube(O.MGSR, 0.1, pM, 10);
+  O.KILL = [ke, ...KILL_PUMP.slice(1)];
+  tube(O.KILL, 0.045, pM, 10);
+  add(G, box(0.36, 0.36, 0.36), lam(0x475569), 7.2, 0.55, 4.4); // kill-line gate valve at the pump tee
+  O.killWheel = add(G, new THREE.TorusGeometry(0.2, 0.03, 6, 16), lam(0xdc2626), 7.2, 0.95, 4.4); O.killWheel.rotation.x = Math.PI / 2;
+  // ---- hose bundle (unit -> cellar junction) and the fan-out to the bonnet close ports; command cable
+  SYS.cur = null;
+  tube(HOSE_PTS, 0.07, lam(0x111317), 8);
+  add(G, box(0.18, 0.5, 0.6), lam(0x334155), 2.8, -0.8, -1.6); // junction box on the cellar +x wall
+  tube(CMD_PTS, 0.025, lam(0x4b5563), 5);
+  SYS.cur = 'wc';
+  const dbl = st.parts.doubleRam, low = st.parts.lowerRam;
+  const J = [2.8, -0.8, -1.4];
+  O.bonHoses = [];
+  for (const [ram, k] of [[dbl, 'port1L'], [dbl, 'port1R'], [dbl, 'port0L'], [dbl, 'port0R'], [low, 'port0L'], [low, 'port0R']]) {
+    if (!ram.anchors[k]) continue;
+    const p = wpos(ram.anchors[k]), side = p[0] > 0 ? 1 : -1;
+    const pts = side > 0 ? [J, [J[0] - 0.4, p[1] + 0.25, -1.0], [p[0], p[1] + 0.25, p[2] - 0.6], p]
+      : [J, [2.2, STACK_Y + 0.25, -1.3], [-2.2, STACK_Y + 0.25, -1.3], [p[0], p[1] + 0.25, p[2] - 0.6], p];
+    const cv = new THREE.CatmullRomCurve3(pts.map(q => new THREE.Vector3(...q)), false, 'centripetal');
+    add(G, new THREE.TubeGeometry(cv, 30, 0.022, 6), lam(0x15171b));
+    O.bonHoses.push({ poly: new Poly(cv.getPoints(40).map(v => [v.x, v.y, v.z])), cav: k[4] === '1' ? 'vbr' : ram === low ? 'low' : 'bsr' });
   }
-  return canvasTex(c);
-}
-function buildCab(G) {
-  const C = O.cab = new THREE.Group(); C.position.set(...SLOT.CAB); G.add(C);
-  add(C, box(6, 0.2, 5), lam(0x2b3445), 0, 0.1, 0.4);
-  // back wall with the window
-  add(C, strip([box(6, 1.0, 0.2).translate(0, 0.7, -2.2), box(6, 0.7, 0.2).translate(0, 4.75, -2.2), box(0.5, 4.6, 0.2).translate(-2.75, 2.5, -2.2), box(0.5, 4.6, 0.2).translate(2.75, 2.5, -2.2)]), lam(0x3a4558));
-  add(C, new THREE.PlaneGeometry(5.0, 3.2), basic(0xffffff, { map: windowTex() }), 0, 2.8, -2.25);
-  add(C, box(5.0, 0.08, 0.1), lam(0x1f2937), 0, 2.8, -2.1);
-  // console + screens
-  add(C, box(3.0, 0.9, 1.2), lam(0x334155), 0, 1.4, -1.3);
-  add(C, box(3.1, 0.08, 1.3), lam(0x1f2937), 0, 1.88, -1.3);
-  const SG = O.screen = new THREE.Group(); SG.position.set(0, 2.6, -1.0); SG.rotation.x = -0.17; C.add(SG);
-  add(SG, box(2.6, 1.6, 0.08), lam(0x111827), 0, 0, -0.06);
-  add(SG, new THREE.PlaneGeometry(2.4, 1.4), basic(0x0b1220), 0, 0, -0.01);
-  add(SG, box(0.2, 0.9, 0.12), lam(0x1f2937), 0, -1.1, -0.15);
-  O.scr = { tl: mark(SG, -1.2, 0.7, 0), tr: mark(SG, 1.2, 0.7, 0), bl: mark(SG, -1.2, -0.7, 0) };
+  O.pCMD = new Poly(CMD_PTS); O.pHOSE = new Poly(HOSE_PTS); O.pCHK = new Poly(O.CHK); O.pTOMGS = new Poly(O.TOMGS); O.pMGSR = new Poly(O.MGSR); O.pKILL = new Poly([...O.KILL].reverse());
+  // ---- flare at the vent top (pilot always lit; grows when gas arrives), wind sock on the crown
+  const ve = wa(mgs, 'ventEnd');
+  O.flare = new THREE.Group(); O.flare.position.set(ve[0] + 0.15, ve[1], ve[2]); G.add(O.flare);
+  O.flameM = [0xff4d00, 0xff9a1f, 0xffe07a].map(c => basic(c, { transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  O.flames = [];
+  for (let i = 0; i < 9; i++) {
+    const h = 2.6 - (i % 3) * 0.6, g = new THREE.ConeGeometry(0.55 - (i % 3) * 0.13, h, 9, 1, true); g.translate(0, h / 2, 0);
+    const m = add(O.flare, g, O.flameM[i % 3]); m.userData = { k: i, sys: null }; O.flames.push(m);
+  }
+  O.flareGlow = add(O.flare, new THREE.SphereGeometry(3.2, 12, 8), basic(0xff7a1a, { transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), -0.8, 1.6, 0);
+  O.flareGlow.userData.sys = null;
+  SYS.cur = null;
+  const sock = O.sock = new THREE.Group(); sock.position.set(2.2, 44.6, 0); G.add(sock);
+  add(sock, cyl(0.03, 1.6, 6).translate(0, -0.8, 0), lam(0x9ca3af));
+  O.sockCone = [];
+  for (let k = 0; k < 4; k++) {
+    const g = new THREE.CylinderGeometry(0.26 - k * 0.045, 0.3 - k * 0.045, 0.32, 10, 1, true); g.rotateZ(Math.PI / 2);
+    const m = add(sock, g, lam(k % 2 ? 0xffffff : 0xf97316, { side: THREE.DoubleSide }), -0.2 - k * 0.32, 0, 0); O.sockCone.push(m);
+  }
+  // ---- crew: cellar hand (S3-S4) and the choke-manifold worker
+  O.crew = buildHuman(); O.crew.position.set(2.25, STACK_Y, -2.1); O.crew.rotation.y = -1.9; G.add(O.crew);
+  const ch = buildHuman(0xf97316, 0xffffff); ch.position.set(-10.5, 0, 6.6); ch.rotation.y = 3.0; G.add(ch);
+  // ---- gloved hands for the panel press and the manual valve
+  const glove = lam(0xf97316);
+  const hand = () => { const g = new THREE.Group(); add(g, box(0.09, 0.05, 0.11), glove); add(g, box(0.085, 0.03, 0.07), glove, 0, -0.005, 0.085); add(g, cyl(0.045, 0.16, 8).rotateX(Math.PI / 2), lam(0x1f2937), 0, 0, -0.13); return g; };
+  O.handL = hand(); O.handR = hand(); O.handV = hand(); for (const h of [O.handL, O.handR, O.handV]) { G.add(h); h.visible = false; }
+  // ---- particles and dashes
+  O.dash = dashMesh(260, 0xa855f7); G.add(O.dash);
+  O.cmdDash = dashMesh(40, 0xc084fc, 0.04, 0.7); G.add(O.cmdDash);
+  O.bubL = bubbleMesh(G, 160);
+  O.mudArr = new THREE.InstancedMesh(new THREE.ConeGeometry(0.07, 0.2, 6), basic(0xc8925a), 120); O.mudArr.frustumCulled = false; O.mudArr.count = 0; G.add(O.mudArr);
+  O.gasStreak = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 5), basic(0xf1f5f9, { transparent: true, opacity: 0.35, depthWrite: false }), 60); O.gasStreak.frustumCulled = false; O.gasStreak.count = 0; G.add(O.gasStreak);
+  O.plume = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), basic(0xe5e7eb, { transparent: true, opacity: 0.22, depthWrite: false }), 60); O.plume.frustumCulled = false; O.plume.count = 0; G.add(O.plume);
+  O.drops = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), lam(0x9b6a3c), 40); O.drops.frustumCulled = false; O.drops.count = 0; G.add(O.drops);
+  // ---- section trench (L-4): clip planes on pad / terrain / cellar -z wall, plus soil liner faces that grow with it
+  O.trenchY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 3);
+  const tp4 = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), -3.2), new THREE.Plane(new THREE.Vector3(1, 0, 0), -3.2), new THREE.Plane(new THREE.Vector3(0, 0, 1), 2.85), O.trenchY];
+  O.trenchClip = tp4;
+  O.terrZ = new THREE.Plane(new THREE.Vector3(0, 0, -1), -3.2);
+  O.terrClip = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), -3.2), new THREE.Plane(new THREE.Vector3(1, 0, 0), -3.2), new THREE.Plane(new THREE.Vector3(0, 0, 1), -3.2), O.terrZ];
+  O.linerTop = new THREE.Plane(new THREE.Vector3(0, -1, 0), -3);
+  const soil = new THREE.MeshLambertMaterial({ color: 0x8a6a4a, side: THREE.DoubleSide, clippingPlanes: [O.linerTop] });
+  const soilD = new THREE.MeshLambertMaterial({ color: 0x6f553b, side: THREE.DoubleSide, clippingPlanes: [O.linerTop] });
+  const T = O.trench = new THREE.Group(); G.add(T);
+  add(T, new THREE.PlaneGeometry(6.4, 16).rotateX(-Math.PI / 2), soilD, 0, -2.45, -11.0);
   for (const s of [-1, 1]) {
-    const sg = new THREE.Group(); sg.position.set(s * 1.95, 2.45, -0.75); sg.rotation.y = -s * 0.52; sg.rotation.x = -0.12; C.add(sg);
-    add(sg, box(1.32, 1.0, 0.07), lam(0x111827), 0, 0, -0.05);
-    add(sg, new THREE.PlaneGeometry(1.2, 0.9), basic(0xffffff, { map: sideScreenTex(s > 0 ? 3 : 0) }), 0, 0, -0.01);
+    const w = add(T, new THREE.PlaneGeometry(16, 2.45), soil, s * 3.2, -1.225, -11.0); w.rotation.y = Math.PI / 2;
+    // strata bands on the side walls
+    for (let k = 0; k < 3; k++) { const b = add(T, new THREE.PlaneGeometry(16, 0.07), basic(0x5a4330, { transparent: true, opacity: 0.35, clippingPlanes: [O.linerTop] }), s * (3.2 - 0.01), -0.55 - k * 0.62, -11.0); b.rotation.y = Math.PI / 2; }
   }
-  // chair with joystick armrests
-  add(C, box(1.0, 0.2, 1.0), lam(0x1f2937), 0, 1.0, 1.4);
-  add(C, box(1.05, 1.4, 0.18), lam(0x1f2937), 0, 1.8, 1.95);
-  add(C, cyl(0.08, 0.9, 8), lam(0x475569), 0, 0.5, 1.4);
-  for (const s of [-1, 1]) {
-    add(C, box(0.18, 0.12, 0.9), lam(0x334155), s * 0.62, 1.35, 1.35);
-    add(C, box(0.3, 0.14, 0.3), lam(0x111827), s * 0.62, 1.45, 1.0);
-    add(C, cylBetween([s * 0.62, 1.5, 1.0], [s * 0.62, 1.78, 0.98], 0.04, 6), lam(0x0f172a));
-    add(C, new THREE.SphereGeometry(0.07, 8, 6), lam(0xdc2626), s * 0.62, 1.8, 0.98);
+  const slope = new THREE.PlaneGeometry(6.4, Math.hypot(4, 2.45)); slope.rotateX(-Math.PI / 2 + Math.atan2(2.45, 4));
+  add(T, slope, soil, 0, -1.225, -21.0);
+  // pad cut edge (concrete) where the trench meets the cellar
+  T.traverse(m => { if (m.isMesh) m.userData.sys = null; });
+  // ---- rig lights (L-10): LED floods on the substructure legs + light pools; one switch with the derrick lights
+  O.flood = []; O.pools = [];
+  const fm = basic(0xfff6d8);
+  for (const [x, z, ry] of [[-3.4, -7, 0.6], [3.4, -7, -0.6], [-6.6, 7, 2.6], [6.6, 7, -2.6], [-3.4, 0, 1.57], [3.4, 0, -1.57]]) {
+    const f = add(G, box(0.4, 0.25, 0.15), fm, x, 6.0, z); f.rotation.y = ry; f.rotation.x = -0.5; f.userData.sys = null;
   }
-  // the driller, seated, seen from behind
-  const d = buildHuman(0xf97316, 0xffffff); d.scale.setScalar(1.15); d.position.set(0, 0.12, 1.5); C.add(d);
+  O.floodM = fm;
+  const poolM = basic(0xffe6a8, { transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
+  for (const [x, y, z, r] of [[0, -2.38, 0, 2.6], [0, 7.36, 0, 5.5], [0, 0.03, -9, 6], [5, 0.03, 8, 5]]) {
+    const p = add(G, new THREE.CircleGeometry(r, 32).rotateX(-Math.PI / 2), poolM, x, y, z); p.userData.sys = null; O.pools.push(p);
+  }
+  O.poolM = poolM;
+  SYS.cur = null;
 }
+
+// ================================================================ STUDIO set (S): half-section macros at real scale (metres)
+const SLOT = { ANN: [-40, 0, 0], RAM: [-40, 0, 40], BSR: [-80, 0, 40], IBOP: [-80, 0, 0] };
 function buildStudio(G) {
-  add(G, cyl(120, 0.4, 48), lam(0x16233a), 30, -0.5, 0);
-  const place = (a, p) => { a.group.position.set(...p); G.add(a.group); return a; };
-  O.tri = place(A.triplex(), SLOT.PUMP_A);
-  O.pb = place(A.pumpSection(), SLOT.PUMP_B);
-  O.wp = place(A.washpipe(), SLOT.WASH);
-  buildCab(G);
-  O.sGroups = { PUMP_A: O.tri.group, PUMP_B: O.pb.group, WASH: O.wp.group, CAB: O.cab };
+  const floorM = new THREE.MeshLambertMaterial({ color: 0x1b2638 });
+  add(G, new THREE.CircleGeometry(160, 64).rotateX(-Math.PI / 2), floorM, -60, -0.002, 20);
+  const place = (g, k) => { g.position.set(...SLOT[k]); G.add(g); return g; };
+  O.sANN = place(P5.annularPreventer(), 'ANN');
+  O.sRAM = place(P5.ramPreventer({ cavities: ['pipe', 'vbr'], floorY: 0 }), 'RAM');
+  O.sBSR = place(P5.ramPreventer({ cavities: ['bsr'], floorY: 0 }), 'BSR');
+  O.sIBOP = place(P5.ibopValves(), 'IBOP');
+  // plinths (machined steel blocks the models sit on)
+  for (const k of Object.keys(SLOT)) add(G, cyl(1.6, 0.04, 48), new THREE.MeshLambertMaterial({ color: 0x243248 }), SLOT[k][0], 0.0, SLOT[k][2]);
+  // props: tool joint + hex kelly for the annular are inside the asset (setTarget); a 3.5 in ghost pipe, a tool joint
+  // across the BSR blades, the IBOP wrench, the pressure disc, arrows
+  const steel = new THREE.MeshStandardMaterial({ color: 0x46505b, metalness: 0.7, roughness: 0.42 });
+  const tj = O.bsrTJ = new THREE.Group(); O.sBSR.add(tj);
+  add(tj, cyl(0.0635, 3.2, 24), steel); add(tj, cyl(0.084, 0.42, 28), steel, 0, 0.1, 0);
+  add(tj, cyl(0.0635, 0.06, 24, false, 0.084), steel, 0, -0.14, 0); add(tj, cyl(0.084, 0.06, 24, false, 0.0635), steel, 0, 0.34, 0);
+  tj.visible = false;
+  const w = O.wrench = new THREE.Group(); O.sIBOP.add(w);
+  add(w, cyl(0.012, 0.16, 6).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.8, roughness: 0.35 }), 0.08, 0, 0);
+  add(w, cyl(0.014, 0.34, 8), new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.2, roughness: 0.5 }), 0.17, 0, 0);
+  w.visible = false;
+  // pressure disc under the closed rams (S9) + force arrow
+  O.pDisc = add(O.sRAM, new THREE.CircleGeometry(0.173, 48).rotateX(-Math.PI / 2), basic(0xa855f7, { transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }), 0, 0, 0);
+  O.pArrow = new THREE.Group(); O.sRAM.add(O.pArrow);
+  const ink = basic(0x16171b), paper = basic(0xf6f2ea, { side: THREE.BackSide });
+  add(O.pArrow, cyl(0.022, 1, 10).translate(0, 0.5, 0), ink); add(O.pArrow, cyl(0.032, 1, 10).translate(0, 0.5, 0), paper);
+  O.pHead = add(O.pArrow, new THREE.ConeGeometry(0.06, 0.12, 14).translate(0, 0.06, 0), ink);
+  O.upArr = new THREE.InstancedMesh(new THREE.ConeGeometry(0.018, 0.05, 8), ink, 12); O.upArr.frustumCulled = false; O.upArr.count = 0; O.sRAM.add(O.upArr);
+  // BSR sparks + chips
+  O.spark = new THREE.InstancedMesh(new THREE.BoxGeometry(0.004, 0.004, 0.03), basic(0xffd27a, { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 48);
+  O.spark.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(48 * 3), 3); O.spark.frustumCulled = false; O.spark.count = 0; O.sBSR.add(O.spark);
+  O.chips = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.006, 0), lam(0x2a2a30), 6); O.chips.frustumCulled = false; O.chips.count = 0; O.sBSR.add(O.chips);
+  // ghost 3-1/2 in pipe for the "one size" beat (S7) and the VBR pipe (S8)
+  O.ghost35 = add(O.sRAM, cyl(0.0445, 1.6, 24), new THREE.MeshStandardMaterial({ color: 0x5a6470, metalness: 0.7, roughness: 0.4, transparent: true, opacity: 0.0, depthWrite: false }), 0, 0.5, 0);
+  O.sGroups = { ANN: O.sANN, RAM: O.sRAM, BSR: O.sBSR, IBOP: O.sIBOP };
+  for (const g of Object.values(O.sGroups)) g.traverse(m => { if (m.isMesh) m.userData.sys = null; });
 }
 
-// ================================================================ paths (set-local polylines with named vertices)
-function mkPath(list) {
-  const pts = list.map(e => e[1]), poly = new Poly(pts), s = {};
-  list.forEach((e, i) => { if (!(e[0] in s)) s[e[0]] = poly.c[i]; });
-  return { poly, s, L: poly.L, pts };
-}
-const pAt = (path, s) => { path.poly.at(s, O.v3); return [O.v3.x, O.v3.y, O.v3.z]; };
-const HOSE_W = [0, 0, 0, 0.15, 0.25, 0.55, 0.9, 1, 1];
-function hosePtsDy(dy) {
-  const cv = new THREE.CatmullRomCurve3(HOSE_CTRL.map((p, i) => new THREE.Vector3(p[0], p[1] + dy * HOSE_W[i], p[2])));
-  return cv.getPoints(26).map(v => [v.x, v.y, v.z]);
-}
-// top drive drills ahead ~2 m (1.5 u) during the kelly-hose shot, then stays there
-const tdDy = t => -1.5 * clamp((t - 61.5) / 7.5);
-const _dn = { dy: null, path: null };
-function DN(dy) {
-  if (_dn.dy === dy) return _dn.path;
-  const H = hosePtsDy(dy);
-  const list = [
-    ['hover', [24, 5.2, -3.4]], ['sink', [24, 2.1, -3.4]], ['suc0', [24, 0.85, -1.7]], ['wall', [24, 0.7, -1.0]], ['flange', [24, 0.7, 0.89]], ['eye', [24, 0.7, 1.22]],
-    ['out', [23.45, 1.285, 1.5]], ['r1', [23.0, 1.285, 1.5]], ['r2', [23.0, 1.285, 2.6]], ['r3', [23.0, 0.7, 3.0]], ['r4', [23.0, 0.7, 4.4]], ['r5', [21.25, 0.7, 4.4]], ['tsuc', [21.25, 0.62, 6.1]],
-    ['tin', [21.25, 0.62, 7.2]], ['fe', [21.6, 1.4, 7.2]], ['dis0', [21.0, 1.85, 7.2]], ['dis1', [20.3, 1.85, 7.2]], ['dis2', [20.3, 0.45, 7.2]], ['dis3', [8.0, 0.45, 7.2]], ['dis4', [8.0, 0.45, 1.5]],
-    ['riser', [8.0, 7.75, 1.5]], ['manIn', [7.55, 7.75, 1.5]], ['manOut', [5.15, 7.75, 1.5]], ['spBase', [4.7, 7.75, 1.5]],
-    ...H.map((p, i) => [i === 0 ? 'spTop' : i === H.length - 1 ? 'goose' : 'h' + i, p]),
-    ['td', [0, 20.6 + dy, 0]], ['floor', [0, 7.4, 0]], ['ground', [0, -1.0, 0]],
-  ];
-  _dn.dy = dy; _dn.path = mkPath(list); _dn.list = list;
-  return _dn.path;
-}
-const HOLE = [['ground', [0, -1.0, 0]], ['deep', [0, -20, 0]], ['turn', [0.35, -20.4, 0]], ['up', [0.35, 2.9, 0]]];
-function wpos(o, set = 'L') { o.getWorldPosition(O.v3); const f = OFF[set]; return [O.v3.x - f[0], O.v3.y - f[1], O.v3.z - f[2]]; }
-const addV = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-function buildRET() {
-  scene.updateMatrixWorld(true);
-  const dgO = O.dg.group.position.toArray();
-  O.cascade = O.dg.paths.cascade.map(p => addV(p, dgO));
-  O.wp_ = {
-    dgTankIn: wpos(O.dg.anchors.tankIn), dgInlet: wpos(O.dg.anchors.inlet), dgOut: wpos(O.dg.anchors.outlet), dgTankOut: wpos(O.dg.anchors.tankOut), vac: wpos(O.dg.anchors.vacuumPump),
-    dsFeed: wpos(O.dsn.anchors.feed), dsHead: wpos(O.dsn.anchors.head), dsOver: wpos(O.dsn.anchors.overflow), dsOut: wpos(O.dsn.anchors.overflowOut), dsApex: wpos(O.dsn.anchors.apex),
-    dlFeed: wpos(O.dsl.anchors.feed), dlHead: wpos(O.dsl.anchors.head), dlOver: wpos(O.dsl.anchors.overflow), dlOut: wpos(O.dsl.anchors.overflowOut),
-    cfFeed: wpos(O.cf.anchors.feed), cfBowl: wpos(O.cf.anchors.bowlMid), cfLiq: wpos(O.cf.anchors.liquidOut), cfSol: wpos(O.cf.anchors.solidsOut), cfChute: wpos(O.cf.anchors.chuteEnd),
-    cpCase: wpos(O.cp.anchors.casing), spGauge: wpos(O.sm.anchors.gauge), spValveA: wpos(O.sm.anchors.valveA), fpSensor: wpos(O.fp.anchors.sensor), fpPaddle: wpos(O.fp.anchors.paddle),
-  };
-  const P = O.wp_;
-  const list = [
-    ['bop', [0, 2.9, 0]], ['bell', [0, 6.0, 0]], ['fl0', [0.4, 6.0, -0.4]], ['fl1', [10.75, 5.15, -4.9]], ['belly', [12.25, 5.3, -5.0]], ['deck0', [12.25, 4.95, -4.1]], ['deck1', [12.25, 4.6, -2.6]], ['tankA', [12.6, 2.55, -2.4]],
-    ['dgTankIn', P.dgTankIn], ['dgUp', [P.dgTankIn[0], P.dgInlet[1], P.dgTankIn[2]]], ['dgInlet', P.dgInlet], ...O.cascade.map((p, i) => ['c' + i, p]), ['dgOut', P.dgOut], ['dgEd', [P.dgOut[0] + 0.7, P.dgOut[1], P.dgOut[2]]], ['dgTankOut', P.dgTankOut],
-    ['tankB0', [P.dsFeed[0] - 0.4, 2.2, P.dsFeed[2]]], ['dsFeedUp', [P.dsFeed[0] - 0.4, P.dsFeed[1], P.dsFeed[2]]], ['dsFeed', P.dsFeed], ['dsCore', [P.dsHead[0], P.dsApex[1] + 0.3, P.dsHead[2]]], ['dsOver', P.dsOver], ['dsOut', P.dsOut],
-    ['tankB1', [P.dlFeed[0] - 0.4, 2.2, P.dlFeed[2]]], ['dlFeedUp', [P.dlFeed[0] - 0.4, P.dlFeed[1], P.dlFeed[2]]], ['dlFeed', P.dlFeed], ['dlOver', P.dlOver], ['dlOut', P.dlOut],
-    ['tankC0', [P.dlOut[0] + 0.4, 2.2, P.dlOut[2]]], ['cfUp0', [P.cfFeed[0], 2.2, P.cfFeed[2]]], ['cfFeed', P.cfFeed], ['cfBowl', P.cfBowl], ['cfWeir', [P.cfLiq[0], P.cfBowl[1] - 0.2, P.cfBowl[2]]], ['cfLiq', P.cfLiq], ['splash', [P.cfLiq[0], MUDY, P.cfLiq[2]]],
-  ];
-  O.RET = mkPath(list);
-  O.RETlist = list;
-}
-function LOOPpath(dy) {
-  const k = 'loop' + dy;
-  if (O[k]) return O[k];
-  const dn = DN(dy);
-  const list = [..._dn.list, ...HOLE.slice(1), ...O.RETlist];
-  const p = mkPath(list); p.sRet = p.s.bop; p.sHole = p.s.ground; p.sCent = p.s.cfLiq;
-  O[k] = p; return p;
+// ================================================================ W additions: BOP proxy, float sub, nested casing (teaser)
+function buildWellAdds(G) {
+  const px = O.wBOP = P5.bopStack({ pipe: false, lines: false }); px.scale.setScalar(0.42); px.position.set(0, 0.4, 0); px.rotation.y = Math.PI; G.add(px);
+  px.traverse(m => { if (m.isMesh) m.userData.sys = null; });
+  const fs = O.wFloat = P5.floatSub(); fs.scale.setScalar(7); fs.position.set(0, YBT + 0.3, 0); G.add(fs);
+  // EP04 ghost bubble
+  O.wGhost = add(G, new THREE.SphereGeometry(0.6, 24, 16), basic(0xf8fafc, { transparent: true, opacity: 0, depthWrite: false }), 0.9, -36, 0.4);
+  O.wGhostRim = add(G, new THREE.SphereGeometry(0.68, 24, 16), basic(0xa855f7, { transparent: true, opacity: 0, side: THREE.BackSide, depthWrite: false }), 0.9, -36, 0.4);
+  // back-flow / down-flow arrows in the bore (S21)
+  O.wArr = new THREE.InstancedMesh(new THREE.ConeGeometry(0.12, 0.34, 8), basic(0xc8925a), 30); O.wArr.frustumCulled = false; O.wArr.count = 0; G.add(O.wArr);
+  O.wBub = bubbleMesh(G, 6);
+  // nested casing (S26) at W-local x +80: 4 half tubes (back half) + cement annuli, shoes stepping deeper
+  const C = O.casingG = new THREE.Group(); C.position.set(80, 0, 0); G.add(C);
+  const earth = [[0, -12, 0xd9bf8c], [-12, -24, 0xb98a5a], [-24, -34, 0x97a08a], [-34, -48, 0xbdb5a8]];
+  for (const [y0, y1, c] of earth) add(C, box(40, y0 - y1, 12).translate(0, (y0 + y1) / 2, -6.0 - 3.0), lam(c));
+  const CS = [[2.6, -6, 0x8f9cab], [2.1, -14, 0x9aa6b4], [1.7, -26, 0xa7b2bf], [1.3, -38, 0xb3bdc8]];
+  O.casings = []; O.cements = [];
+  CS.forEach(([r, shoe, col], i) => {
+    const h = 6.4 - shoe;
+    const g = new THREE.CylinderGeometry(r, r, h, 40, 1, true, Math.PI / 2, Math.PI); g.translate(0, (6.4 + shoe) / 2, 0);
+    const m = add(C, g, new THREE.MeshLambertMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 1 })); O.casings.push(m);
+    add(C, new THREE.TorusGeometry(r, 0.06, 6, 24, Math.PI).rotateX(Math.PI / 2).rotateY(Math.PI), lam(0x5b6573), 0, shoe, 0); // shoe
+    for (const sx of [-1, 1]) O.casings.push(add(C, box(0.09, h, 0.05).translate(sx * r, (6.4 + shoe) / 2, 0.02), new THREE.MeshLambertMaterial({ color: 0x3a4350, transparent: true, opacity: 1 }))); // cut edges
+    const ri = i < 3 ? CS[i + 1][0] : 0.9;
+    const cg = new THREE.RingGeometry(ri + 0.05, r - 0.03, 40, 1, 0, Math.PI); cg.rotateX(Math.PI / 2);
+    // cement: a back half-shell between this string and the next, filled from the shoe up (scale.y)
+    const cm = new THREE.CylinderGeometry((r + ri) / 2, (r + ri) / 2, 1, 40, 1, true, Math.PI / 2, Math.PI); cm.translate(0, 0.5, 0);
+    const cmm = add(C, cm, new THREE.MeshLambertMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }), 0, i < 3 ? CS[i + 1][1] : -46, 0);
+    cmm.userData.y0 = cmm.position.y; cmm.userData.top = i < 3 ? shoe + 0.2 : shoe + 0.2; O.cements.push(cmm);
+  });
+  add(C, box(40, 0.4, 12).translate(0, 6.6, -9), lam(0xe9d3a3));
+  for (const [y0, y1, c] of earth) for (const sx of [-1, 1]) add(C, box(17, y0 - y1, 0.4).translate(sx * (2.75 + 8.5), (y0 + y1) / 2, -0.2), lam(c));
+  for (const sx of [-1, 1]) add(C, box(17, 6.4, 0.4).translate(sx * (2.75 + 8.5), 3.2, -0.2), lam(0xd9bf8c));
+  C.traverse(m => { if (m.isMesh) m.userData.sys = null; });
 }
 
-// ================================================================ the drop: one lap of the loop
-// returns { par: 'L'|'W'|'PA'|'PB'|'WS', p:[x,y,z] in that parent's space, dirt, shimmer, op, squash, chip, bubbles, ring, vis, splashPos, splashAge }
-const E = { l: u => u, io: eio, o: eout, i: u => u * u * u, s: u => u * u * (3 - 2 * u) };
-function keyS(keys, t, S) {
-  let i = 0; while (i < keys.length - 2 && t >= keys[i + 1][0]) i++;
-  const a = keys[i], b = keys[i + 1], u = clamp((t - a[0]) / (b[0] - a[0]));
-  const sv = k => (Array.isArray(k) ? S[k[0]] + k[1] : typeof k === 'number' ? k : S[k]);
-  return lerp(sv(a[1]), sv(b[1]), (E[a[2]] || E.l)(u));
-}
-function dirtAt(t) {
-  if (t < 82.2) return 0;
-  if (t < 110.2) return sstep(82.2, 82.6, t);
-  if (t < 120.5) return 0.7;
-  if (t < 125.0) return lerp(0.7, 0.6, sstep(120.3, 120.7, t));
-  if (t < 129.2) return lerp(0.6, 0.4, sstep(124.8, 125.2, t));
-  if (t < 133.0) return lerp(0.4, 0.2, sstep(129.0, 129.4, t));
-  if (t < 145) return 0.2 * (1 - sstep(133.0, 135.0, t));
-  return 0;
-}
-const bob = (t, t0) => 0.1 * Math.sin(2.4 * (t - t0)) * sstep(t0, t0 + 0.6, t);
-const posAlong = (pts, u) => { const p = new Poly(pts); p.at(u * p.L, O.v3); return [O.v3.x, O.v3.y, O.v3.z]; };
-function dropAt(t) {
-  const d = { par: 'L', p: [0, 0, 0], dirt: dirtAt(t), shimmer: 0, op: 1, squash: 1, ring: true, vis: true, chip: 0, bubbles: 0 };
-  d.chip = t > 82.2 && t < 110.2 ? sstep(82.2, 82.5, t) : 0;
-  d.bubbles = t > 86 && t < 118 ? sstep(86.0, 86.4, t) * (1 - sstep(116.6, 117.6, t)) : 0;
-  if (t < 6.0) { d.vis = false; return d; }
-  if (t < 16.6) { // pops out of the active tank, hovers
-    const u = eout((t - 6.0) / 0.6);
-    d.p = [24, lerp(MUDY, 5.2, u) + bob(t, 6.6), -3.4];
-    d.splashPos = [24, MUDY + 0.02, -3.4]; d.splashAge = t - 6.0; d.ring = t > 6.2;
-    return d;
-  }
-  const dn = DN(tdDy(t)), S = dn.s;
-  if (t < 19.8) { // sinks, suction nozzle, through the wall to the charge pump
-    const s = keyS([[16.6, 'hover', 's'], [17.3, 'sink', 'l'], [17.8, 'suc0', 'l'], [18.3, 'wall', 'l'], [19.0, 'flange', 'o'], [19.8, 'eye', 'l']], t, S);
-    d.p = pAt(dn, s); d.op = d.p[1] < MUDY ? 0.55 : 1; return d;
-  }
-  if (t < 20.8) { // 3/4 spiral on the impeller
-    const sp = O.cp.spiral(eio((t - 19.8) / 1.0), t); d.p = addV(O.wp_.cpCase, [sp.x, sp.y, sp.z + 0.06]); d.squash = 0.8; return d;
-  }
-  if (t < 22.5) {
-    if (t < 21.0) { const sp = O.cp.spiral(1, t), a = addV(O.wp_.cpCase, [sp.x, sp.y, sp.z]); d.p = V(a, pAt(dn, S.out), (t - 20.8) / 0.2); return d; }
-    d.p = pAt(dn, keyS([[21.0, 'out', 'l'], [22.3, 'tsuc', 'o'], [22.5, 'tsuc', 'l']], t, S)); return d;
-  }
-  if (t < 29.7) { // triplex overview: rides into the suction manifold, then is hidden inside the block
-    d.par = 'PA'; const a = O.tri.anchors.suctionInlet.position.toArray();
-    d.p = addV(a, [0, 0, 1.8 * (1 - eio((t - 22.5) / 0.9))]); d.vis = t < 23.5; return d;
-  }
-  if (t < 45.5) { // pump section: suction -> chamber -> discharge port (parked) -> under the dampener -> off frame
-    d.par = 'PB';
-    if (t < 29.9) { d.p = O.pbSuc.at(0, O.v3).toArray(); return d; }
-    if (t < 30.65) { d.p = O.pbSuc.at(O.pbSuc.L * eio((t - 29.9) / 0.75), O.v3).toArray(); return d; }
-    d.shimmer = 1;
-    if (t < 38.0) { d.p = O.pbDis.at(O.pbDisPort * eio((t - 30.65) / 0.75), O.v3).toArray(); return d; }
-    d.p = O.pbDis.at(lerp(O.pbDisPort, O.pbDis.L, sstep(38.0, 42.0, t)), O.v3).toArray(); d.vis = t < 42.0; return d;
-  }
-  if (t < 53.5) { d.vis = false; return d; }
-  if (t < 69.5) { // manifold -> standpipe -> kelly hose -> gooseneck
-    d.shimmer = 1;
-    const s = keyS([[53.5, ['riser', -2.2], 'l'], [54.4, 'manIn', 'l'], [54.6, 'manIn', 'l'], [55.6, 'manOut', 'l'], [56.2, 'spBase', 'l'], [57.4, ['spBase', 0.9], 's'], [61.0, 'spTop', 'l'], [61.9, 'h2', 'l'], [62.0, 'h2', 's'], [66.4, 'goose', 'l'], [69.5, 'goose', 'l']], t, S);
-    d.p = pAt(dn, s); if (t > 66.4) d.p[1] += 0.05 * Math.sin((t - 66.4) * 3); return d;
-  }
-  if (t < 76.9) { // studio washpipe: gooseneck -> washpipe -> packing -> rotating shaft
-    d.par = 'WS'; d.shimmer = 1; const W_ = O.wpS;
-    const s = keyS([[69.5, 0, 'l'], [70.0, W_.g0, 'l'], [71.4, W_.wTop, 'l'], [72.6, W_.wTop + 1.25, 'l'], [73.6, W_.sTop, 'l'], [74.8, W_.L, 'l'], [76.9, W_.L + 4.0, 'l']], t, {});
-    d.p = O.wpFlow.at(Math.min(s, O.wpFlow.L), O.v3).toArray();
-    if (s > O.wpFlow.L) d.p[1] -= s - O.wpFlow.L;
-    if (s > W_.sTop) { const a = (t - 73.6) * 1.6 * 0.3 * 6.283; d.p[0] += 0.08 * Math.sin(a); }
-    d.vis = s < O.wpFlow.L + 0.6; return d;
-  }
-  if (t < 90.7) { d.par = 'W'; return dropW(t, d); }
-  if (t < 98.7) { // bell nipple -> flowline (gravity) -> possum belly
-    const s = keyS([[90.7, 'bop', 'l'], [90.9, 'bop', 'o'], [92.0, 'bell', 'l'], [92.3, 'fl0', 'l'], [97.6, 'fl1', 'l'], [97.8, 'belly', 'l'], [98.7, 'belly', 'l']], t, O.RET.s);
-    d.p = pAt(O.RET, s); if (t > 92.3 && t < 97.6) d.p[1] += 0.04 * Math.abs(Math.sin((t - 92.3) * 5)) - 0.1;
-    return d;
-  }
-  if (t < 106.5) { // replay ghost under the flow paddle
-    const u = (t - 98.9) / 1.0, dl = Math.hypot(...FLOW_DIR), k = lerp(-1.4, 1.4, clamp(u));
-    d.p = [PADDLE[0] + FLOW_DIR[0] / dl * k, PADDLE[1] + FLOW_DIR[1] / dl * k - 0.1, PADDLE[2] + FLOW_DIR[2] / dl * k];
-    d.op = 0.6; d.ring = false; d.vis = u > 0 && u < 1; return d;
-  }
-  if (t < 113.9) { // shale shaker
-    if (t < 107.2) { d.p = pAt(O.RET, keyS([[106.5, 'belly', 'l'], [106.8, 'belly', 'l'], [107.2, 'deck0', 'l']], t, O.RET.s)); return d; }
-    if (t < 111.0) {
-      d.p = V(O.RET.pts[5], O.RET.pts[6], sstep(107.4, 110.0, t));
-      d.p[0] += O.basket.position.x - 12.25; d.p[1] += O.basket.position.y - 4.55; d.p[2] += O.basket.position.z + 2.65; return d;
-    }
-    if (t < 111.6) { const u = sstep(111.0, 111.6, t); d.p = [12.3, lerp(4.6, 4.2, u), -2.55]; d.squash = [1 + 0.4 * Math.sin(u * Math.PI), 1 - 0.5 * Math.sin(u * Math.PI), 1 + 0.4 * Math.sin(u * Math.PI)]; return d; }
-    const u = E.i((t - 111.6) / 0.9);
-    d.p = V([12.3, 4.2, -2.55], [12.6, MUDY - 0.15 * clamp((t - 112.5) / 1), -2.4], clamp(u));
-    d.splashPos = [12.6, MUDY + 0.02, -2.4]; d.splashAge = t - 112.5; d.op = t > 112.5 ? 0.6 : 1; return d;
-  }
-  if (t < 121.7) { // vacuum degasser
-    const R = O.RET, S2 = R.s;
-    if (t < 116.0) { d.p = pAt(R, keyS([[113.9, 'tankA', 'l'], [114.8, 'dgTankIn', 'l'], [115.5, 'dgUp', 'l'], [116.0, 'dgInlet', 'l']], t, S2)); d.op = t < 114.9 ? 0.6 : 1; return d; }
-    if (t < 119.4) { d.p = pAt(R, lerp(S2.c0, S2.dgOut, sstep(116.0, 119.2, t))); d.squash = [1.35, 0.4, 1.35]; return d; }
-    d.p = pAt(R, keyS([[119.4, 'dgOut', 'l'], [119.8, 'dgOut', 'l'], [120.2, 'dgEd', 'l'], [120.6, 'dgTankOut', 'l'], [121.7, 'tankB0', 'l']], t, S2));
-    d.op = t > 120.6 ? 0.6 : 1; d.splashPos = R.pts[R.pts.findIndex((p, i) => O.RETlist[i][0] === 'dgTankOut')]; d.splashAge = t - 120.6; return d;
-  }
-  if (t < 125.6) return cyc(t, d, O.dsn, 'ds', 121.7, [122.0, 122.4, 124.4, 124.7, 125.0, 125.4], 'tankB0');
-  if (t < 129.7) return cyc(t, d, O.dsl, 'dl', 125.4, [125.9, 126.0, 128.4, 128.6, 129.0, 129.4], 'dsOut');
-  if (t < 137.7) { // decanting centrifuge -> clean -> back into the active tank
-    const R = O.RET, S2 = R.s;
-    if (t < 131.0) { d.p = pAt(R, keyS([[129.7, 'dlOut', 'l'], [129.9, 'tankC0', 'l'], [130.2, 'cfUp0', 'l'], [130.5, 'cfFeed', 'l'], [131.0, 'cfBowl', 'l']], t, S2)); d.op = d.p[1] < MUDY ? 0.6 : 1; return d; }
-    if (t < 135.6) {
-      const u = sstep(131.0, 135.0, t), a = 1.1 * Math.sin((t - 131) * 1.8), r = 0.26 * sstep(131.0, 131.5, t);
-      const b = O.wp_.cfBowl;
-      d.p = [lerp(b[0], O.wp_.cfLiq[0] - 0.1, u), b[1] + r * Math.sin(a), b[2] + r * Math.cos(a)]; return d;
-    }
-    const u = E.i((t - 135.6) / 0.8);
-    d.p = V([O.wp_.cfLiq[0] - 0.1, O.wp_.cfBowl[1], O.wp_.cfBowl[2]], [O.wp_.cfLiq[0], MUDY - 0.2 * clamp((t - 136.4) / 1.2), O.wp_.cfLiq[2]], clamp(u));
-    d.splashPos = [O.wp_.cfLiq[0], MUDY + 0.02, O.wp_.cfLiq[2]]; d.splashAge = t - 136.4; d.op = t > 136.4 ? 0.6 : 1; return d;
-  }
-  if (t < 145.7) { d.vis = false; return d; }
-  if (t < 161.3) { // recap: one fast lap, splash, then hover over the active tank
-    const L = LOOPpath(tdDy(t));
-    if (t < 146.0) { d.p = pAt(L, 0); return d; }
-    if (t < 150.0) {
-      const s = L.L * eio((t - 146.0) / 4.0); d.p = pAt(L, s);
-      d.dirt = s < L.sHole ? 0 : s < L.s.belly ? 1 : s < L.s.tankA ? 0.7 : s < L.s.dgTankOut ? 0.6 : s < L.s.dsOut ? 0.4 : s < L.s.dlOut ? 0.2 : 0;
-      d.chip = s > L.sHole && s < L.s.belly ? 1 : 0; d.bubbles = 0; d.shimmer = s < L.sHole ? 1 : 0;
-      d.op = s > L.s.ground && s < L.sRet ? 0.7 : 1;
-      return d;
-    }
-    const sp = pAt(L, L.L);
-    const u = eout((t - 150.4) / 0.8);
-    d.p = [sp[0], lerp(MUDY - 0.1, 4.6, clamp(u)) + bob(t, 151.2), sp[2]];
-    d.splashPos = [sp[0], MUDY + 0.02, sp[2]]; d.splashAge = t - 150.0; d.op = t < 150.6 ? 0.6 : 1; d.ring = t > 150.8; return d;
-  }
-  d.vis = false; return d;
-}
-function cyc(t, d, H, k, t0, T, from) { // through a hydrocyclone: feed -> wall spiral down -> core spiral up -> overflow
-  const R = O.RET, S2 = R.s, g = H.group.position.toArray();
-  const V_ = (u, down) => { const v = H.vortex(u, t, down); return [v.x + g[0], v.y + g[1], v.z + g[2]]; };
-  if (t < T[0]) { d.p = pAt(R, keyS([[t0, from, 'l'], [lerp(t0, T[0], 0.55), k === 'ds' ? 'dsFeedUp' : 'dlFeedUp', 'l'], [T[0], k + 'Feed', 'l']], t, S2)); d.op = d.p[1] < MUDY ? 0.6 : 1; return d; }
-  if (t < T[1]) { d.p = V(pAt(R, S2[k + 'Feed']), V_(0, true), (t - T[0]) / (T[1] - T[0])); return d; }
-  if (t < T[2]) { d.p = V_(0.72 * sstep(T[1], T[2], t), true); d.squash = 0.85; return d; }
-  if (t < T[3]) { d.p = V(V_(0.72, true), V_(0.05, false), sstep(T[2], T[3], t)); return d; }
-  if (t < T[4]) { d.p = V_(lerp(0.05, 1, sstep(T[3], T[4], t)), false); return d; }
-  d.p = pAt(R, keyS([[T[4], k + 'Over', 'l'], [T[5], k + 'Out', 'l'], [T[5] + 0.4, k + 'Out', 'l']], t, S2));
-  return d;
-}
-function dropW(t, d) { // well cutaway: dive down the bore, out of a nozzle, up the annulus
-  d.shimmer = t < 81.2 ? 1 : 0;
-  if (t < 80.4) { const y = lerp(8, -36, eio((t - 77.1) / 3.3)); d.p = [0, y, -0.1]; d.vis = true; return d; }
-  const rot = BIT_ROT(81.2); let best = 0, bz = -9;
-  for (let k = 0; k < 3; k++) { const z = Math.sin(rot + k * 2.094); if (z > bz) { bz = z; best = k; } }
-  const a = rot + best * 2.094, N = [0.8 * Math.cos(a), YB + 0.3, 0.8 * Math.sin(a)];
-  if (t < 81.2) { d.p = posAlong([[0, -36, -0.1], [0, YB + 1.0, -0.1], N], sstep(80.4, 81.2, t)); return d; }
-  if (t < 82.8) { d.p = posAlong([N, [1.0, YB + 0.12, 0.6], [1.38, YB + 0.22, 0.32]], eout((t - 81.2) / 0.8)); d.p[1] += 0.03 * Math.sin(t * 9); return d; }
-  if (t < 83.9) { d.p = V([1.38, YB + 0.22, 0.32], [1.15, -35.4, -0.3], sstep(82.8, 83.9, t)); return d; }
-  if (t < 90.0) { const y = lerp(-35.4, 0.8, sstep(83.9, 90.0, t)); d.p = [1.15 + 0.05 * Math.sin(y * 1.3), y, -0.3]; return d; }
-  d.p = V([1.15, 0.8, -0.3], [4.2, 1.0, 0.1], sstep(90.0, 90.7, t)); return d;
-}
+// ================================================================ motion helpers (pure in t)
+const eio5 = u => { u = clamp(u); return u < 0.5 ? 16 * u * u * u * u * u : 1 - Math.pow(-2 * u + 2, 5) / 2; };
+const ein = u => Math.pow(clamp(u), 3);
 const V = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
+const addV = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+// camera keys [[t, p, l, fov, vo]]: each segment eased (quintic for >= 1.5 s, cubic below), soft stop at every key
+function K(t, keys) {
+  if (t <= keys[0][0]) return { p: keys[0][1], l: keys[0][2], fov: keys[0][3], vo: keys[0][4] || [0, 0] };
+  let i = 0; while (i < keys.length - 2 && t >= keys[i + 1][0]) i++;
+  const a = keys[i], b = keys[i + 1], d = b[0] - a[0], u = (d >= 1.5 ? eio5 : eio)((t - a[0]) / d);
+  const va = a[4] || [0, 0], vb = b[4] || [0, 0];
+  return { p: V(a[1], b[1], u), l: V(a[2], b[2], u), fov: lerp(a[3], b[3], u), vo: [lerp(va[0], vb[0], u), lerp(va[1], vb[1], u)] };
+}
+// a hold that slowly pushes toward the look-at (k = fraction of the distance)
+function push(c, t, t0, t1, k) { const u = eio((t - t0) / (t1 - t0)) * k; return { ...c, p: V(c.p, c.l, u) }; }
+// weighted move through several points: centripetal Catmull-Rom by arc length, one quintic ease over the whole move
+const _sp = new Map();
+function spline(id, pts, t, t0, t1) {
+  if (!_sp.has(id)) _sp.set(id, new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'centripetal'));
+  const v = _sp.get(id).getPointAt(eio5((t - t0) / (t1 - t0)), O.v3c); return [v.x, v.y, v.z];
+}
+// rule 6: damped-spring gauge needle (zeta 0.75, omega 12): steps [[t, value], ...] -> value at t
+function needle(t, steps, z = 0.75, w = 12) {
+  let v = steps[0][1];
+  const s = Math.sqrt(1 - z * z), wd = w * s;
+  for (let k = 1; k < steps.length; k++) {
+    const [tk, vk] = steps[k], dv = vk - steps[k - 1][1], tt = t - tk;
+    if (tt <= 0) break;
+    v += dv * (1 - Math.exp(-z * w * tt) * (Math.cos(wd * tt) + z / s * Math.sin(wd * tt)));
+  }
+  return v;
+}
+// rule 2: hydraulic ram stroke: ein over the first 0.15 s, constant speed, last 8 % slower, hard stop at t1
+function ramU(t, t0, t1) {
+  if (t <= t0) return 0; if (t >= t1) return 1;
+  const T = t1 - t0, x = t - t0, a = Math.min(0.15, T * 0.2), vmax = 1 / (T - a / 2 - 0.0);
+  if (x < a) return 0.5 * vmax * x * x / a;
+  return Math.min(1, 0.5 * vmax * a + vmax * (x - a));
+}
+const shudder = (t, t0, A) => (t < t0 || t > t0 + 0.25) ? 0 : A * Math.exp(-(t - t0) / 0.08) * Math.sin(2 * Math.PI * 14 * (t - t0));
+// rule 3: annular closing: near-linear, eased over the last 25 %
+function annU(t, t0, t1) { const u = clamp((t - t0) / (t1 - t0)); return u < 0.75 ? u * (0.86 / 0.75) : 0.86 + 0.14 * eout((u - 0.75) / 0.25); }
+const pulseIn = (t, t0, t1, d = 0.3) => sstep(t0, t0 + d, t) * (1 - sstep(t1 - d, t1, t));
 
-// ================================================================ shots (28). cam(t) -> { p, l, fov, vo:[dx,dy] } in the shot's frame
-// frame = OFF[set] + base. blend: seconds over which the camera eases in from the previous shot's last pose (same frame).
-const dropY = t => dropAt(t).p[1];
+// ================================================================ shots (cam(t) -> { p, l, fov, vo }) in the shot's frame
+const TIER = { bell: 20.9, ann: 21.9, vbr: 23.7, bsr: 26.2, spool: 28.6, low: 32.3, ch: 34.7 };
+const YC = { bell: 3.05, ann: 1.97, vbr: 1.01, bsr: 0.44, spool: -0.49, low: -1.18, ch: -2.09 };
+const liftCam = (y, z = -8.4) => [-2.6, y + 0.55, z];
 const SHOTS = [
-  { id: 1, t0: 0, t1: 8, set: 'L', cam: t => { const u = clamp(t / 8); return { p: V([114, 5, 44], [106, 5.3, 41.5], u), l: V([18, 6.5, 0], [18, 6.8, 0], u), fov: 40 }; } },
-  { id: 2, t0: 8, t1: 15.7, set: 'L', blend: 3.5, cam: t => ({ p: V([13, 99, 76], [14, 97, 74], clamp((t - 11.5) / 4.2)), l: [10, 3, 0], fov: 40, vo: [0, 140] }) },
-  { id: 3, t0: 15.7, t1: 19.0, set: 'L', cam: t => { const u = eio((t - 15.7) / 2.3), h = Math.max(0, t - 18) * 0.12; return { p: V([13, 9.5, 17], [18 + h, 10, 17], u), l: V([20, 2.5, -2.5], [25, 2.5, -2.5], u), fov: 40, vo: [0, 60] }; } },
-  { id: 4, t0: 19.0, t1: 22.5, set: 'L', blend: 1.0, cam: t => ({ p: [27.6 - 0.15 * clamp((t - 20) / 2.5), 3.2, 5.0], l: V([24.0, 0.9, 1.2], [21.8, 0.7, 4.4], eio((t - 21.4) / 1.1)), fov: 40, vo: [0, 60] }) },
-  { id: 5, t0: 22.5, t1: 29.7, set: 'S', base: SLOT.PUMP_A, sub: 'PUMP_A', cam: t => ({ p: V([-12, 14, 12], [-10.8, 13.4, 13.6], (t - 22.5) / 7.2), l: [-2.2, 2.0, 0], fov: 42, vo: [0, 190] }) },
-  { id: 6, t0: 29.7, t1: 37.5, set: 'S', base: SLOT.PUMP_B, sub: 'PUMP_B', cam: t => ({ p: V([-4.6, 3.4, 15], [-4.6, 3.4, 14], (t - 29.7) / 7.8), l: [-3.0, 2.4, 0], fov: 40, vo: [0, 200] }) },
-  { id: 7, t0: 37.5, t1: 45.5, set: 'S', base: SLOT.PUMP_B, sub: 'PUMP_B', blend: 1.0, cam: t => ({ p: [-5.8, 6.2, 13.5 - 0.25 * clamp((t - 38.5) / 7)], l: [-6.4, 5.4, 0], fov: 40, vo: [0, 300] }) },
-  { id: 8, t0: 45.5, t1: 53.5, set: 'S', base: SLOT.PUMP_B, sub: 'PUMP_B', cam: t => ({ p: [-1.6, 2.4, 9.8], l: [-1.6, 2.0, 0], fov: 36, vo: [0, 70] }) },
-  { id: 9, t0: 53.5, t1: 57.2, set: 'L', cam: t => ({ p: V([11.5, 10.2, 8.5], [10.8, 10.0, 7.9], (t - 53.5) / 3.7), l: [6.2, 8.3, 1.5], fov: 40, vo: [0, 80] }) },
-  { id: 10, t0: 57.2, t1: 61.5, set: 'L', blend: 0.9, cam: t => { const y = clamp(dropY(t - 0.4), 9.5, 23); return { p: [13, y - 0.5, 10], l: [4.9, y, 1.5], fov: 40, vo: [0, 60] }; } },
-  { id: 11, t0: 61.5, t1: 69.5, set: 'L', blend: 1.2, cam: t => { const u = (t - 61.5) / 8, k = eio((t - 66.5) / 3); return { p: V(V([18.5, 26, 22.5], [17.5, 25.2, 23.5], u), [12.5, 24.2, 18.5], 0.25 * k), l: V([2.4, 20.6, 0.8], [1.0, 21.0, 0.4], k), fov: 40, vo: [0, 100] }; } },
-  { id: 12, t0: 69.5, t1: 76.9, set: 'S', base: SLOT.WASH, sub: 'WASH', cam: t => { const a = eio((t - 72) / 2), b = clamp((t - 74) / 2.9); return { p: [lerp(2.0, 0.9, a), lerp(9.0, 6.8, a), lerp(10.5, 9.2, b)], l: V([1.2, 7.6, 0], [0.3, 5.0, 0], a), fov: 40, vo: [0, lerp(270, 160, a)] }; } },
-  { id: 13, t0: 76.9, t1: 80.6, set: 'W', cam: t => { const y = dropY(Math.max(77.0, t - 0.15)); return { p: [3.0, y + 1.6, 14.0], l: [0.3, y - 0.8, 0], fov: 40, vo: [0, 160] }; } },
-  { id: 14, t0: 80.6, t1: 83.7, set: 'W', blend: 0.6, cam: t => ({ p: V([4.5, -35.4, 15.5], [3.8, -35.6, 15.0], (t - 80.6) / 3.1), l: [0.2, -37.0, 0], fov: 40, vo: [0, 160] }) },
-  { id: 15, t0: 83.7, t1: 90.7, set: 'W', blend: 0.6, cam: t => { const y = dropY(Math.max(83.9, t - 0.3)); return { p: [5.5, y + 0.6, 15.5], l: [1.0, y, 0], fov: 40, vo: [-40, 160] }; } },
-  { id: 16, t0: 90.7, t1: 94.6, set: 'L', cam: t => ({ p: [4.6, 4.4, -12.5], l: V([0.8, 4.6, -1.0], [4.0, 5.5, -2.2], eio((t - 92.6) / 2.0)), fov: 40, vo: [0, 80] }) },
-  { id: 17, t0: 94.6, t1: 98.7, set: 'L', cam: t => ({ p: [14.0, 10.5, 9.0], l: V([8.6, 5.3, -3.8], [10.6, 5.2, -4.8], eio((t - 94.6) / 3.6)), fov: 40, vo: [0, 80] }) },
-  { id: 18, t0: 98.7, t1: 106.5, set: 'L', cam: t => ({ p: V([11.9, 7.6, 1.4], [11.7, 7.5, 1.2], (t - 98.7) / 7.8), l: [8.2, 5.45, -3.8], fov: 40, vo: [0, 130] }) },
-  { id: 19, t0: 106.5, t1: 113.9, set: 'L', cam: t => ({ p: V([19.5, 10.5, 9.0], [18.6, 10.0, 8.0], (t - 106.5) / 7.4), l: [12.3, 4.5, -2.6], fov: 40, vo: [0, 220] }) },
-  { id: 20, t0: 113.9, t1: 121.7, set: 'L', blend: 0.9, cam: t => ({ p: V([17.8, 7.0, 1.5], [17.2, 6.6, 0.4], (t - 114.8) / 6.9), l: [14.45, 4.1, -5.6], fov: 40, vo: [0, 220] }) },
-  { id: 21, t0: 121.7, t1: 125.6, set: 'L', blend: 0.7, cam: t => ({ p: V([21.5, 7.0, 1.0], [20.6, 6.6, 0.2], (t - 121.7) / 3.9), l: [17.0, 4.6, -5.6], fov: 40, vo: [0, 220] }) },
-  { id: 22, t0: 125.6, t1: 129.7, set: 'L', blend: 0.7, cam: t => ({ p: [24.3, 6.4, 0.5], l: [19.8, 4.2, -5.6], fov: 40, vo: [0, 220] }) },
-  { id: 23, t0: 129.7, t1: 137.7, set: 'L', blend: 0.8, cam: t => ({ p: V([28.0, 7.0, 1.8], [27.4, 6.6, 0.8], (t - 130.5) / 4.5), l: V([25.7, 4.6, -5.6], [26.4, 3.4, -5.6], eio((t - 135.2) / 2.0)), fov: 40, vo: [0, 220] }) },
-  { id: 24, t0: 137.7, t1: 145.7, set: 'S', base: SLOT.CAB, sub: 'CAB', cam: t => ({ p: V([2.3, 4.3, 6.6], [1.9, 4.0, 5.8], (t - 137.7) / 8), l: [0, 2.5, -1.0], fov: 40, vo: [0, 110] }) },
-  { id: 25, t0: 145.7, t1: 153.7, set: 'L', cam: t => ({ p: V([16, 106, 82], [14, 97, 74], eio((t - 145.7) / 7.3)), l: [10, 3, 0], fov: 40, vo: [0, 140] }) },
-  { id: 26, t0: 153.7, t1: 161.3, set: 'L', cam: t => ({ p: V([14, 97, 74], [13.5, 95, 72.5], (t - 153.7) / 7.6), l: [10, 3, 0], fov: 40, vo: [0, 140] }) },
-  { id: 27, t0: 161.3, t1: 165.0, set: 'L', cam: t => ({ p: V([3.2, 6.3, -7.7], [2.9, 6.1, -7.2], (t - 161.3) / 3.7), l: [0, 0.3, 0], fov: 48, vo: [0, 330] }) },
-  { id: 28, t0: 165.0, t1: 170.01, set: 'L', cam: t => ({ p: V([-8.0, 4.8, 24], [-8.6, 5.0, 22.5], (t - 165) / 5), l: [-12.0, 3.4, 4], fov: 40, vo: [0, 120] }) },
+  { id: 1, t0: 0, t1: 6.2, set: 'L', cam: t => K(t, [[0, [-14, 3.6, -54], [0, 8.6, 0], 34, [0, 120]], [6.2, [-11.5, 3.5, -46], [0, 8.0, 0], 34, [0, 120]]]) },
+  { id: 2, t0: 6.2, t1: 13.2, set: 'W', cam: t => push(K(t, [[6.2, [14, -14, 72], [0, -14, 0], 40], [9.6, [11, -10, 60], [0, -12, 0], 40], [12.0, [6, 6, 24], [0, 2.2, 0], 40, [0, 80]]]), t, 12.0, 13.2, 0.02) },
+  { id: 3, t0: 13.2, t1: 20.2, set: 'L', cam: t => push(K(t, [[13.2, [-2.2, 10.2, -12.5], [0, 8.2, 0], 40], [14.8, [-2.2, 10.0, -12.5], [0, 7.3, 0], 40], [17.0, [-1.6, 0.6, -12.6], [0, 0.6, 0], 46, [0, 60]]]), t, 17.0, 20.2, 0.03) },
+  { id: 4, t0: 20.2, t1: 36.8, set: 'L', cam: t => {
+    const S = [['bell', TIER.bell], ['ann', TIER.ann], ['vbr', TIER.vbr], ['bsr', TIER.bsr], ['spool', TIER.spool], ['low', TIER.low], ['ch', TIER.ch]];
+    const keys = [[20.2, [-1.55, 0.6, -12.2], [0, 0.6, 0], 46, [0, 60]]];
+    for (let i = 0; i < S.length; i++) {
+      const [k, ta] = S[i], y = YC[k], z = k === 'spool' ? -11.0 : -8.4;
+      const prev = keys[keys.length - 1];
+      if (ta - 0.85 > prev[0] + 0.01) keys.push([ta - 0.85, prev[1], prev[2], prev[3], prev[4]]);
+      keys.push([ta, liftCam(y, z), [0, y, 0], 36, [40, 40]]);
+      if (k === 'spool') keys.push([31.9, liftCam(y, -11.0), [0, y, 0], 36, [40, 40]]);
+    }
+    let c = K(t, keys);
+    // 2 % push on every hold
+    const ks = keys.map(k => k[0]); let j = 0; while (j < ks.length - 1 && t >= ks[j + 1]) j++;
+    if (j < ks.length - 1 && keys[j + 1][1] === keys[j][1]) c = push(c, t, ks[j], ks[j + 1], 0.02);
+    return c;
+  } },
+  { id: 5, t0: 36.8, t1: 43.6, set: 'S', sub: 'ANN', cam: t => K(t, [[36.8, [1.0, 1.02, 3.6], [0, 0.64, 0], 34, [40, 130]], [43.6, [0.84, 0.94, 3.1], [0, 0.64, 0], 34, [40, 130]]]) },
+  { id: 6, t0: 43.6, t1: 50.1, set: 'S', sub: 'ANN', cam: t => K(t, [[43.6, [0.84, 0.94, 3.1], [0, 0.64, 0], 34, [40, 130]], [47.0, [0.8, 0.92, 2.98], [0, 0.64, 0], 34, [40, 130]], [49.8, [0.8, 0.9, 2.96], [0, 0.6, 0], 34, [40, 130]]]) },
+  { id: 7, t0: 50.1, t1: 56.3, set: 'S', sub: 'RAM', cam: t => K(t, [[50.1, [0, 4.7, 1.35], [0, 1.17, -0.03], 40, [40, 150]], [53.2, [0, 4.6, 1.33], [0, 1.17, -0.03], 40, [40, 150]], [56.3, [0, 2.55, 0.6], [0, 1.17, 0], 40, [40, 150]]]) },
+  { id: 8, t0: 56.3, t1: 63.7, set: 'S', sub: 'RAM', cam: t => {
+    if (t < 58.6) return K(t, [[56.3, [0, 2.55, 0.6], [0, 1.17, 0], 40, [40, 150]], [58.6, [0, 2.3, 0.62], [0, 0.6, 0], 40, [40, 150]]]);
+    // orbit down about the bore axis to the side elevation, then truck to the bonnet tail and back
+    if (t < 59.6) { const u = eio((t - 58.6) / 1.0), a = lerp(Math.atan2(1.7, 0.62), 0.12, u), r = lerp(Math.hypot(1.7, 0.62), 3.4, u);
+      return { p: [lerp(0, 0.35, u), 0.6 + r * Math.sin(a), r * Math.cos(a)], l: [lerp(0, 0.25, u), 0.6, 0], fov: 40, vo: [40, lerp(150, 120, u)] }; }
+    return K(t, [[59.6, [0.35, 0.6 + 3.4 * Math.sin(0.12), 3.4 * Math.cos(0.12)], [0.25, 0.6, 0], 40, [40, 120]], [61.4, [1.55, 0.72, 2.7], [1.5, 0.6, 0], 40, [0, 120]], [63.7, [0.3, 0.68, 3.2], [0.2, 0.62, 0], 40, [40, 120]]]);
+  } },
+  { id: 9, t0: 63.7, t1: 70.6, set: 'S', sub: 'RAM', cam: t => K(t, [[63.7, [0.3, 0.68, 3.2], [0.2, 0.62, 0], 40, [40, 120]], [64.6, [0.28, 0.34, 3.4], [0, 0.6, 0], 36, [40, 140]], [70.6, [0.24, 0.32, 3.1], [0, 0.6, 0], 36, [40, 140]]]) },
+  { id: 10, t0: 70.6, t1: 77.6, set: 'S', sub: 'BSR', cam: t => {
+    let c = K(t, [[70.6, [0.78, 0.98, 3.2], [0, 0.63, 0], 32, [40, 170]], [73.4, [0.6, 0.86, 2.6], [0, 0.63, 0], 32, [40, 170]], [75.0, [0.6, 0.86, 2.6], [0, 0.63, 0], 32, [40, 170]], [77.6, [0.6, 0.95, 2.6], [0, 0.75, 0], 32, [40, 170]]]);
+    const j = shudder(t, 73.6, 0.0035); c.p = [c.p[0], c.p[1] + j, c.p[2]]; return c;
+  } },
+  { id: 11, t0: 77.6, t1: 84.6, set: 'L', cam: t => {
+    const A = [[-2.06, 8.72, 0.28], [-2.06, 8.68, 2.45]];
+    if (t < 78.6) return { p: A[0], l: A[1], fov: 40, vo: [0, 200] };
+    if (t < 80.8) { const P = spline('s11p', [A[0], [-1.6, 8.2, -0.6], [3.0, 6.4, -9.6], [7.2, 4.0, -15.5], [6.0, 1.7, -18.6]], t, 78.6, 80.8);
+      const L = spline('s11l', [A[1], [0.0, 7.5, -2.0], [3.6, 2.5, -8.0], [6.0, 1.15, -12.6]], t, 78.6, 80.8);
+      return { p: P, l: L, fov: 40, vo: V([0, 200, 0], [0, 40, 0], eio5((t - 78.6) / 2.2)).slice(0, 2) }; }
+    return push({ p: [6.0, 1.7, -18.6], l: [6.0, 1.15, -12.6], fov: 40, vo: [0, 40] }, t, 80.8, 84.6, 0.035);
+  } },
+  { id: 12, t0: 84.6, t1: 91.4, set: 'L', blend: 0.8, cam: t => K(t, [[84.6, [7.95, 1.3, -15.6], [8.3, 1.05, -13.2], 36, [0, 60]], [88.2, [7.9, 1.3, -15.4], [8.3, 1.05, -13.2], 36, [0, 60]], [89.2, [6.25, 1.72, -14.75], [6.0, 1.6, -12.8], 36, [0, 40]], [91.4, [6.2, 1.7, -14.6], [6.0, 1.58, -12.8], 36, [0, 40]]]) },
+  { id: 13, t0: 91.4, t1: 92.7, set: 'L', cam: t => K(t, [[91.4, [34, 6.0, -30], [0, 6, 0], 38, [0, 0]], [92.7, [32, 6.2, -28], [0, 6, 0], 38, [0, 0]]]) },
+  { id: 13.2, t0: 92.7, t1: 93.6, set: 'L', cam: t => K(t, [[92.7, [7.7, 1.42, -16.4], [8.0, 1.15, -13.2], 36, [0, 60]], [93.6, [7.7, 1.4, -16.2], [8.0, 1.15, -13.2], 36, [0, 60]]]) },
+  { id: 13.3, t0: 93.6, t1: 98.2, set: 'L', cam: t => K(t, [[93.6, [-1.3, 1.05, -9.3], [0, 0.75, 0], 40, [0, 20]], [98.2, [-1.1, 0.95, -8.7], [0, 0.75, 0], 40, [0, 20]]]) },
+  { id: 14, t0: 98.2, t1: 104.4, set: 'L', cam: t => K(t, [[98.2, [-0.55, -0.12, -3.5], [-0.95, -0.42, 0], 34, [-40, 80]], [104.4, [-0.68, -0.18, -3.05], [-0.95, -0.42, 0], 34, [-40, 80]]]) },
+  { id: 15, t0: 104.4, t1: 111.8, set: 'L', cam: t => push(K(t, [[104.4, [-0.68, -0.18, -3.05], [-0.95, -0.42, 0], 34, [-40, 80]], [107.0, [-0.68, -0.18, -3.05], [-0.95, -0.42, 0], 34, [-40, 80]], [108.6, [0.9, -0.2, -3.6], [0.95, -0.6, 0], 36, [40, 80]]]), t, 108.6, 111.8, 0.04) },
+  { id: 16, t0: 111.8, t1: 116.2, set: 'L', cam: t => K(t, [[111.8, [-2.5, 1.6, 10.5], [-2.2, 0.8, 4.0], 36], [113.4, [-6.8, 1.9, 11.0], [-7.6, 1.2, 4.4], 36], [116.2, [-8.55, 1.6, 6.75], [-9.01, 1.2, 4.71], 34, [0, 80]]]) },
+  { id: 16.2, t0: 116.2, t1: 119.2, set: 'L', cam: t => push({ p: [4.6, 8.72, -5.6], l: [3.05, 8.62, -5.6], fov: 36, vo: [0, 40] }, t, 116.2, 119.2, 0.03) },
+  { id: 17, t0: 119.2, t1: 126.4, set: 'L', cam: t => K(t, [[119.2, [-20.0, 4.6, 23.5], [-14, 4.2, 4], 34, [-170, -150]], [122.4, [-19.6, 4.5, 21.8], [-14, 4.2, 4], 34, [-170, -150]], [124.2, [-19.6, 4.8, 21.8], [-14.4, 12.5, 4.5], 34, [-170, -150]], [126.4, [-19.2, 3.4, 20.4], [-14.6, 2.0, 4.4], 34, [-170, -60]]]) },
+  { id: 18, t0: 126.4, t1: 133.4, set: 'L', cam: t => K(t, [[126.4, [-19.2, 3.4, 20.4], [-14.6, 2.0, 4.4], 34, [-170, -60]], [128.0, [-17.6, 2.0, 12.9], [-14.8, 1.7, 4.3], 34, [-120, 40]], [133.4, [-17.4, 1.95, 12.2], [-14.8, 1.7, 4.3], 34, [-120, 40]]]) },
+  { id: 19, t0: 133.4, t1: 135.2, set: 'L', cam: t => K(t, [[133.4, [-2.7, 8.4, 2.2], [0, 10.0, 0], 40], [135.2, [-2.65, 8.45, 2.15], [0, 11.4, 0], 40]]) },
+  { id: 19.2, t0: 135.2, t1: 139.6, set: 'L', cam: t => K(t, [[135.2, [30.0, 2.6, 0.9], [28.1, 2.15, -5.0], 36, [0, 40]], [139.6, [29.75, 2.5, 0.3], [28.1, 2.1, -5.0], 36, [0, 40]]]) },
+  { id: 20, t0: 139.6, t1: 141.0, set: 'L', cam: t => K(t, [[139.6, [2.6, 19.4, 3.0], [0, 19.4, 0], 36], [141.0, [2.2, 19.2, 2.5], [0, 19.2, 0], 36]]) },
+  { id: 20.2, t0: 141.0, t1: 145.2, set: 'S', sub: 'IBOP', cam: t => K(t, [[141.0, [0.62, 1.0, 2.15], [0, 0.78, 0], 32, [40, 60]], [145.2, [0.52, 0.92, 1.85], [0, 0.76, 0], 32, [40, 60]]]) },
+  { id: 21, t0: 145.2, t1: 148.9, set: 'L', cam: t => K(t, [[145.2, [-3.75, 7.92, -6.45], [-2.4, 7.78, -3.4], 36], [148.9, [-3.55, 7.88, -5.95], [-2.4, 7.76, -3.4], 36]]) },
+  { id: 21.2, t0: 148.9, t1: 149.4, set: 'W', cam: t => { const u = eio((t - 148.9) / 0.5), yd = lerp(-20, -34.6, u); return { p: [2.2, yd + 1.4, 9.5], l: [0, yd - 0.8, 0], fov: 36 }; } },
+  { id: 21.3, t0: 149.4, t1: 152.1, set: 'W', cam: t => push({ p: [2.8, YBT + 0.3 + 3.9, 8.4], l: [0, YBT + 0.3 + 3.0, 0], fov: 34, vo: [0, 60] }, t, 149.4, 152.1, 0.04) },
+  { id: 22, t0: 152.1, t1: 159.2, set: 'L', cam: t => K(t, [[152.1, [-1.4, 1.1, -11.0], [0, -0.6, 0], 44], [154.6, [-1.35, 1.1, -10.6], [0, -0.6, 0], 44], [157.4, [16, 26, -40], [-12, 0, -1], 40], [159.2, [15.6, 25.6, -39.4], [-12, 0, -1], 40]]) },
+  { id: 23, t0: 159.2, t1: 160.6, set: 'L', cam: t => K(t, [[159.2, [-1.1, 0.25, -10.2], [0, -1.2, 0], 40], [160.6, [-1.0, 0.2, -9.8], [0, -1.3, 0], 40]]) },
+  { id: 23.2, t0: 160.6, t1: 163.3, set: 'L', cam: t => push({ p: [-3.25, 1.42, -10.45], l: [-4.4, 1.2, -9.2], fov: 34, vo: [0, 20] }, t, 160.6, 163.3, 0.03) },
+  { id: 23.3, t0: 163.3, t1: 166.1, set: 'L', cam: t => push({ p: [-1.3, 1.3, -9.4], l: [0, 1.0, 0], fov: 40, vo: [0, 40] }, t, 163.3, 166.1, 0.03) },
+  { id: 24, t0: 166.1, t1: 172.4, set: 'L', cam: t => K(t, [[166.1, [112, 34, -14], [-2, 13, 1], 26, [0, -380]], [171.0, [150, 56, -20], [-2, 14, 1], 22, [0, -380]], [172.4, [150, 56, -20], [-2, 14, 1], 22, [0, -380]]]) },
+  { id: 25, t0: 172.4, t1: 177.4, set: 'L', cam: t => K(t, [[172.4, [150, 56, -20], [-2, 14, 1], 22, [0, -380]], [177.4, [146, 55, -19.5], [-2, 14, 1], 22, [0, -380]]]) },
+  { id: 26, t0: 177.4, t1: 183.61, set: 'W', base: [80, 0, 0], cam: t => K(t, [[177.4, [8, 11, 31], [0, -1, 0], 40], [183.0, [6.5, -13, 27], [0, -23, 0], 40]]) },
 ];
 function shotFor(t) {
   let i = 0; while (i < SHOTS.length - 1 && t >= SHOTS[i + 1].t0) i++;
   const S = SHOTS[i]; let c = S.cam(t);
   if (S.blend && i > 0 && t < S.t0 + S.blend) {
     const P = SHOTS[i - 1], c0 = P.cam(S.t0), u = eio((t - S.t0) / S.blend);
-    c = { p: V(c0.p, c.p, u), l: V(c0.l, c.l, u), fov: lerp(c0.fov, c.fov, u), vo: V([...(c0.vo || [0, 0]), 0], [...(c.vo || [0, 0]), 0], u) };
+    c = { p: V(c0.p, c.p, u), l: V(c0.l, c.l, u), fov: lerp(c0.fov, c.fov, u), vo: [lerp((c0.vo || [0, 0])[0], (c.vo || [0, 0])[0], u), lerp((c0.vo || [0, 0])[1], (c.vo || [0, 0])[1], u)] };
   }
-  const base = addV(OFF[S.set], S.base || [0, 0, 0]);
+  const base = addV(OFF[S.set], S.sub ? SLOT[S.sub] : S.base || [0, 0, 0]);
   return { id: S.id, set: S.set, sub: S.sub, base, v: [...addV(base, c.p), ...addV(base, c.l), c.fov], vo: c.vo || [0, 0] };
 }
-// highlight: circulating meshes glow teal, the rest dims; well control purple in the teaser
-function focusAt(t) {
-  if (t >= 161.3) return ['wc', 0.85 * sstep(161.3, 162.0, t)];
-  return ['circ', 0.8 * sstep(8.6, 9.6, t) * (1 - sstep(153.4, 154.4, t))];
+// highlight: which systems glow (purple wc lift 1.5-166.1, five colours in the recap). k scales the lift in close-ups.
+function focusAt(t, id) {
+  if (t >= 166.1) {
+    const at = { power: 167.4, hoist: 168.1, rotate: 168.9, circ: 169.6, wc: 170.9 }, lift = {};
+    for (const k in at) lift[k] = 0.35 + 0.5 * eout((t - at[k]) / 0.4) - 0.45 * sstep(172.4, 173.4, t);
+    return { lift, dim: 0 };
+  }
+  const a = 0.85 * sstep(1.5, 4.0, t);
+  if (id === 22) return { lift: { wc: a }, dim: 0.62 * sstep(152.2, 152.9, t) };
+  const close = [5, 6, 7, 8, 9, 10, 11, 12, 13.2, 14, 15, 16, 16.2, 17, 18, 19.2, 20, 21, 23.2].includes(id);
+  return { lift: { wc: close ? a * 0.22 : a }, dim: (close ? 0.2 : 0.45) * a, sweep: t < 4.2 ? O.stackTop + 0.4 - (t - 1.5) * 2.4 : -99 };
 }
 
 // ================================================================ init
@@ -1343,81 +1267,60 @@ async function init(opts) {
   renderer.localClippingEnabled = true;
   _c.a = new THREE.Color();
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 5000);
+  camera = new THREE.PerspectiveCamera(40, W / H, 0.05, 5000);
   scene.fog = new THREE.Fog(0x000000, 10, 1000);
   scene.background = new THREE.Color();
   O.hemi = new THREE.HemisphereLight(0xffffff, 0x445566, 1.5); scene.add(O.hemi);
   O.dir = new THREE.DirectionalLight(0xffffff, 2.2); scene.add(O.dir); scene.add(O.dir.target);
   O.sets = {}; O.mk = {};
-  O.v3 = new THREE.Vector3(); O.v3b = new THREE.Vector3(); O.tan = new THREE.Vector3(); O.q = new THREE.Quaternion(); O.up = new THREE.Vector3(0, 1, 0);
+  O.v3 = new THREE.Vector3(); O.v3b = new THREE.Vector3(); O.v3c = new THREE.Vector3(); O.tan = new THREE.Vector3(); O.q = new THREE.Quaternion(); O.up = new THREE.Vector3(0, 1, 0);
   O.m4 = new THREE.Matrix4(); O.scl = new THREE.Vector3(); O.col = new THREE.Color(); O.hc = new THREE.Color();
   for (const k of Object.keys(OFF)) { const g = new THREE.Group(); g.position.set(...OFF[k]); scene.add(g); O.sets[k] = g; }
   A = createAssets({ THREE, mergeGeometries, stdMat, quality: 0.8 });
+  P5 = createAssetsP5({ THREE, mergeGeometries, stdMat, quality: 0.85 });
   buildLand(O.sets.L);
   SYS.cur = 'hoist'; buildHoistExtras(O.sets.L);
   SYS.cur = 'rotate'; buildRotateRig(O.sets.L); SYS.cur = null;
   buildCircAdds(O.sets.L);
-  buildRET();
   buildWell(O.sets.W);
+  buildWellAdds(O.sets.W);
   buildStudio(O.sets.S);
-  O.flare.visible = false;
-  for (const r of [O.racked[5], O.stand, O.stub, O.slips]) r.visible = false;
-  // tag the new land assets as circulating so the highlight treats them like the rest of the mud system
+  for (const r of [O.racked[5], O.stand, O.slips]) r.visible = false;
   for (const a of [O.cp, O.sm, O.dg, O.dsn, O.dsl, O.cf, O.fp]) a.group.traverse(m => { if (m.isMesh) m.userData.sys = 'circ'; });
-  // drops: one per parent space (sizes from the storyboard)
-  O.drops = {
-    L: A.drop({ radius: 0.22, halo: 0.7 }), W: A.drop({ radius: 0.24, halo: 0.8 }),
-    PA: A.drop({ radius: 0.22, halo: 0.6 }), PB: A.drop({ radius: 0.18, halo: 0.5 }), WS: A.drop({ radius: 0.16, halo: 0.45 }),
-  };
-  O.sets.L.add(O.drops.L.group); O.sets.W.add(O.drops.W.group); O.tri.group.add(O.drops.PA.group); O.pb.group.add(O.drops.PB.group); O.wp.group.add(O.drops.WS.group);
-  // in the land set the drop draws over everything (it travels inside pipes): the 2D ring then marks it
-  O.drops.L.group.traverse(m => { if (m.material) { m.material.depthTest = false; m.renderOrder = 30; } });
-  // a cutting that leaves the drop on the shaker and walks off the screen into the skip
-  O.relChip = add(O.sets.L, new THREE.DodecahedronGeometry(0.13, 0).scale(1.25, 0.7, 0.95), lam(0xb45f2a), 0, 0, 0);
-  O.relChip.material.depthTest = false; O.relChip.renderOrder = 31;
-  // loop line (aerials): teal down leg, x-ray hole, mud-brown returns, teal after the centrifuge
-  const lp = LOOPpath(0);
-  O.loopLines = [];
-  const seg = (s0, s1, col, xr) => {
-    const pts = []; for (let s = s0; s < s1; s += 0.35) pts.push(lp.poly.at(s, new THREE.Vector3()).clone()); pts.push(lp.poly.at(s1, new THREE.Vector3()).clone());
-    const path = new THREE.CurvePath(); for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
-    const n = Math.max(8, Math.round((s1 - s0) / 0.3));
-    const m = new THREE.Mesh(new THREE.TubeGeometry(path, n, 0.16, 6, false), basic(col, { transparent: true, opacity: xr ? 0.55 : 0.95, depthTest: false, depthWrite: false }));
-    m.renderOrder = 25; m.userData = { s0, s1, n }; O.sets.L.add(m); O.loopLines.push(m); return m;
-  };
-  O.lineA = seg(0, lp.sHole, 0x2dd4bf); O.lineX = seg(lp.sHole, lp.sRet, 0x2dd4bf, true);
-  O.lineB = seg(lp.sRet, lp.sCent, 0xc8925a); O.lineC = seg(lp.sCent, lp.L, 0x2dd4bf);
-  O.comet = add(O.sets.L, new THREE.SphereGeometry(0.42, 16, 10), basic(0xccfbf1, { depthTest: false })); O.comet.renderOrder = 26;
-  O.arrowsB = new THREE.InstancedMesh(new THREE.ConeGeometry(0.24, 0.66, 6), basic(0xc8925a), 300);
-  O.arrowsB.frustumCulled = false; O.sets.L.add(O.arrowsB);
-  O.arrows.material.color.setHex(0x2dd4bf);
   // ---- look upgrade (before the highlight caches materials)
   const DUSK = { top: 0x1f2a63, mid: 0x9a4f86, hor: 0xffab6b, low: 0x7a5a44, glow: 0xffb27a, ground: 0x8a6448, sunDir: new THREE.Vector3(-0.62, 0.05, -0.78) };
   O.skyL.material = skyMaterial(DUSK);
-  LOOK = await applyLook({ THREE, renderer, scene, camera, sets: O.sets, light: O.dir, presets: {
-    L: { sky: DUSK, exposure: 1.08, envIntensity: 1.0, lightDir: [70, 52, 22], glow: { strength: 0.35, threshold: 0.86 }, rim: { color: 0xffb27a, intensity: 1.2, lift: 0.35 } },
-    S: { refl: { top: 0xe6eefc, hor: 0x5a6b8a, ground: 0x1a2840, sun: 0xffffff, sunK: 3, sunDir: [0.4, 0.7, 0.6] }, exposure: 1.0, envIntensity: 1.1, shadowMin: 10, lightDir: [45, 55, 40],
-      glow: { strength: 0.4, threshold: 0.8 }, rim: { color: 0x9cc4ff, intensity: 2.2, lift: 0.6, side: 0.5 }, backdrop: { top: 0x0a1222, mid: 0x1c2f52, hor: 0x0d1a2e, low: 0x0d1a2e } },
+  LOOKP = {
+    L: { sky: DUSK, exposure: 1.08, envIntensity: 1.0, lightDir: [70, 52, 22], glow: { strength: 0.35, threshold: 0.86 }, rim: { color: 0xffb27a, intensity: 1.2, lift: 0.35 }, shadowMin: 6 },
+    S: { refl: { top: 0xe6eefc, hor: 0x5a6b8a, ground: 0x1a2840, sun: 0xffffff, sunK: 2.6, sunDir: [0.5, 0.65, 0.55] }, exposure: 1.0, envIntensity: 1.05, shadowMin: 2.5, shadowFit: 0.7, lightDir: [0.55, 0.9, 0.6],
+      glow: { strength: 0.25, threshold: 0.88 }, grade: { saturate: 1.04, contrast: 1.05 }, rim: { color: 0xbfd4ff, intensity: 1.6, lift: 0.5, side: 0.6 }, backdrop: { top: 0x0a1222, mid: 0x1c2f52, hor: 0x16233a, low: 0x0d1a2e } },
     W: { refl: { top: 0xdfe8f5, hor: 0x6b7c96, ground: 0x2a2018, sun: 0xffffff, sunK: 2, sunDir: [0.3, 0.8, 0.5] }, exposure: 1.0, envIntensity: 0.9, shadow: false,
-      glow: { strength: 0.35, threshold: 0.82 }, rim: { color: 0xbcd4ff, intensity: 0.8, lift: 0.5 } },
-  }, opts: (typeof window !== 'undefined' && window.LOOK_OPTS) || {} });
+      glow: { strength: 0.3, threshold: 0.84 }, rim: { color: 0xbcd4ff, intensity: 0.8, lift: 0.5 } },
+  };
+  LOOK = await applyLook({ THREE, renderer, scene, camera, sets: O.sets, light: O.dir, presets: LOOKP, opts: (typeof window !== 'undefined' && window.LOOK_OPTS) || {} });
+  // section trench clipping on the (upgraded) pad / terrain / cellar -z wall materials
+  for (const m of [O.padMesh, O.terrMesh, O.cellarWallS]) { m.material.clippingPlanes = m === O.terrMesh ? O.terrClip : O.trenchClip; m.material.clipIntersection = true; m.material.side = THREE.DoubleSide; m.material.needsUpdate = true; }
   O.tagged = []; const seen = new Set();
   O.sets.L.traverse(m => {
     if (!m.isMesh || !m.userData.sys || !m.material || seen.has(m.material) || !m.material.color) return;
-    if (m.material.transparent && m.userData.sys === 'circ' && !m.material.isMeshStandardMaterial) return;
+    if (m.material.userData && m.material.userData.lampColor) return;
+    if (m.material.transparent && !m.material.isMeshStandardMaterial) return;
     seen.add(m.material);
-    O.tagged.push({ mat: m.material, sys: m.userData.sys, col: m.material.color.clone(), em: m.material.emissive ? m.material.emissive.clone() : null });
+    O.tagged.push({ mat: m.material, sys: m.userData.sys, col: m.material.color.clone(), em: m.material.emissive ? m.material.emissive.clone() : null, y: wpos(m)[1] });
   });
-  // drop paths in the studio models
-  O.pbSuc = new Poly(O.pb.paths.suction); O.pbDis = new Poly(O.pb.paths.discharge);
-  { let s = 0; for (let i = 1; i < O.pbDis.p.length; i++) { if (O.pbDis.p[i].y >= 3.4 - 1e-3) { s = O.pbDis.c[i]; break; } } O.pbDisPort = s; }
-  const fl = O.wp.paths.flow; O.wpFlow = new Poly(fl);
-  const iW = fl.findIndex((p, i) => i > 2 && Math.abs(p[0]) < 1e-6 && Math.abs(p[1] - 7.6) < 1e-6);
-  const iS = fl.findIndex((p, i) => i > 2 && Math.abs(p[0]) < 1e-6 && Math.abs(p[1] - 5.0) < 1e-6);
-  O.wpS = { g0: O.wpFlow.c[fl.length - 3 - 49], wTop: O.wpFlow.c[iW], sTop: O.wpFlow.c[iS], L: O.wpFlow.L };
-  LOOPpath(-1.5);
+  // per-tier stack material groups for the top->bottom sweep (S1) and the lift (S4)
+  O.tierMats = {};
+  const tiers = { bell: O.stack.parts.bell, ann: O.stack.parts.annular, dbl: O.stack.parts.doubleRam, spool: O.stack.parts.spool, low: O.stack.parts.lowerRam, ch: O.stack.parts.casingHead };
+  for (const k in tiers) { const s = new Set(); tiers[k].traverse(m => { if (m.isMesh && m.material && m.material.emissive) s.add(m.material); }); O.tierMats[k] = [...s]; }
+  O.bellMats = new Set(O.tierMats.bell); O.chMats = new Set(O.tierMats.ch);
+  for (const e of O.tagged) if (O.bellMats.has(e.mat) || O.chMats.has(e.mat)) e.sys = 'grey';
   O.avatar = new Image(); O.avatar.src = 'assets/avatar.png';
   try { await O.avatar.decode(); } catch (e) { O.avatar = null; }
+  scene.updateMatrixWorld(true);
+  for (const g of [O.stack, O.man, O.mgs, O.acc, O.fosv, O.trip, O.div, O.sANN, O.sRAM, O.sBSR, O.sIBOP, O.wBOP, O.wFloat]) if (g.api.refreshCut) g.api.refreshCut();
+  // shared clip planes of the cut assets (for the oblique / horizontal sections)
+  const planeOf = g => { let p = null; g.traverse(m => { if (!p && m.isMesh) for (const mm of [].concat(m.material)) if (mm && mm.userData && mm.userData.clipPlane) { p = mm.userData.clipPlane; break; } }); return p; };
+  O.ramPlane = planeOf(O.sRAM); O.mgsPlane = planeOf(O.mgs); O.chokePlane = planeOf(O.man.parts.chokeA);
   O.lastT = null;
 }
 
@@ -1428,28 +1331,48 @@ function setI(mesh, i, x, y, z, s, sy = s) {
   e[o + 8] = 0; e[o + 9] = 0; e[o + 10] = s; e[o + 11] = 0; e[o + 12] = x; e[o + 13] = y; e[o + 14] = z; e[o + 15] = 1;
 }
 function done(mesh, n) { mesh.count = n; mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; }
-function env(set) {
+const DARK = t => t >= 91.9 && t < 166.1;
+function env(set, t) {
   const o = OFF[set];
   if (set === 'L') {
-    scene.background.setHex(0x9a4f86); scene.fog.color.setHex(0xe8a27a); scene.fog.near = 160; scene.fog.far = 1600;
-    O.hemi.color.setHex(0xffe6cf); O.hemi.groundColor.setHex(0x8a6448); O.hemi.intensity = 1.75;
-    O.dir.color.setHex(0xffc58f); O.dir.intensity = 2.5; O.dir.position.set(60, 55, 75); O.dir.target.position.set(0, 0, 0);
+    const dk = DARK(t) ? 1 : 0;
+    scene.background.setHex(0x9a4f86); scene.fog.color.setHex(dk ? 0xa8789a : 0xe8a27a); scene.fog.near = 160; scene.fog.far = 1600;
+    O.hemi.color.setHex(0xffe6cf); O.hemi.groundColor.setHex(0x8a6448); O.hemi.intensity = dk ? 1.35 : 1.75;
+    O.dir.color.setHex(0xffc58f); O.dir.intensity = dk ? 2.0 : 2.5; O.dir.position.set(60, 55, 75); O.dir.target.position.set(0, 0, 0);
+    LOOKP.L.exposure = 1.08 * (dk ? 0.84 : 1);
+    // depth: in close shots the fog racks in behind the subject
+    const s = O.shot, dist = Math.hypot(s.v[0] - s.v[3], s.v[1] - s.v[4], s.v[2] - s.v[5]);
+    if (dist < 14) { scene.fog.near = dist + 8; scene.fog.far = dist + 90; }
+    if (O.shot.id === 22) { scene.fog.color.setHex(0x8f84a6); }
   } else if (set === 'W') {
     scene.background.setHex(0x0f2236); scene.fog.color.setHex(0x0f2236); scene.fog.near = 300; scene.fog.far = 1200;
     O.hemi.color.setHex(0xffffff); O.hemi.groundColor.setHex(0x7a8796); O.hemi.intensity = 1.9;
     O.dir.color.setHex(0xffffff); O.dir.intensity = 1.8; O.dir.position.set(o[0] + 40, 70, o[2] + 90); O.dir.target.position.set(o[0], -10, o[2]);
   } else {
-    scene.background.setHex(0x0d1a2e); scene.fog.color.setHex(0x0d1a2e); scene.fog.near = 80; scene.fog.far = 260;
-    O.hemi.color.setHex(0xffffff); O.hemi.groundColor.setHex(0x3a4a66); O.hemi.intensity = 1.8;
-    O.dir.color.setHex(0xffffff); O.dir.intensity = 2.1; O.dir.position.set(o[0] + 30, 50, o[2] + 60); O.dir.target.position.set(o[0] + 30, 0, o[2]);
+    scene.background.setHex(0x0d1a2e); scene.fog.color.setHex(0x0d1a2e); scene.fog.near = 5; scene.fog.far = 26;
+    O.hemi.color.setHex(0xf2f4ff); O.hemi.groundColor.setHex(0x2a3448); O.hemi.intensity = 1.25;
+    const b = O.shot.base; O.dir.color.setHex(0xfff4e6); O.dir.intensity = 2.5; O.dir.position.set(b[0] + 12, 20, b[2] + 14); O.dir.target.position.set(b[0], 0.6, b[2]);
   }
 }
-function applyHighlight(t, on) {
-  const [sys, a0] = focusAt(t), a = on ? a0 : 0;
+function applyHighlight(t, id) {
+  const F = focusAt(t, id);
   for (const e of O.tagged) {
-    const hit = sys && e.sys === sys;
-    e.mat.color.copy(e.col).multiplyScalar(hit || !sys ? 1 : 1 - 0.65 * a);
-    if (e.em) { e.mat.emissive.copy(e.em); if (hit) e.mat.emissive.add(O.hc.setHex(SYSCOL[sys]).multiplyScalar((sys === 'wc' ? 0.16 : 0.26) * a)); }
+    const lift = clamp(F.lift[e.sys] || 0, 0, 1);
+    const sweep = F.sweep != null && e.sys === 'wc' ? sstep(F.sweep + 0.5, F.sweep - 0.5, e.y) : 1;
+    const l = lift * sweep;
+    e.mat.color.copy(e.col).multiplyScalar(e.sys === 'grey' ? 1 - 0.35 * F.dim : (F.lift[e.sys] ? 1 : 1 - F.dim));
+    if (e.em) { e.mat.emissive.copy(e.em); if (l > 0.001) e.mat.emissive.add(O.hc.setHex(SYSCOL[e.sys]).multiplyScalar((t >= 166.1 ? 0.34 : 0.045) * l)); }
+  }
+}
+// S4: the current component gets a full lift, the rest of the stack drops back
+function tierLift(t) {
+  const order = [['bell', TIER.bell], ['ann', TIER.ann], ['dbl', TIER.vbr], ['spool', TIER.spool], ['low', TIER.low], ['ch', TIER.ch]];
+  if (t < 20.2 || t > 36.8) return;
+  let cur = null; for (const [k, ta] of order) if (t >= ta - 0.1) cur = k;
+  for (const [k] of order) {
+    if (k === 'bell' || k === 'ch') continue;
+    const on = k === cur ? eout((t - (order.find(o => o[0] === k)[1] - 0.1)) / 0.4) : 0;
+    for (const m of O.tierMats[k]) if (m.emissive) { if (on > 0.001) m.emissive.add(O.hc.setHex(0xa855f7).multiplyScalar(0.03 * on)); }
   }
 }
 function arrowsAlong(mesh, n0, path, s0, s1, phase, sp, scale, maxN) {
@@ -1465,122 +1388,357 @@ function arrowsAlong(mesh, n0, path, s0, s1, phase, sp, scale, maxN) {
   }
   return n;
 }
+// a hydraulic pulse: the front leaves at t0 with speed v; dashes behind it ride along at the same speed until t1
+function pulse(mesh, n, poly, t, t0, t1, v, sp = 0.8, scale = 1) {
+  if (t < t0 || t > t1 + 0.3) return n;
+  const front = Math.min(poly.L, v * (t - t0)), fade = 1 - clamp((t - t1) / 0.3);
+  return arrowsAlong(mesh, n, poly, 0, front, v * (t - t0), sp, scale * fade, 260);
+}
 const ROTD = t => t * 1.6;
-function stateRig(t) {
-  const dy = tdDy(t), yb = 20.6 + dy;
+function stateRig(t, s) {
+  // top drive height: normal 20.6; in S19 it lifts one stand out of the hole
+  let yb = 20.6;
+  const S19 = t >= 133.4 && t < 135.2;
+  if (S19) yb = lerp(27.4, 31.0, eio((t - 133.6) / 1.4));
   O.topDrive.position.y = yb;
   const yB = yb + 4.6, top = yB + 0.9;
   O.tblock.position.set(0, yB, 0);
   for (const l of O.blines) { l.position.y = top; l.scale.y = Math.max(0.01, 41.2 - top); }
-  O.dp.visible = true; O.dp.scale.y = Math.max(0.01, yb - 1.15 - 7.4); O.dp.rotation.y = ROTD(t); O.quill.rotation.y = ROTD(t);
+  const rotOn = t < 91.9 ? 1 : 0;
+  O.dp.visible = !S19; O.dp.scale.y = Math.max(0.01, yb - 1.15 - 7.4); O.dp.rotation.y = ROTD(Math.min(t, 91.9)) * rotOn + (1 - rotOn) * ROTD(91.9); O.quill.rotation.y = O.dp.rotation.y;
+  O.stand.visible = S19; O.slips.visible = S19 && t > 135.0; O.stub.visible = !S19 || t > 134.9;
+  if (S19) placeStand(O.stand, [0, yb - 3.35 - SLEN, 0], [0, yb - 3.35, 0]);
   O.ir.position.x = 4.0;
-  if (O.hoseDy !== dy) { // kelly hose re-mesh: it follows the top drive (pure function of dy)
-    if (O.hoseMesh) { O.hoseMesh.geometry.dispose(); O.hoseMesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hosePtsDy(dy).map(p => new THREE.Vector3(...p))), 40, 0.16, 6); }
-    O.hoseDy = dy;
+  if (O.hoseDy !== yb) {
+    const dy = yb - 20.6;
+    if (O.hoseMesh) { O.hoseMesh.geometry.dispose(); O.hoseMesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(HOSE_CTRL.map((p, i) => new THREE.Vector3(p[0], p[1] + dy * [0, 0, 0, 0.15, 0.25, 0.55, 0.9, 1, 1][i], p[2]))), 40, 0.16, 6); }
+    O.hoseDy = yb;
   }
 }
 function stateLand(t, s) {
+  const id = s.id;
   O.skyL.position.set(camera.position.x, 0, camera.position.z);
-  O.swirl.rotation = -t * 0.55;
-  for (const m of O.mudSurf) {
-    const a = m.geometry.attributes.position, b = m.userData.base, k = m.userData.k;
-    for (let i = 0; i < a.array.length; i += 3) {
-      const x = b[i], z = b[i + 2], r = Math.hypot(x, z), th = Math.atan2(z, x);
-      a.array[i + 1] = 0.06 * Math.sin(r * 2.6 - t * 2.4 + th * 2 + k) + 0.03 * Math.sin(x * 3.1 + t * 3.3);
-    }
+  const run = t < 91.9 ? 1 : 0; // rig power: generators, agitators, shakers stop when the lights go out
+  O.swirl.rotation = -Math.min(t, 91.9) * 0.55;
+  if (id === 1 || id === 24 || id === 25 || id === 19.2) for (const m of O.mudSurf) {
+    const a = m.geometry.attributes.position, b = m.userData.base, k = m.userData.k, tt = Math.min(t, 91.9);
+    for (let i = 0; i < a.array.length; i += 3) { const x = b[i], z = b[i + 2], r = Math.hypot(x, z), th = Math.atan2(z, x); a.array[i + 1] = 0.06 * Math.sin(r * 2.6 - tt * 2.4 + th * 2 + k) + 0.03 * Math.sin(x * 3.1 + tt * 3.3); }
     a.needsUpdate = true;
   }
-  for (const a of O.agit) a.rotation.y = t * 5.5;
-  const th = t * 2 * Math.PI * 100 / 60;
+  const tr = t < 91.9 ? t : 91.9 + 0.6 * (1 - Math.exp(-(t - 91.9) / 0.6)); // 1.5 s spin-down
+  for (const a of O.agit) a.rotation.y = tr * 5.5;
+  const pumpOn = t > 108.6 && t < 111.6 ? 1 : 0, th = (Math.min(t, 91.9) + (t > 108.6 ? Math.min(t, 111.6) - 108.6 : 0)) * 2 * Math.PI * 100 / 60;
   O.rods.forEach((r, k) => { r.position.x = 0.34 * Math.sin(th + k * 2.094); });
   O.wheel.rotation.z = -th;
-  O.basket.position.set(12.25 + 0.018 * Math.sin(t * 47), 4.55 + 0.022 * Math.sin(t * 53 + 1), -2.65 + 0.018 * Math.cos(t * 41));
-  O.genGroups.forEach((g, i) => { g.position.y = 0.012 * Math.sin(t * 61 + i * 2); });
+  O.basket.position.set(12.25 + 0.018 * Math.sin(t * 47) * run, 4.55 + 0.022 * Math.sin(t * 53 + 1) * run, -2.65 + 0.018 * Math.cos(t * 41) * run);
+  O.genGroups.forEach((g, i) => { g.position.y = 0.012 * Math.sin(t * 61 + i * 2) * run; });
   let n = 0;
-  O.stacks.forEach((p, i) => { for (let j = 0; j < 14; j++) { const age = fract(t / 2.6 + j / 14 + i * 0.13) * 2.6; setI(O.smoke, n++, p[0] + 0.7 * age + 0.15 * Math.sin(j * 3.1 + t), p[1] + 1.4 * age, p[2] + 0.35 * age, 0.16 + 0.3 * age); } });
-  done(O.smoke, n); done(O.pulses, 0);
-  // shaker: cuttings walk off the discharge end into the skip, mud drips through the screen
-  const ca = Math.cos(0.187), sa = Math.sin(0.187), bp = O.basket.position;
-  n = 0;
-  for (let i = 0; i < 46; i++) {
-    const u = fract(hash(i, 71) + t * 0.16), x = (hash(i, 72) - 0.5) * 2.3;
-    if (u < 0.82) { const z = -1.8 + 3.7 * (u / 0.82), y = 0.09; setI(O.shCut, n++, bp.x + x, bp.y + y * ca - z * sa, bp.z + y * sa + z * ca, 0.07 + hash(i, 73) * 0.06); }
-    else { const f = (u - 0.82) / 0.18; setI(O.shCut, n++, bp.x + x * 0.8, lerp(bp.y - 1.9 * sa + 0.09, 1.15, f * f), lerp(bp.z + 1.9 * ca, 0.9, f), 0.07 + hash(i, 73) * 0.06); }
+  if (run || t < 93) O.stacks.forEach((p, i) => { for (let j = 0; j < 14; j++) { const age = fract(t / 2.6 + j / 14 + i * 0.13) * 2.6, born = t - age; if (born > 91.9) continue; setI(O.smoke, n++, p[0] + 0.7 * age + 0.15 * Math.sin(j * 3.1 + t), p[1] + 1.4 * age, p[2] + 0.35 * age, 0.16 + 0.3 * age); } });
+  done(O.smoke, n);
+  done(O.shCut, 0); done(O.shDrip, 0);
+  O.arrows.count = 0; O.arrows.instanceMatrix.needsUpdate = true;
+  stateRig(t, s);
+  O.cp.update(t, { omega: 14 * run, open: 0 });
+  O.sm.update(t, { spp: 0.62 * run, wheelA: 1 });
+  for (const a of [O.dg, O.dsn, O.dsl, O.cf]) a.update(t, { open: 0 });
+  O.fp.update(t, { flow: run });
+  // ---- rig lights (L-10): on until 91.9 (one-frame flicker, 0.12 s decay), off after
+  const fl = t < 91.9 ? 1 : t < 91.9 + 1 / 30 ? 0.35 : t < 91.97 ? 0.8 : Math.exp(-(t - 91.97) / 0.04) * 0.8;
+  const lit = fl > 0.02;
+  O.lgMesh.material.color.setHex(0xfff3c4).lerp(O.hc.setHex(0x1f2937), 1 - fl);
+  O.dogWin.material.color.setHex(0xffe9b0).lerp(O.hc.setHex(0x2a3442), 1 - fl);
+  O.floodM.color.setHex(0xfff6d8).lerp(O.hc.setHex(0x1f2937), 1 - fl);
+  O.poolM.opacity = 0.22 * fl; for (const p of O.pools) p.visible = lit;
+  // ---- section trench: closed before 16.0; the earth drops away 16.0-16.6; closed again for the aerials
+  const open = id >= 24 ? 0 : id === 1 ? 0 : eio((t - 16.0) / 0.6);
+  const Y = lerp(-3.0, 0.02, open);
+  O.trenchY.constant = -Y; O.linerTop.constant = Y; O.terrZ.constant = open > 0.001 ? lerp(-3.2, -24, open) : -3.2; O.trench.visible = open > 0.001;
+  O.cellarWallS.visible = true;
+  O.crew.visible = t > 13.0 && t < 37; O.crew.rotation.y = -1.9 + 0.35 * eio((t - 17.4) / 0.8) + 0.02 * Math.sin(t * 1.6);
+  stateWC(t, s);
+}
+// ---------------------------------------------------------------- well-control equipment states (L)
+const HCR = t => { // closed until 102.6, open 103.8-105.0, closed 105.6-105.9, open from 106.5
+  if (t < 102.6) return 0; if (t < 103.8) return ramU(t, 102.6, 103.8);
+  if (t < 105.0) return 1; if (t < 105.6) return 1 - ramU(t, 105.0, 105.6);
+  if (t < 105.9) return 0; if (t < 106.5) return ramU(t, 105.9, 106.5); return 1;
+};
+function vbrState(t) { // upper pipe ram (VBR) in the land stack
+  if (t < 94.3) return 0; if (t < 160.4 && t >= 94.3) { if (t < 152.1) return ramU(t, 94.3, 94.9); }
+  if (t >= 152.1 && t < 160.4) return 0;
+  if (t < 163.4) return ramU(t, 160.4, 161.0);
+  if (t < 164.6) return 1 - ramU(t, 163.6, 164.2);
+  return ramU(t, 164.8, 165.4);
+}
+function stateWC(t, s) {
+  const id = s.id, st = O.stack;
+  // stack: cut-away (x-ray) in the trench shots that show the rams working
+  const cutOn = id === 13.3 ? 1 : id === 15 ? eio((t - 107.0) / 0.6) : id === 23 || id === 23.3 ? 1 : 0;
+  st.api.setCut(cutOn);
+  st.visible = id !== 22 || t < 152.9;
+  if (id === 22) st.position.y = STACK_Y + 1.0 * eio((t - 152.2) / 0.7); else st.position.y = STACK_Y;
+  if (id === 22) st.api.refreshCut();
+  const vb = vbrState(t);
+  st.api.setUpperRam(vb); st.api.setBSR(0); st.api.setLowerRam(0); st.api.setAnnular(id === 23.3 ? 0.6 * (sstep(164.0, 164.6, t) - sstep(165.2, 165.8, t)) : 0);
+  st.position.x = shudder(t, 94.9, 0.0006) + shudder(t, 161.0, 0.0006);
+  st.api.setChokeManual(t < 100.4 ? 0.9 : t < 101.5 ? lerp(0.9, 1.0, (t - 100.4) / 1.1) : 1 - 0.02 * eout((t - 101.5) / 0.2));
+  st.api.setChokeHCR(HCR(t)); st.api.setKillManual(1);
+  // test plug (S23): run down through the open stack, lands at 160.2
+  O.tplug.visible = id === 23 || id === 23.3;
+  if (O.tplug.visible) { O.tplug.api.setDrop(t < 160.2 ? 0.9 * (1 - eout((t - 159.4) / 0.8)) : 0); O.tplug.api.setSeal(sstep(160.2, 160.5, t)); }
+  // accumulator unit: gauges, 4-way handle, bottle cut + charge (Boyle)
+  const acc = O.acc;
+  acc.api.setBottleCut(id === 12 || id === 13.2 ? 1 : 0);
+  let charge;
+  if (t < 86.5) charge = 0; else if (t < 89.8) charge = (t - 86.5) / 3.3; else charge = 1;
+  if (id === 13.2 || t > 92.75) charge = 1 - 0.35 * eout((t - 92.75) / 0.6);
+  acc.api.setCharge(clamp(charge));
+  const P = c => 1000 / (1 - 0.6667 * c); // N2 at 1,000 psi precharge, V falls linearly: P = 1000 / V
+  const accPsi = t < 84.6 ? 3000 : t < 85.0 ? 0 : t < 86.5 ? needle(t, [[0, 0], [85.0, 1000]]) : t < 89.8 ? P(charge) * (1 + 0.004 * Math.sin(t * 2 * Math.PI * 3.3)) : t < 92.75 ? needle(t, [[0, 3000], [89.8, 3000]]) + 90 * Math.exp(-(t - 89.8) * 6) * Math.sin((t - 89.8) * 18) : needle(t, [[0, 3000], [92.75, 2150]]);
+  acc.api.setPsi(0, id === 11 ? 3000 : accPsi);
+  acc.api.setPsi(1, t < 90.0 && (id === 12) ? 0 : needle(t, [[0, 0], [90.0, 1500]]));
+  acc.api.setPsi(2, 1200);
+  acc.api.setValve(1, t < 80.6 ? 1 : 1 - eout((t - 80.6) / 0.25));
+  acc.api.setPumpLamp(t > 86.5 && t < 89.8 ? 1 : 0);
+  acc.api.setMotor(t < 86.5 ? 0.3 * t : t < 89.8 ? 0.3 * 86.5 + 40 * (t - 86.5) : 0.3 * 86.5 + 40 * 3.3 + 24 * (1 - Math.exp(-(t - 89.8) / 0.6)));
+  // driller's panel: two-hand press (MASTER 77.8, upper pipe close 78.1)
+  const dp = O.dpanel;
+  const pr = (t0) => sstep(t0, t0 + 0.06, t) * (1 - sstep(t0 + 0.5, t0 + 0.6, t));
+  dp.api.setPress('master', pr(77.8)); dp.api.setPress('upperPipe.close', pr(78.1));
+  dp.api.setLamp('upperPipe.open', t < 78.15 ? 1 : 0); dp.api.setLamp('upperPipe.close', t < 78.15 ? 0 : 1);
+  dp.api.setLamp('annular.open', 1); dp.api.setLamp('blindShear.open', 1); dp.api.setLamp('lowerPipe.open', 1); dp.api.setLamp('chokeHCR.close', 1); dp.api.setLamp('killHCR.close', 1);
+  dp.api.setGuard(0);
+  const hv = id === 11 && t < 79.0;
+  O.handL.visible = O.handR.visible = hv;
+  if (hv) {
+    const ma = wa(dp, 'master'), up = wa(dp, 'upperPipe.close');
+    const inL = eout((t - 77.6) / 0.25) - 0.0, pl = pr(77.8), pR = pr(78.1);
+    O.handL.position.set(ma[0], ma[1] + 0.01, ma[2] - 0.12 + 0.07 * inL + 0.012 * pl); O.handL.rotation.set(-0.3, Math.PI, 0);
+    O.handR.position.set(up[0], up[1] + 0.01, up[2] - 0.14 + 0.08 * eout((t - 77.75) / 0.3) + 0.012 * pR); O.handR.rotation.set(-0.3, Math.PI, 0);
   }
-  done(O.shCut, n);
-  n = 0;
-  for (let i = 0; i < 40; i++) { const u = fract(hash(i, 81) + t * 1.4), x = (hash(i, 82) - 0.5) * 2.4, z = -1.6 + hash(i, 83) * 2.6; setI(O.shDrip, n++, bp.x + x, lerp(bp.y - 0.2 - z * sa, MUDY, u), bp.z + z * ca, 0.05); }
-  done(O.shDrip, n);
-  O.arrowsG.count = 0;
-  stateRig(t);
-  // new assets
-  O.cp.update(t, { omega: 14, open: sstep(19.2, 19.8, t) * (1 - sstep(53.0, 53.1, t)) });
-  O.sm.update(t, { spp: 0.62 * (t < 54.6 ? 0 : sstep(54.6, 56.0, t)), wheelA: sstep(54.4, 54.9, t) });
-  O.dg.update(t, { open: sstep(114.4, 115.0, t) * (1 - sstep(121.8, 121.9, t)) });
-  O.dsn.update(t, { open: sstep(121.9, 122.4, t) * (1 - sstep(129.8, 129.9, t)) });
-  O.dsl.update(t, { open: sstep(125.7, 126.2, t) * (1 - sstep(129.8, 129.9, t)) });
-  O.cf.update(t, { open: sstep(130.2, 130.8, t) * (1 - sstep(137.8, 137.9, t)) });
-  O.fp.update(t, { flow: t < 101 ? 1 : lerp(1, 1.55, sstep(102.0, 105.0, t)) });
-  O.tripFloat.position.y = 2.4 + 0.05 * Math.sin(t * 1.3);
-  // released cutting (shaker beat)
-  if (t > 110.2 && t < 112.8) {
-    const u = (t - 110.2) / 1.6, z = lerp(-0.1, 1.9, clamp(u)), y = 0.12;
-    if (u < 1) O.relChip.position.set(bp.x + 0.05, bp.y + y * ca - z * sa, bp.z + y * sa + z * ca);
-    else { const f = clamp((t - 111.8) / 0.8); O.relChip.position.set(bp.x + 0.1, lerp(bp.y - 1.9 * sa + 0.12, 1.2, f * f), lerp(bp.z + 1.9 * ca, 0.9, f)); }
-    O.relChip.rotation.set(t * 3, t * 2, 0); O.relChip.visible = true;
-  } else O.relChip.visible = false;
-  // loop line: drawn by a comet in the aerial (8.6-14.6), full in the recap; hidden in close shots
-  const aerial = s.id === 2 || s.id === 25 || s.id === 26;
-  const lp = LOOPpath(tdDy(t));
-  const drawS = s.id === 2 ? lp.L * eio((t - 8.6) / 6.0) : lp.L;
-  const glowK = s.id === 26 ? lerp(1, 0.45, sstep(154.0, 156.0, t)) : 1;
-  for (const m of O.loopLines) {
-    const { s0, s1, n: segN } = m.userData;
-    m.visible = aerial && drawS > s0;
-    const k = clamp((drawS - s0) / (s1 - s0));
-    m.geometry.setDrawRange(0, Math.floor(k * segN) * 6 * 6);
-    m.material.opacity = (m === O.lineX ? 0.55 : 0.95) * glowK;
+  // remote choke panel (S16b): small corrections, choke position replays 60 -> 25 %
+  const cp = O.cpanel;
+  cp.api.setDP(needle(t, [[0, 0.3], [116.4, 0.32], [117.3, 0.31], [118.2, 0.315]]) + 0.002 * Math.sin(t * 9));
+  cp.api.setCasing(needle(t, [[0, 0.45], [116.6, 0.44], [117.6, 0.445]]) + 0.002 * Math.sin(t * 7 + 1));
+  cp.api.setChokePos(lerp(0.6, 0.25, eio((t - 116.4) / 1.6)));
+  cp.api.setLever(t < 116.4 ? 0.5 : t < 117.2 ? 0.2 : 0.2 + 0.3 * eout((t - 117.2) / 0.3));
+  cp.api.setCounter(30, Math.floor(1240 + Math.max(0, t - 112) * 0.5)); cp.api.setPumpLamp(1);
+  // choke manifold (S16): choke A trim cut-away, needle advances in 3 steps
+  const man = O.man;
+  man.api.setChokeCut(0);
+  let ch = 0.6; for (const [a, b] of [[114.4, 0.48], [114.9, 0.36], [115.4, 0.25]]) if (t > a) ch = lerp(ch, b, eio((t - a) / 0.3));
+  man.api.setChokeA(ch); man.api.setChokeB(0.0);
+  if (false) { const zA = wa(man, 'trimA')[2], k = eout((t - 113.6) / 0.4); O.chokePlane.set(O.v3b.set(0, 0, -1), zA + 0.25 * (1 - k)); }
+  // MGS: oblique window in S17 (stencil stays), mud-leg section in S18
+  const mg = O.mgs;
+  const cutM = id === 17 ? eout((t - 119.4) / 0.6) : id === 18 ? 1 : 0;
+  mg.api.setCut(cutM);
+  mg.api.setLevel(id === 18 ? 0.85 - 0.18 * (eio((t - 128.0) / 1.2) - eio((t - 131.6) / 1.0)) : 0.85);
+  mg.api.setLegLevel(1); mg.api.setGauge(clamp(0.22 + 0.02 * Math.sin(t * 7.3) + 0.015 * Math.sin(t * 13.1), 0, 0.45));
+  if (cutM > 0 && O.mgsPlane) {
+    const ang = id === 17 ? 32.5 * Math.PI / 180 : null;
+    let n;
+    if (id === 17) n = new THREE.Vector3(-Math.sin(ang), 0, -Math.cos(ang));
+    else { n = new THREE.Vector3(-1, 0, 0).applyQuaternion(mg.quaternion); }
+    const C = O.v3b.set(MGS_POS[0], 0, MGS_POS[2]), ext = lerp(1.2, 0, eio(cutM));
+    O.mgsPlane.set(n, -n.dot(C) + ext);
   }
-  if (s.id >= 25) O.lineB.material.color.setHex(0xc8925a).lerp(O.hc.setHex(0x2dd4bf), sstep(150.0, 150.8, t));
-  else O.lineB.material.color.setHex(0xc8925a);
-  O.comet.visible = s.id === 2 && t > 8.6 && t < 14.7;
-  if (O.comet.visible) O.comet.position.set(...pAt(lp, drawS));
-  // flow arrows on what the drop has already passed (teal down leg, mud-brown returns, teal after the centrifuge)
-  const close = !aerial && s.id !== 27 && s.id !== 28 && s.id !== 1;
-  let na = 0, nb = 0;
-  if (close) {
-    const dn = DN(tdDy(t)), sp = 1.3, sc = 0.75;
-    const revDN = t < 16.6 ? 0 : t < 22.6 ? keyS([[16.6, 0, 'l'], [19.8, 'eye', 'l'], [20.8, 'out', 'l'], [22.4, 'tsuc', 'l']], t, dn.s)
-      : t < 53.5 ? dn.s.tsuc + (t > 42 ? dn.s.dis3 - dn.s.tsuc : 0) : t < 69.5 ? Math.max(dn.s.dis3, keyS([[53.5, ['riser', -2.2], 'l'], [54.4, 'manIn', 'l'], [54.6, 'manIn', 'l'], [55.6, 'manOut', 'l'], [56.2, 'spBase', 'l'], [57.4, ['spBase', 0.9], 's'], [61.0, 'spTop', 'l'], [62.0, 'h2', 's'], [66.4, 'goose', 'l'], [70, 'goose', 'l']], t, dn.s)) : dn.L;
-    na = arrowsAlong(O.arrows, 0, dn.poly, 0, Math.min(revDN, dn.s.floor), 3.2 * t, sp, sc, 420);
-    if (t > 90.7) {
-      const R = O.RET, rs = t < 98.7 ? keyS([[90.7, 'bop', 'l'], [90.9, 'bop', 'o'], [92.0, 'bell', 'l'], [92.3, 'fl0', 'l'], [97.6, 'fl1', 'l'], [97.8, 'belly', 'l'], [99, 'belly', 'l']], t, R.s)
-        : t < 106.8 ? R.s.belly : t < 137.7 ? keyS([[106.8, 'belly', 'l'], [112.5, 'tankA', 'l'], [113.9, 'tankA', 'l'], [119.2, 'dgOut', 'l'], [120.6, 'dgTankOut', 'l'], [125.4, 'dsOut', 'l'], [129.4, 'dlOut', 'l'], [131.0, 'cfBowl', 'l'], [135.6, 'cfLiq', 'l'], [136.4, 'splash', 'l'], [138, 'splash', 'l']], t, R.s) : R.L;
-      nb = arrowsAlong(O.arrowsB, 0, R.poly, R.s.bell, Math.min(rs, R.s.cfLiq), 2.0 * t, sp, sc, 300);
-      na = arrowsAlong(O.arrows, na, R.poly, R.s.cfLiq, rs, 2.0 * t, sp, sc, 420);
+  // trip tank: one step down as the hole is filled (S19b)
+  O.trip.api.setCut(0);
+  O.trip.api.setLevel(0.62 - 0.1 * eio((t - 136.2) / 1.0) + 0.006 * Math.sin((t - 136.2) * 9) * Math.exp(-Math.max(0, t - 137.2) * 3) * (t > 137.2 ? 1 : 0));
+  // FOSV: always open
+  O.fosv.api.setClose(0); O.fosv.api.setWrenchIn(0); O.fosv.api.setCut(0);
+  // chart recorder (S23b): low test, bleed, high test, hold, bleed off
+  const u = clamp((t - 160.6) / (163.3 - 160.6));
+  O.rec.api.setTrace(t < 160.6 ? 0 : u);
+  // diverter stage (S22)
+  O.div.visible = id === 22 && t > 152.4;
+  if (O.div.visible) { O.div.api.setVent('L', eout((t - 154.9) / 0.4)); O.div.api.setVent('R', 0); O.div.api.setClose(eio((t - 155.1) / 0.8)); }
+  // flare: pilot until 123.4, then a steady flame (rule 8), leaning 15 deg downwind (-x)
+  const fgrow = 0.25 + 0.75 * eout((t - 123.4) / 0.6);
+  O.flare.visible = true;
+  O.flames.forEach((m, i) => {
+    const ph = hash(i, 91) * 6.283, hh = 1 + 0.10 * (Math.sin(1.7 * t * 2 * Math.PI + ph) + 0.6 * Math.sin(3.1 * t * 2 * Math.PI + ph * 1.3) + 0.35 * Math.sin(5.3 * t * 2 * Math.PI + ph * 0.7)) / 1.95;
+    m.scale.set(fgrow * (0.85 + 0.15 * hh), fgrow * hh * (1 - (i % 3) * 0.12), fgrow * (0.85 + 0.15 * hh));
+    m.rotation.z = 0.26 + 0.04 * Math.sin(t * 2.3 + i);
+    m.position.set(-0.05 * (i % 3), 0, 0.05 * Math.sin(i * 2.1));
+  });
+  O.flameM.forEach((m, i) => { m.opacity = [0.55, 0.6, 0.8][i]; });
+  O.flareGlow.material.opacity = 0.16 * fgrow * (1 + 0.08 * Math.sin(t * 9.1));
+  // wind sock (points -x: wind blows +x -> -x)
+  O.sockCone.forEach((m, k) => { m.rotation.y = 0.05 * Math.sin(t * 3.1 + k * 0.8) * k; m.position.y = -0.03 * k * k + 0.02 * Math.sin(t * 4 + k); });
+  // ---- dashes: hydraulic pulses (purple) and the command signal; bubbles; mud arrows; gas streaks; plume
+  let nd = 0, nc = 0;
+  if (id === 11) nc = pulse(O.cmdDash, nc, O.pCMD, t, 78.3, 80.6, 15, 1.4, 1);
+  if (id === 13.2) nd = pulse(O.dash, nd, O.pHOSE, t, 92.8, 93.6, 12, 0.9, 1.3);
+  if (id === 13.3) for (const h of O.bonHoses) if (h.cav === 'vbr') nd = pulse(O.dash, nd, h.poly, t, 93.7, 94.6, 12, 0.35, 0.55);
+  if (id === 23.3) for (const h of O.bonHoses) if (h.cav === 'vbr') { nd = pulse(O.dash, nd, h.poly, t, 163.4, 163.9, 10, 0.35, 0.55); nd = pulse(O.dash, nd, h.poly, t, 164.6, 165.1, 10, 0.35, 0.55); }
+  done(O.dash, nd); done(O.cmdDash, nc);
+  // gas bubbles in the choke line (S14-S16), into the MGS (S17-S18)
+  let nb = 0;
+  const bub = (x, y, z, r) => { setI(O.bubL.core, nb, x, y, z, r); setI(O.bubL.rim, nb, x, y, z, r); nb++; };
+  if (id === 14 || id === 15) {
+    const open = id === 14 ? t > 103.8 : HCR(t) > 0.95;
+    if (open) for (let i = 0; i < 10; i++) { const s0 = fract(hash(i, 5) + (t - 103.8) * 0.25) * 2.6; if (id === 14 && s0 > (t - 103.8) * 0.8) continue; O.pCHK.at(s0, O.v3); bub(O.v3.x, O.v3.y + 0.012 * Math.sin(t * 25 + i), O.v3.z, 0.022 * (0.8 + 0.4 * hash(i, 6))); }
+  }
+  if (id === 16) for (let i = 0; i < 28; i++) {
+    const s0 = fract(hash(i, 7) + t * 0.32) * O.pCHK.L; if (t < 113.4 && s0 > (t - 111.8) * 3.5 + 6) continue;
+    O.pCHK.at(s0, O.v3); bub(O.v3.x, O.v3.y + 0.015 * Math.sin(t * 22 + i), O.v3.z, 0.028 * (0.8 + 0.4 * hash(i, 8)));
+  }
+  if (id === 17 || id === 18) { // inside the vessel: bubbles rise in the liquid, burst at the surface; slugs at the inlet
+    const C = MGS_POS, lv = id === 18 ? 2.65 : 2.65;
+    for (let i = 0; i < 70; i++) {
+      const life = 1.1 + hash(i, 11) * 0.9, age = fract(t / life + hash(i, 12)) * life, r0 = 0.02 + 0.03 * hash(i, 13);
+      const a = hash(i, 14) * 6.283, rr = 0.15 + 0.4 * hash(i, 15);
+      const y = 0.95 + age * 1.6 * Math.sqrt(r0 / 0.035); if (y > lv) continue;
+      const wob = 0.1 * r0 * Math.sin(t * 2 * Math.PI * (3 + hash(i, 16) * 2));
+      bub(C[0] + Math.cos(a) * rr + wob, y, C[2] + Math.sin(a) * rr, 0.7 * r0 * (1 + 0.6 * (y - 0.95) / 1.7));
     }
   }
-  O.arrows.count = na; O.arrows.instanceMatrix.needsUpdate = true;
-  O.arrowsB.count = nb; O.arrowsB.instanceMatrix.needsUpdate = true;
-  // the riser is ghosted while the drop rises inside it (shot 16)
+  done(O.bubL.core, nb); done(O.bubL.rim, nb);
+  // mud arrows: kill line (S15), MGS liquid out (S17 end), trip-tank fill
+  let na = 0;
+  if (id === 15 && t > 108.6) { const pulseK = 0.75 + 0.25 * Math.abs(Math.sin((t - 108.6) * Math.PI * 5)); na = arrowsAlong(O.mudArr, na, O.pKILL, Math.max(0, O.pKILL.L - (t - 108.6) * 4), O.pKILL.L, (t - 108.6) * 1.4 * pulseK + t * 0.4, 0.4, 0.9, 120); }
+  if ((id === 17 && t > 124.7) || id === 18) na = arrowsAlong(O.mudArr, na, O.pMGSR, 0, Math.min(O.pMGSR.L, (t - 124.7) * 3), t * 1.2, 0.6, 1.6, 120);
+  done(O.mudArr, na);
+  // gas streaks up the vent (S17 122.4-124.2, S18 130.0-131.6)
+  let ng = 0;
+  if ((id === 17 && t > 122.4) || (id === 18 && t > 130.0 && t < 131.8)) {
+    const vb = wa(O.mgs, 'ventBase'), vt = wa(O.mgs, 'ventTop');
+    for (let i = 0; i < 24; i++) { const u = fract(hash(i, 21) + t * 0.55); if (id === 17 && u * 9 > (t - 122.4) * 7) continue; setI(O.gasStreak, ng++, vb[0] + 0.04 * Math.sin(i * 2.3), lerp(vb[1], vt[1], u), vb[2] + 0.04 * Math.cos(i * 1.7), 1, 1); }
+  }
+  done(O.gasStreak, ng);
+  // diverter plume downwind (-x) from the line-A end
+  let np = 0;
+  if (id === 22 && t > 155.4) { const e = wa(O.div, 'ventEndL'); for (let i = 0; i < 50; i++) { const age = fract(hash(i, 31) + t * 0.35) * 3.0; if (t - age < 155.4 + (i % 5) * 0.1) continue; setI(O.plume, np++, e[0] - 1.6 * age - 0.4 * Math.sin(i), e[1] + 0.45 * age + 0.2 * hash(i, 32), e[2] + (hash(i, 33) - 0.5) * age * 0.9, 0.25 + 0.4 * age); } }
+  done(O.plume, np);
+  done(O.drops, 0);
+  // the hand on the manual choke valve (S14)
+  O.handV.visible = id === 14 && t > 100.0 && t < 102.2;
+  if (O.handV.visible) { const c = wa(st, 'chokeManual'); const a = (t < 101.5 ? (t - 100.4) * 1.1 : 1.21 - 0.25 * eout((t - 101.5) / 0.2)) * 2 * Math.PI; O.handV.position.set(c[0] + 0.0 + 0.2 * Math.cos(a), c[1] + 0.2 * Math.sin(a), c[2] - 0.45); O.handV.rotation.set(0, Math.PI, a); }
+  // ghost / memory look for S22: hide the bits that would clutter the aerial
+  O.trip.visible = true;
 }
+// ---------------------------------------------------------------- studio
 function stateStudio(t, s) {
   for (const k in O.sGroups) O.sGroups[k].visible = k === s.sub;
-  if (s.sub === 'PUMP_A') O.tri.update(t, { spm: 100, flash: 1 });
-  if (s.sub === 'PUMP_B') {
-    const w = 2 * Math.PI * 100 / 60;
-    let th;
-    if (t < 29.9) th = 0;
-    else if (t < 31.4) th = 2 * Math.PI * (t - 29.9) / 1.5;
-    else if (t < 45.5) th = 2 * Math.PI + w * (t - 31.4);
-    else th = 0.5 * w * (t - 45.5) + Math.PI;
-    const bore = t < 30.2 ? 0.5 : t < 33.2 ? lerp(0.5, 0.583, sstep(30.2, 30.8, t)) : t < 37.5 ? lerp(0.583, 0.375, sstep(33.2, 33.8, t)) : t < 45.5 ? 0.5 : 0.5;
-    O.pb.update(t, { theta: th, bore, popoff: t > 43.0 && t < 44.6 ? sstep(43.0, 43.3, t) * (1 - sstep(44.1, 44.4, t)) : 0, damp: 1, glow: 0 });
+  const sub = s.sub;
+  if (sub === 'ANN') {
+    const a = O.sANN.api; a.setCut(1);
+    let tgt = 'pipe', u = 0, py = null;
+    if (t < 42.2) { u = annU(t, 38.4, 40.4) * (1 - ein((t - 41.6) / 0.6)); tgt = 'pipe'; }
+    else if (t < 43.9) { tgt = 'hex'; u = annU(t, 42.4, 43.4); }
+    else if (t < 46.4) { tgt = 'open'; u = t < 44.4 ? 0 : annU(t, 44.4, 46.0); }
+    else { tgt = 'pipe'; py = lerp(1.15, 0.38, clamp((t - 46.6) / 3.2)); const joint = Math.exp(-Math.pow((py - 0.7) / 0.09, 2)); u = 0.8 - 0.06 * joint; }
+    a.setTarget(tgt); a.setClose(u); if (py != null) a.setPropY(py); else a.setPropY(null);
   }
-  if (s.sub === 'WASH') O.wp.update(t, { omega: 1.6, glow: t > 72.4 && t < 76.9 ? sstep(72.4, 72.8, t) : 0, wear: t > 75.0 ? 0.5 - 0.5 * Math.cos(clamp((t - 75.0) / 1.6) * 4 * Math.PI) : 0, ghost: 0.12 });
+  if (sub === 'RAM') {
+    const a = O.sRAM.api;
+    // index 0 = VBR (lower cavity), 1 = 5 in pipe ram (upper cavity)
+    const upper = t < 56.3 ? ramU(t, 50.7, 52.6) : t < 56.8 ? 1 - ramU(t, 56.3, 56.8) : 0;
+    const vbr = t < 56.7 ? 0 : ramU(t, 56.7, 58.3);
+    a.setClose(1, upper); a.setClose(0, vbr); a.setPipeR(0, 0.0445);
+    a.setLock(0, t < 59.8 ? 0.78 : t < 61.2 ? lerp(0.78, 1.0, (t - 59.8) / 1.4) : 1);
+    const pipe5 = O.sRAM.parts.pipe; if (pipe5) pipe5.visible = t < 56.45 && s.id !== 9;
+    O.ghost35.material.opacity = s.id === 9 ? 0 : t > 56.3 ? clamp((t - 56.3) / 0.3) : t > 55.0 && t < 56.2 ? 0.4 * pulseIn(t, 55.0, 56.2) : 0;
+    O.ghost35.material.depthWrite = t > 56.3; O.ghost35.visible = O.ghost35.material.opacity > 0.01;
+    O.ghost35.position.y = 0.75 + (t > 63.7 ? 0 : 0);
+    if (s.id === 9) O.ghost35.visible = false;
+    O.sRAM.position.x = SLOT.RAM[0] + shudder(t, 52.6, 0.0006) + shudder(t, 58.3, 0.0006);
+    // section: horizontal through the upper cavity for the plan view, rotating to the vertical half-section in the orbit
+    a.setCut(1);
+    if (O.ramPlane) {
+      const ry = 1.17 + 0.02;
+      const k = t < 58.6 ? 0 : eio((t - 58.6) / 1.0); // 0 = horizontal (keep y <= ry), 1 = vertical (keep z <= 0)
+      const ang = k * Math.PI / 2, n = new THREE.Vector3(0, -Math.cos(ang), -Math.sin(ang));
+      const Cw = O.v3b.set(OFF.S[0] + SLOT.RAM[0], ry, OFF.S[2] + SLOT.RAM[2]);
+      O.ramPlane.set(n, -n.dot(Cw));
+    }
+    // S9: pressure disc + force arrow under the closed VBR rams
+    const s9 = s.id === 9;
+    O.pDisc.visible = s9 && t > 64.2; O.pDisc.position.y = 0.46; const f = eout((t - 64.2) / 1.0); O.pDisc.scale.setScalar(Math.max(0.01, f));
+    O.pArrow.visible = s9 && t > 68.2; const g = eio((t - 68.2) / 0.8);
+    O.pArrow.position.set(0, 0.05, 0.02); O.pArrow.children[0].scale.y = O.pArrow.children[1].scale.y = Math.max(0.01, 0.36 * g); O.pHead.position.y = 0.36 * g; O.pArrow.children[0].position.y = 0;
+    let nu = 0; if (s9 && t > 66.0) { const e = eout((t - 66.0) / 0.8); for (let i = 0; i < 6; i++) { const aa = i / 6 * 6.283 + 0.3; setI(O.upArr, nu++, Math.cos(aa) * 0.12, 0.36 + 0.04 * e, Math.sin(aa) * 0.12, e); } }
+    if (s.id === 8 && t > 62.2) { const e = eout((t - 62.2) / 0.6); for (let i = 0; i < 6; i++) { const aa = i / 6 * 6.283 + 0.3; setI(O.upArr, nu++, Math.cos(aa) * 0.12, 0.34 + 0.04 * e, Math.sin(aa) * 0.12, e); } }
+    done(O.upArr, nu);
+  }
+  if (sub === 'BSR') {
+    const a = O.sBSR.api; a.setCut(1);
+    // 71.2-72.5 travel, 72.5-73.5 crush at 30 %, 73.6 fracture, 74.0-74.8 seal; 75.0-75.3 dip: reset with a tool joint
+    let u;
+    if (t < 75.15) {
+      if (t < 71.2) u = 0; else if (t < 72.5) u = lerp(0, 0.42, ramU(t, 71.2, 72.5)); else if (t < 73.55) u = lerp(0.42, 0.565, (t - 72.5) / 1.05);
+      else if (t < 73.62) u = lerp(0.565, 0.62, (t - 73.55) / 0.07); else u = lerp(0.62, 1.0, ramU(t, 74.0, 74.8) ) * (t < 74.0 ? 0 : 1) + (t < 74.0 ? 0.62 : 0);
+    } else u = 0;
+    a.setShear(u); a.setSparks(false);
+    const tj = t > 75.15;
+    for (const k of ['pipeUpper', 'pipeLower']) if (O.sBSR.parts[k]) O.sBSR.parts[k].visible = !tj;
+    O.bsrTJ.visible = tj; O.bsrTJ.position.y = 0.62 + (tj ? 1.0 * eio((t - 76.0) / 0.9) * 0.6 : 0) - 0.1;
+    O.sBSR.position.y = shudder(t, 74.8, 0.0006);
+    // sparks: 48 streaks along the blade edges in the cut plane, gravity 9.8 m/s2
+    let ns = 0; const sy = 0.64;
+    if (t > 73.58 && t < 74.1) for (let i = 0; i < 48; i++) {
+      const life = 0.18 + 0.27 * hash(i, 41), age = t - 73.58 - hash(i, 42) * 0.06; if (age < 0 || age > life) continue;
+      const side = i % 2 ? 1 : -1, ang = (hash(i, 43) - 0.5) * 0.9, sp = 1.4 + 1.6 * hash(i, 44);
+      const vx = side * Math.cos(ang) * sp, vy = Math.sin(ang) * sp + 0.6, vz = 0.25 + 0.6 * hash(i, 45);
+      const x = vx * age, y = sy + vy * age - 4.9 * age * age, z = 0.02 + vz * age;
+      O.m4.compose(O.v3.set(side * 0.06 + x, y, z), O.q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), O.tan.set(vx, vy - 9.8 * age, vz).normalize()), O.scl.set(1, 1, 1 + 2 * sp * (1 - age / life)));
+      O.spark.setMatrixAt(ns, O.m4);
+      const k = age / life; O.col.setHex(k < 0.25 ? 0xffffff : k < 0.5 ? 0xffd27a : k < 0.8 ? 0xff6a00 : 0x5a1a00).toArray(O.spark.instanceColor.array, ns * 3); ns++;
+    }
+    done(O.spark, ns);
+    let nch = 0; if (t > 73.6 && t < 75.0) for (let i = 0; i < 6; i++) { const age = t - 73.6, side = i % 2 ? 1 : -1; setI(O.chips, nch++, side * (0.05 + 0.5 * age * (0.6 + hash(i, 51))), Math.max(0.25, sy + 0.4 * age - 4.9 * age * age), 0.05 + 0.2 * age * hash(i, 52), 1); }
+    done(O.chips, nch);
+  }
+  if (sub === 'IBOP') {
+    const a = O.sIBOP.api; a.setCut(1);
+    a.setUpper(t < 141.6 ? 0 : t < 142.6 ? ramU(t, 141.6, 142.6) : 1); a.setLower(0);
+    O.wrench.visible = t > 143.4; const so = wa(O.sIBOP, 'socket'), base = addV(OFF.S, SLOT.IBOP);
+    const e = eout((t - 143.4) / 0.4); O.wrench.position.set(so[0] - base[0] + 0.25 * (1 - e), so[1] - base[1], so[2] - base[2] + 0.02 + 0.15 * (1 - e));
+  }
+}
+// ---------------------------------------------------------------- well cut-away (W)
+function stateWellP5(t, s) {
+  stateWell(t);
+  const id = s.id;
+  O.casingG.visible = id === 26;
+  for (const k of ['mudW', 'cutW', 'chipsW']) O[k].count = id === 2 ? O[k].count : 0;
+  O.dsRot.rotation.y = 0; O.bit.rotation.y = 0;
+  O.jetM.opacity = 0;
+  // S2: mud column brightens bottom-up (barrier), the BOP proxy lights purple; the EP04 ghost bubble
+  const fill = sstep(8.7, 9.6, t);
+  O.mudTint.material.opacity = id === 2 ? lerp(0.42, 0.72, fill) : 0.42;
+  O.mudTint.material.color.setHex(0x8a5a2e).lerp(O.hc.setHex(0xc8925a), fill * 0.6);
+  const g = id === 2 ? sstep(6.6, 7.0, t) * (1 - sstep(7.2, 7.6, t)) * 0.6 : 0;
+  O.wGhost.material.opacity = g; O.wGhostRim.material.opacity = g;
+  O.wGhost.position.y = O.wGhostRim.position.y = -36 + clamp((t - 6.6) / 1.0);
+  const px = eout((t - 10.8) / 0.5) * (id === 2 ? 1 : 0);
+  O.wBOP.visible = id === 2 || id === 21.2;
+  O.wBOP.traverse(m => { if (m.isMesh && m.material && m.material.emissive) { m.material.emissive.setHex(0xa855f7).multiplyScalar(0.12 * px); } });
+  // S21: float valve flapper (down-flow holds it open; back-flow slams it shut at 150.4)
+  O.wFloat.visible = id === 21.3 || id === 21.2;
+  O.wFloat.api.setCut(1);
+  const flap = t < 150.4 ? 0 : clamp((t - 150.4) / 0.12) - 0.03 * Math.sin(clamp((t - 150.52) / 0.07) * Math.PI);
+  O.wFloat.api.setFlap(clamp(flap, 0, 1));
+  let n = 0;
+  if (id === 21.3) {
+    const yS = YBT + 0.3 + 0.45 * 7;
+    if (t < 150.3) for (let i = 0; i < 6; i++) { const y = yS + 1.8 - fract(i / 6 + t * 0.9) * 2.6; setI(O.wArr, n++, 0, y, 0.15, 1); O.wArr.setMatrixAt(n - 1, O.m4.compose(O.v3.set(0, y, 0.15), O.q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI), O.scl.set(1, 1, 1))); }
+    else for (let i = 0; i < 5; i++) { const y = YBT + 0.3 + fract(i / 5 + t * 0.9) * 2.4; if (y > yS - 0.2) continue; setI(O.wArr, n++, 0, y, 0.15, 1); }
+  }
+  done(O.wArr, n);
+  let nb = 0;
+  if (id === 21.3 && t > 150.4) { const y = Math.min(YBT + 0.4 + (t - 150.4) * 2.0, YBT + 0.3 + 0.45 * 7 - 0.5); setI(O.wBub.core, 0, 0.05, y, 0.2, 0.12); setI(O.wBub.rim, 0, 0.05, y, 0.2, 0.12); nb = 1; }
+  done(O.wBub.core, nb); done(O.wBub.rim, nb);
+  // S26: casing strings reveal outer -> inner, cement fills from the shoes up
+  if (id === 26) {
+    O.casings.forEach((m, i) => { m.material.opacity = eout((t - 177.6 - Math.floor(i / 3) * 0.12) / 0.4); m.visible = m.material.opacity > 0.01; });
+    O.cements.forEach((m, i) => { const h = Math.max(0.01, (m.userData.top - m.userData.y0) * eio((t - 179.6) / 1.8)); m.scale.y = h; m.visible = t > 179.6 && i < 3; });
+  }
 }
 function placeCamV(v, vo) {
-  camera.position.set(v[0], v[1], v[2]); camera.lookAt(v[3], v[4], v[5]);
+  camera.position.set(v[0], v[1], v[2]); camera.up.set(0, 1, 0); camera.lookAt(v[3], v[4], v[5]);
   camera.fov = v[6];
   if (vo && (vo[0] || vo[1])) camera.setViewOffset(W, H, -vo[0], -vo[1], W, H); else camera.clearViewOffset();
   camera.updateProjectionMatrix(); camera.updateMatrixWorld();
@@ -1592,59 +1750,32 @@ function applyState(t) {
   for (const k in O.sets) O.sets[k].visible = k === s.set;
   placeCamV(s.v, s.vo);
   if (s.set === 'L') stateLand(t, s);
-  else if (s.set === 'W') stateWell(t);
+  else if (s.set === 'W') stateWellP5(t, s);
   else stateStudio(t, s);
-  applyHighlight(t, s.set === 'L');
-  // the drop
-  const D = O.drop = dropAt(t);
-  for (const k in O.drops) {
-    const dd = O.drops[k], vis = D.vis && D.par === k;
-    if (!vis) { dd.update(t, { visible: false }); continue; }
-    const path = tt => { if (tt === t) return D.p; const q = dropAt(tt); return q.vis && q.par === D.par ? q.p : D.p; };
-    let sq = D.squash, trail = true;
-    if (k === 'L') { // keep the hero readable but not blinding in close land shots: cap its on-screen radius
-      const dist = camera.position.distanceTo(O.v3.set(D.p[0], D.p[1], D.p[2]));
-      const rpx = 0.22 / (dist * Math.tan(camera.fov * Math.PI / 360)) * (H / 2), f = Math.min(1, 26 / rpx);
-      D.rpx = rpx * f; D.f = f;
-    }
-    dd.update(t, { path, trailOn: trail, dirt: D.dirt, shimmer: D.shimmer, squash: sq, opacity: D.op, chip: D.chip, bubbles: D.bubbles,
-      splashPos: D.splashPos, splashAge: D.splashAge, stretch: 0.6 });
-    const f = k === 'L' ? D.f : 1; // scale about the drop itself so trail, specks and chip shrink together
-    dd.group.scale.setScalar(f); dd.group.position.set(D.p[0] * (1 - f), D.p[1] * (1 - f), D.p[2] * (1 - f));
-  }
+  if (s.set === 'L') { applyHighlight(t, s.id); tierLift(t); }
   scene.updateMatrixWorld();
 }
 function renderFrame(t) {
   applyState(t);
-  env(O.shot.set);
+  env(O.shot.set, t);
   const v = O.shot.v;
   LOOK.frame(O.shot.set, camera, O.v3b.set(v[3], v[4], v[5]));
   LOOK.render(scene, camera);
 }
 
 // ================================================================ overlay (2D) — "Field Manual" kit (overlay_kit.js)
-const CIRC = KIT.SYS.circ, MUDC = '#c8925a', AMBER = '#f59e0b', WC = KIT.SYS.wc, KC = KIT.C;
-const CARD_TOP = 360;
+const WC = KIT.SYS.wc, KC = KIT.C, MUDC = '#c8925a';
 const clean = s => String(s).replace(/ · /g, ', ');
 function proj(p) {
   const v = O.v3b.set(p[0], p[1], p[2]).project(camera);
   return { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H, ok: v.z < 1 && v.z > -1 };
 }
-const wOf = o => { o.getWorldPosition(O.v3b); return [O.v3b.x, O.v3b.y, O.v3b.z]; };
-const inSet = (set, p) => addV(OFF[set], p);
 const inSlot = (k, p) => addV(addV(OFF.S, SLOT[k]), p);
-// a numbered schematic label attached to a 3D point (kit callout: anchor dot, cased leader, paper tab)
+const inW = p => addV(OFF.W, p);
 function co(ctx, t, t0, t1, P, x, y, label, sub = '', o = {}) {
   if (t < t0 || t > t1 || !P) return;
   const s = proj(P); if (!s.ok) return;
-  KIT.callout(ctx, t, { t0, t1, ax: s.x, ay: s.y, x, y, label, sub, color: o.color || CIRC, align: o.align || 'left', n: o.n ?? null, size: o.size || 32 });
-}
-// a static label tab (no anchor), one entrance
-function tag(ctx, t, t0, t1, x, y, label, sub, color, align = 'left') {
-  const e = KIT.env(t, t0, t1, 0.35, 0.3); if (!e.live || e.a <= 0) return;
-  ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 16);
-  KIT.labelPill(ctx, x, y, label, sub, color, { size: 32, align, u: KIT.eout((t - t0) / 0.35) });
-  ctx.restore();
+  KIT.callout(ctx, t, { t0, t1, ax: s.x, ay: s.y, x, y, label, sub, color: o.color || WC, align: o.align || 'left', n: o.n ?? null, size: o.size || 32 });
 }
 function cased(ctx, fn, lw = 3, casing = 8) {
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -1652,16 +1783,14 @@ function cased(ctx, fn, lw = 3, casing = 8) {
   ctx.strokeStyle = KC.ink; ctx.lineWidth = lw; fn(); ctx.stroke();
   ctx.restore();
 }
-
-// ---- fact card with an optional figure (right column or a band below the lines). One sheet = one panel.
-function figCard(ctx, t, o) {
-  const { t0, t1, title, color = CIRC, top = CARD_TOP, lineAt = null, fig = null, figH = 0, figW = 0, figAt = null } = o;
+// ---- fact card: lines reveal at given times (lineAt), optional note (noteAt), x / width per layout zone
+function card(ctx, t, o) {
+  const { t0, t1, title, color = WC, top = 252, x = 60, w = 900, lineAt = null, noteAt = null, note = '' } = o;
   const lines = (o.lines || []).map(clean);
   const e = KIT.env(t, t0, t1, 0.45, 0.3); if (!e.live || e.a <= 0) return;
-  const x = 60, w = 900, pad = 40, lh = 58, n = lines.length, headH = 66;
-  const colW = w - pad * 2 - (figW ? figW + 36 : 0);
-  const textH = 8 + pad + headH + (n ? 22 + n * lh : 0);
-  const h = textH + (figH ? figH + 12 : 0) + pad - 8;
+  const pad = 40, lh = 58, n = lines.length, headH = 66;
+  const colW = w - pad * 2, noteH = note ? 70 : 0;
+  const h = 8 + pad + headH + (n ? 22 + n * lh : 0) + noteH + pad - 8;
   ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 24 + e.o * 12);
   KIT.sheet(ctx, x, top, w, h, { band: color });
   const hy = top + 8 + pad;
@@ -1671,213 +1800,101 @@ function figCard(ctx, t, o) {
     const lt = lineAt ? lineAt[i] : t0 + 0.5 + i * 0.8, u = KIT.eout((t - lt) / 0.35); if (u <= 0) continue;
     const ly = hy + headH + 22 + i * lh + lh / 2;
     ctx.save(); ctx.globalAlpha *= u;
-    ctx.fillStyle = KC.ink; ctx.fillRect(x + pad, ly - 1.5, 16, 3);
-    if (o.dots && o.dots[i]) { ctx.fillStyle = o.dots[i]; ctx.beginPath(); ctx.arc(x + pad + 8, ly, 9, 0, 7); ctx.fill(); }
-    KIT.text(ctx, lines[i], x + pad + 32 + (1 - u) * 8, ly + 1, { w: 400, size: 34, color: KC.ink, maxW: colW - 32 });
+    if (o.glyph && o.glyph[i]) glyph(ctx, o.glyph[i], x + pad + 10, ly, 26); else { ctx.fillStyle = KC.ink; ctx.fillRect(x + pad, ly - 1.5, 16, 3); }
+    let str = lines[i];
+    if (o.count && o.count.line === i) { const k = KIT.eout((t - o.count.t) / o.count.dur); str = str.replace(o.count.token, KIT.fmtNum(Math.round(o.count.value * k / 10) * 10)); }
+    KIT.text(ctx, str, x + pad + 32 + (1 - u) * 8, ly + 1, { w: 400, size: 34, color: KC.ink, maxW: colW - 32 });
     ctx.restore();
   }
-  if (fig) {
-    const fk = KIT.eout((t - (figAt ?? t0 + 0.5)) / 0.45);
-    if (fk > 0) {
-      const r = figW ? { x: x + w - pad - figW, y: top + 8 + pad, w: figW, h: textH - 8 - pad } : { x: x + pad, y: top + textH + 6, w: w - pad * 2, h: figH };
-      if (!figW) { ctx.save(); ctx.globalAlpha *= fk; ctx.fillStyle = KC.rule; ctx.fillRect(r.x, r.y - 4, r.w, 2); ctx.restore(); }
-      ctx.save(); ctx.globalAlpha *= fk; fig(ctx, r, t, fk); ctx.restore();
-    }
+  if (note) {
+    const u = KIT.eout((t - (noteAt ?? t0 + 0.5 + n * 0.8)) / 0.35);
+    if (u > 0) { const ny = top + h - pad - 24; ctx.save(); ctx.globalAlpha *= u; ctx.fillStyle = KC.rule; ctx.fillRect(x + pad, ny - 34, colW, 1.5); KIT.text(ctx, clean(note), x + pad, ny, { w: 400, size: 26, color: KC.ink2, maxW: colW }); ctx.restore(); }
   }
   ctx.restore();
 }
-
-// ---- figures drawn inside cards
-function seesaw(ctx, r, t) {
-  const cx = r.x + r.w / 2, cy = r.y + 120, L = 600;
-  const k = sstep(33.2, 33.8, t), ang = lerp(-8, 8, k) * Math.PI / 180;
-  ctx.fillStyle = KC.ink; ctx.beginPath(); ctx.moveTo(cx, cy + 4); ctx.lineTo(cx - 34, cy + 64); ctx.lineTo(cx + 34, cy + 64); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = KC.rule; ctx.fillRect(cx - 120, cy + 64, 240, 3);
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
-  ctx.fillStyle = KC.ink; ctx.fillRect(-L / 2, -4, L, 8);
-  const blk = (bx, col, a, b) => {
-    ctx.fillStyle = col; KIT.rr(ctx, bx, -76, 170, 68, 4); ctx.fill();
-    KIT.text(ctx, a, bx + 16, -52, { w: 600, size: 30, color: KC.ink, maxW: 150 });
-    KIT.text(ctx, b, bx + 16, -24, { w: 400, size: 26, color: KC.ink, maxW: 150 });
-  };
-  blk(-L / 2, KIT.light(CIRC, 0.35), 'Flow', 'gpm');
-  blk(L / 2 - 170, KIT.light(AMBER, 0.35), 'Pressure', 'psi');
-  // the liner chip slides to the heavy side
-  const lab = t < 33.5 ? '7 in' : '4½ in', cxp = lerp(-0.12 * L, 0.12 * L, k);
-  ctx.fillStyle = KC.ink; KIT.rr(ctx, cxp - 58, -54, 116, 46, 4); ctx.fill();
-  KIT.text(ctx, lab, cxp, -30, { w: 600, size: 30, color: KC.paper, align: 'center', maxW: 104 });
+// small line glyphs (ink): cross, check, calendar, wrench
+function glyph(ctx, k, x, y, s, a = 1) {
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = KC.ink; ctx.lineWidth = Math.max(2.5, s * 0.11); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (k === 'cross') { ctx.moveTo(x - s / 2, y - s / 2); ctx.lineTo(x + s / 2, y + s / 2); ctx.moveTo(x + s / 2, y - s / 2); ctx.lineTo(x - s / 2, y + s / 2); }
+  else if (k === 'check') { ctx.moveTo(x - s / 2, y); ctx.lineTo(x - s / 6, y + s / 3); ctx.lineTo(x + s / 2, y - s / 2.5); }
+  else if (k === 'calendar') { ctx.rect(x - s / 2, y - s / 2.4, s, s * 0.85); ctx.moveTo(x - s / 2, y - s / 6); ctx.lineTo(x + s / 2, y - s / 6); ctx.moveTo(x - s / 4, y - s / 1.8); ctx.lineTo(x - s / 4, y - s / 3); ctx.moveTo(x + s / 4, y - s / 1.8); ctx.lineTo(x + s / 4, y - s / 3); }
+  ctx.stroke(); ctx.restore();
+}
+// a stroke that draws on (check / cross) — u 0..1
+function drawOn(ctx, k, x, y, s, u, a = 1) {
+  if (u <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.beginPath(); ctx.rect(x - s, y - s, 2 * s * clamp(u), 2 * s); ctx.clip();
+  ctx.save(); ctx.strokeStyle = KIT.hexA(KC.paper, 0.95); ctx.lineWidth = s * 0.3; ctx.lineCap = 'round'; ctx.beginPath();
+  if (k === 'check') { ctx.moveTo(x - s / 2, y); ctx.lineTo(x - s / 6, y + s / 3); ctx.lineTo(x + s / 2, y - s / 2.5); } else { ctx.moveTo(x - s / 2, y - s / 2); ctx.lineTo(x + s / 2, y + s / 2); ctx.moveTo(x + s / 2, y - s / 2); ctx.lineTo(x - s / 2, y + s / 2); }
+  ctx.stroke(); ctx.restore();
+  glyph(ctx, k, x, y, s);
   ctx.restore();
-  KIT.text(ctx, t < 33.5 ? 'Liner ใหญ่: ไหลมาก แรงดันต่ำ' : 'Liner เล็ก: แรงดันสูง ไหลน้อย', r.x, r.y + r.h - 12, { w: 400, size: 28, color: KC.ink2, maxW: r.w });
 }
-function trace(ctx, r, t) {
-  const x0 = r.x + 8, x1 = r.x + r.w, yTop = r.y + 30, yBot = r.y + r.h - 18, mid = lerp(yTop, yBot, 0.58), amp = (yBot - yTop) * 0.26;
-  ctx.fillStyle = KC.ink; ctx.fillRect(x0, yTop - 10, 2, yBot - yTop + 10); ctx.fillRect(x0, yBot, x1 - x0, 2);
-  KIT.text(ctx, 'แรงดันขาออกปั๊ม', x0 + 14, yTop - 4, { w: 400, size: 26, color: KC.ink2 });
-  const lim = yTop + 8;
-  if (t > 42.6) { ctx.save(); ctx.globalAlpha *= KIT.eout((t - 42.6) / 0.3); ctx.fillStyle = '#dc2626'; ctx.fillRect(x0 + 300, lim - 1, x1 - x0 - 300, 2); KIT.text(ctx, 'ตั้ง Pop-off', x1, lim - 20, { w: 600, size: 26, color: '#b91c1c', align: 'right' }); ctx.restore(); }
-  const rip = tau => 1 - Math.abs(Math.sin(Math.PI * 5 * tau));
-  const val = (tau, smooth) => {
-    const a = smooth ? 1 - 0.88 * sstep(39.4, 40.6, tau) : 1;
-    const sp = sstep(43.0, 43.5, tau) * (1 - sstep(44.0, 44.4, tau));
-    return lerp(mid - amp * rip(tau) * a, lim + 6, sp * (smooth ? 1 : 0));
-  };
-  const span = 3.0, N = 240;
-  const line = (smooth, col, lw) => {
-    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.beginPath();
-    for (let i = 0; i <= N; i++) { const tau = t - span + span * i / N, px = lerp(x0 + 6, x1, i / N), py = val(tau, smooth); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-    ctx.stroke();
-  };
-  line(false, KIT.hexA(KC.ink, 0.22), 2);
-  line(true, t > 42.9 && t < 44.6 ? AMBER : '#0f766e', 4);
-  KIT.text(ctx, t < 40.0 ? 'ไม่มี Dampener: กระชากทุก Stroke' : 'มี Dampener: เรียบขึ้น', x0 + 14, yBot - 22, { w: 600, size: 26, color: KC.ink });
-}
-function splitBar(ctx, r, t) {
-  const bx = r.x + 92, bw = r.w - 92, by = r.y + 22, bh = 36, k = KIT.eio((t - 78.9) / 0.7);
-  KIT.text(ctx, 'SPP', r.x, by + bh / 2, { w: 600, size: 32, color: KC.ink });
-  ctx.save(); ctx.beginPath(); ctx.rect(bx, by - 2, bw * k, bh + 4); ctx.clip();
-  const X = f => bx + bw * f;
-  ctx.fillStyle = CIRC; ctx.fillRect(X(0), by, X(0.5) - X(0), bh);
-  ctx.fillStyle = KIT.light(CIRC, 0.55); ctx.fillRect(X(0.5), by, X(0.667) - X(0.5), bh);
-  ctx.save(); ctx.beginPath(); ctx.rect(X(0.5), by, X(0.667) - X(0.5), bh); ctx.clip(); ctx.strokeStyle = KIT.hexA(KC.ink, 0.35); ctx.lineWidth = 2;
-  for (let xx = X(0.5) - bh; xx < X(0.667); xx += 10) { ctx.beginPath(); ctx.moveTo(xx, by + bh); ctx.lineTo(xx + bh, by); ctx.stroke(); } ctx.restore();
-  ctx.fillStyle = '#b8bec8'; ctx.fillRect(X(0.667), by, X(0.94) - X(0.667), bh);
-  ctx.fillStyle = '#0f766e'; ctx.fillRect(X(0.94), by, X(1) - X(0.94), bh);
-  ctx.strokeStyle = KC.ink; ctx.lineWidth = 2; ctx.strokeRect(bx + 1, by, bw - 2, bh);
-  ctx.restore();
-  if (k > 0.6) {
-    KIT.text(ctx, 'Bit ~½–⅔', bx, by + bh + 34, { w: 600, size: 30, color: KC.ink });
-    KIT.text(ctx, 'Drill string', X(0.667) + 6, by + bh + 34, { w: 400, size: 26, color: KC.ink2 });
-    ctx.fillStyle = KC.ink; ctx.fillRect(X(0.97) - 1, by + bh, 2, 62);
-    KIT.text(ctx, 'Annulus (เล็กสุด)', X(0.97) - 12, by + bh + 76, { w: 400, size: 26, color: KC.ink2, align: 'right' });
-  }
-}
-function annulusInset(ctx, r, t) {
-  const cx = r.x + r.w / 2, cy = r.y + r.h / 2 - 20, R = Math.min(104, r.h / 2 - 30);
-  ctx.fillStyle = KC.paper2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-  for (let i = 0; i < 30; i++) {
-    const a = hash(i, 91) * 6.283, rr2 = lerp(R * 0.5, R * 0.9, hash(i, 92)), ph = fract(hash(i, 93) + t * 0.7);
-    ctx.save(); ctx.globalAlpha *= Math.sin(ph * Math.PI); ctx.fillStyle = KC.mud; ctx.strokeStyle = KC.ink; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2, 3 + 4 * hash(i, 94), 0, 7); ctx.fill(); ctx.stroke(); ctx.restore();
-  }
-  ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
-  ctx.fillStyle = '#9ca3af'; ctx.beginPath(); ctx.arc(cx, cy, R * 0.42, 0, 7); ctx.fill();
-  ctx.strokeStyle = KC.ink; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = CIRC; ctx.beginPath(); ctx.arc(cx, cy, R * 0.26, 0, 7); ctx.fill();
-  KIT.text(ctx, 'ภาพตัดขวาง', cx, cy + R + 30, { w: 600, size: 28, color: KC.ink, align: 'center', maxW: r.w });
-}
-function dial(ctx, cx, cy, R, v, col, readout, label, sub) {
-  const A0 = Math.PI * 5 / 6, A1 = Math.PI * 13 / 6, ang = u => lerp(A0, A1, clamp(u));
-  ctx.lineCap = 'butt';
-  ctx.strokeStyle = KC.paper2; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx, cy, R - 6, A0, A1); ctx.stroke();
-  ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(cx, cy, R - 6, A0, ang(v)); ctx.stroke();
-  for (let i = 0; i <= 16; i++) { const q = lerp(A0, A1, i / 16), mj = i % 4 === 0; ctx.strokeStyle = KC.ink; ctx.lineWidth = mj ? 2.5 : 1.5; ctx.beginPath(); ctx.moveTo(cx + Math.cos(q) * (R - 16), cy + Math.sin(q) * (R - 16)); ctx.lineTo(cx + Math.cos(q) * (R - (mj ? 32 : 24)), cy + Math.sin(q) * (R - (mj ? 32 : 24))); ctx.stroke(); }
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang(v)); ctx.fillStyle = KC.ink; ctx.beginPath(); ctx.moveTo(-R * 0.14, -3); ctx.lineTo(R - 26, -1); ctx.lineTo(R - 26, 1); ctx.lineTo(-R * 0.14, 3); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, 7, 0, 7); ctx.fill(); ctx.restore();
-  KIT.text(ctx, readout, cx, cy + R * 0.55, { w: 600, size: 30, color: KC.ink, align: 'center', maxW: R * 1.2 });
-  KIT.text(ctx, label, cx - R, cy + R * 0.55 + 56, { w: 600, size: 30, color: KC.ink, maxW: 2 * R + 60 });
-  KIT.text(ctx, sub, cx - R, cy + R * 0.55 + 90, { w: 400, size: 26, color: KC.ink2, maxW: 2 * R + 80 });
-}
-function flowGauges(ctx, r, t) {
-  const R = 82, cy = r.y + R + 10;
-  dial(ctx, r.x + 150, cy, R, 0.5, CIRC, '100 SPM', 'Flow In', 'คิดจาก Pump Stroke');
-  const rise = sstep(102.0, 105.0, t);
-  dial(ctx, r.x + r.w - 250, cy, R, lerp(0.5, 0.76, rise), rise > 0.05 ? AMBER : CIRC, '%', 'Flow Out', 'จาก Flow Paddle');
-  if (rise > 0.05) { ctx.save(); ctx.globalAlpha *= clamp(rise * 3); ctx.translate(r.x + r.w - 250 + R + 40, cy - R * 0.2); ctx.rotate(-Math.PI / 2); KIT.icon(ctx, 'arrowR', 0, 0, 34, '#b45309', 3); ctx.restore(); }
-}
-
-// ---- solids control: one sheet = particle-size ladder (coarse -> fine) + the current stage's notes
-const SOL = [
-  { name: 'Shale Shaker', size: '> ~75 µm, API 200', at: 107.4, a0: 107.4, a1: 114.2, w: 196, dot: 8.5 },
-  { gas: true, name: 'Degasser', size: 'แยกแก๊ส', at: 114.6, a0: 114.2, a1: 121.7, w: 120 },
-  { name: 'Desander', size: 'D50 ~40–50 µm', at: 122.2, a0: 121.7, a1: 125.6, w: 176, dot: 5.5 },
-  { name: 'Desilter', size: 'D50 ~15–20 µm', at: 125.6, a0: 125.6, a1: 129.9, w: 170, dot: 3.5 },
-  { name: 'Centrifuge', size: '~2–7 µm', at: 130.2, a0: 129.9, a1: 137.5, w: 158, dot: 2 },
-];
-const SOLCARD = [
-  { t0: 108.4, t1: 113.6, n: 1, title: 'Shale Shaker', lines: ['ตะแกรงสั่น Linear Motion ~4–7 G', 'API 200 ≈ 69–82.5 µm', 'เลข API ไม่ใช่ Mesh'] },
-  { t0: 114.4, t1: 121.4, n: null, title: 'Vacuum Degasser', lines: ['ดูดแก๊สที่ปนในโคลนออก', 'อยู่ก่อนเครื่องที่ใช้ปั๊มหอยโข่ง', '≠ Mud Gas Separator (Part 5)'], dot: 2 },
-  { t0: 122.6, t1: 129.4, n: 2, title: 'Hydrocyclones', lines: ['Desander: กรวย 10 in · ~500 gpm', 'Desilter: กรวย 4 in · ~60 gpm', 'Desander ต้องมาก่อน Desilter'], lineAt: [123.1, 125.9, 126.8] },
-  { t0: 131.0, t1: 137.4, n: 4, title: 'Centrifuge', lines: ['ถังหมุนแนวนอน + Screw Conveyor', 'Mud หนัก: เก็บ Barite (~650 G)', 'Mud เบา: ทิ้งของแข็งละเอียด'] },
-];
-function solidsSheet(ctx, t) {
-  const e = KIT.env(t, 107.0, 137.4, 0.45, 0.3); if (!e.live || e.a <= 0) return;
-  const x = 60, y = 236, w = 900, pad = 44;
-  const y1 = y + 8 + 112, y2 = y1 + 178, h = (y2 + 290) - y;
+// ---- diagram card: BOP Stack top -> bottom, rows reveal at the tier times
+const TIERS = [['Annular Preventer', '5,000 psi', TIER.ann], ['Upper Pipe Ram (VBR)', 'Double Ram, ช่องบน', TIER.vbr], ['Blind Shear Ram', 'Double Ram, ช่องล่าง', TIER.bsr],
+  ['Drilling Spool', 'Choke ⟷ Kill outlets', TIER.spool], ['Lower Pipe Ram', 'Single Ram', TIER.low], ['Casing Head', 'Wellhead', TIER.ch]];
+function diagramCard(ctx, t) {
+  const t0 = 20.4, t1 = 36.5, e = KIT.env(t, t0, t1, 0.45, 0.3); if (!e.live || e.a <= 0) return;
+  const x = 150, w = 810, top = 252, pad = 36, rowH = 46, h = 8 + pad + 62 + 14 + 6 * rowH + 74 + pad - 18;
   ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 24 + e.o * 12);
-  KIT.sheet(ctx, x, y, w, h, { band: CIRC });
-  KIT.text(ctx, 'Solids Control', x + pad, y + 8 + 50, { w: 600, size: 44, color: KC.ink, maxW: 500 });
-  KIT.text(ctx, 'หยาบ → ละเอียด', x + w - pad, y + 8 + 52, { w: 400, size: 30, color: KC.ink2, align: 'right' });
-  ctx.fillStyle = KC.ink; ctx.fillRect(x + pad, y + 8 + 92, w - pad * 2, 2);
-  // the ladder: one column per machine, left to right in process order
-  let cx = x + 40; let si = 0;
-  SOL.forEach((c, i) => {
-    const on = t >= c.a0 && t < c.a1, lit = KIT.eout((t - c.at) / 0.4), mx = cx + c.w / 2;
-    if (on && lit > 0) { ctx.save(); ctx.globalAlpha *= lit; ctx.fillStyle = KC.paper2; ctx.fillRect(cx + 4, y1 - 8, c.w - 8, 160); ctx.fillStyle = CIRC; ctx.fillRect(cx + 4, y1 + 146, c.w - 8, 6); ctx.restore(); }
-    const ink = lit > 0 ? KC.ink : KC.rule, txt = lit > 0 ? KC.ink : KC.mute;
-    if (c.gas) {
-      ctx.save(); ctx.strokeStyle = ink; ctx.lineWidth = 2.2;
-      for (const [dx, dy, rr2] of [[-22, 30, 8], [4, 18, 11], [24, 34, 6]]) { ctx.beginPath(); ctx.arc(mx + dx, y1 + dy, rr2, 0, 7); ctx.stroke(); }
-      ctx.restore();
-      KIT.text(ctx, c.name, cx + 12, y1 + 84, { w: 600, size: 26, color: txt, maxW: c.w - 20 });
-      KIT.text(ctx, c.size, cx + 12, y1 + 118, { w: 400, size: 26, color: lit > 0 ? KC.ink2 : KC.mute, maxW: c.w - 20 });
-    } else {
-      const tw = lerp(150, 62, si / 3), bw = tw * 0.62, th = 44, top = y1 + 4;
-      const path = () => { ctx.beginPath(); ctx.moveTo(mx - tw / 2, top); ctx.lineTo(mx + tw / 2, top); ctx.lineTo(mx + bw / 2, top + th); ctx.lineTo(mx - bw / 2, top + th); ctx.closePath(); };
-      path(); ctx.fillStyle = on && lit > 0 ? KIT.hexA(CIRC, 0.45) : KC.paper; ctx.fill();
-      ctx.save(); path(); ctx.clip(); ctx.strokeStyle = KIT.hexA(KC.ink, lit > 0 ? 0.3 : 0.12); ctx.lineWidth = 1.2;
-      const sp = Math.max(5, 20 - si * 5);
-      for (let gx = mx - tw / 2 - th; gx < mx + tw / 2 + th; gx += sp) { ctx.beginPath(); ctx.moveTo(gx, top); ctx.lineTo(gx + th * 0.5, top + th); ctx.stroke(); ctx.beginPath(); ctx.moveTo(gx + th * 0.5, top); ctx.lineTo(gx, top + th); ctx.stroke(); }
-      ctx.restore();
-      path(); ctx.strokeStyle = ink; ctx.lineWidth = 2.5; ctx.stroke();
-      if (lit > 0) { // the particle size this stage catches, drawn to relative scale
-        ctx.save(); ctx.globalAlpha *= lit;
-        for (let j = 0; j < 3; j++) { ctx.fillStyle = KC.mud; ctx.strokeStyle = KC.ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(mx + (j - 1) * (c.dot * 2.6 + 4), top - c.dot - 3, c.dot, 0, 7); ctx.fill(); ctx.stroke(); }
-        ctx.restore();
-      }
-      KIT.numKey(ctx, si + 1, cx + 24, y1 + 84, 32, CIRC, { filled: on && lit > 0 });
-      KIT.text(ctx, c.name, cx + 48, y1 + 84, { w: 600, size: 28, color: txt, maxW: c.w - 54 });
-      KIT.text(ctx, c.size, cx + 10, y1 + 120, { w: 400, size: 26, color: lit > 0 ? KC.ink2 : KC.mute, maxW: c.w - 14 });
-      si++;
-    }
-    if (i < SOL.length - 1) { ctx.save(); ctx.globalAlpha *= 0.9; KIT.icon(ctx, 'arrowR', cx + c.w, y1 + 28, 18, KC.ink2, 2.2); ctx.restore(); }
-    cx += c.w;
-  });
-  ctx.fillStyle = KC.rule; ctx.fillRect(x + pad, y2 - 14, w - pad * 2, 2);
-  // the current stage's notes (one at a time)
-  for (const c of SOLCARD) {
-    const ce = KIT.env(t, c.t0, c.t1, 0.35, 0.25); if (!ce.live || ce.a <= 0) continue;
-    ctx.save(); ctx.globalAlpha *= ce.a; ctx.translate((1 - ce.i) * 16, 0);
-    if (c.n != null) KIT.numKey(ctx, c.n, x + pad + 18, y2 + 30, 36, CIRC);
-    else { ctx.strokeStyle = KC.ink; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(x + pad + 18, y2 + 30, 14, 0, 7); ctx.stroke(); }
-    KIT.text(ctx, c.title, x + pad + 50, y2 + 32, { w: 600, size: 40, color: KC.ink, maxW: 700 });
-    c.lines.forEach((ln, i) => {
-      const lt = c.lineAt ? c.lineAt[i] : c.t0 + 0.5 + i * 0.8, u = KIT.eout((t - lt) / 0.35); if (u <= 0) return;
-      const ly = y2 + 84 + i * 50;
-      ctx.save(); ctx.globalAlpha *= u;
-      if (c.dot === i) { ctx.fillStyle = WC; ctx.beginPath(); ctx.arc(x + pad + 8, ly, 9, 0, 7); ctx.fill(); }
-      else { ctx.fillStyle = KC.ink; ctx.fillRect(x + pad, ly - 1.5, 16, 3); }
-      KIT.text(ctx, clean(ln), x + pad + 32 + (1 - u) * 8, ly + 1, { w: 400, size: 32, color: KC.ink, maxW: w - pad * 2 - 32 });
-      ctx.restore();
-    });
+  KIT.sheet(ctx, x, top, w, h, { band: WC });
+  KIT.text(ctx, 'BOP Stack: บน → ล่าง', x + pad, top + 8 + pad + 24, { w: 600, size: 42, color: KC.ink, maxW: w - pad * 2 });
+  ctx.fillStyle = KC.rule; ctx.fillRect(x + pad, top + 8 + pad + 62, w - pad * 2, 2);
+  const cur = TIERS.reduce((c, r, i) => (t >= r[2] - 0.1 ? i : c), -1);
+  TIERS.forEach(([lab, size, ta], i) => {
+    const u = KIT.eout((t - ta + 0.1) / 0.35); if (u <= 0) return;
+    const ry = top + 8 + pad + 62 + 14 + i * rowH + rowH / 2;
+    ctx.save(); ctx.globalAlpha *= u;
+    if (i === cur) { ctx.fillStyle = KC.paper2; ctx.fillRect(x + pad - 10, ry - rowH / 2 + 3, w - pad * 2 + 20, rowH - 6); }
+    KIT.numKey(ctx, i + 1, x + pad + 16, ry, 30, i === cur ? WC : KC.paper2);
+    KIT.text(ctx, lab, x + pad + 46, ry + 1, { w: 600, size: 30, color: KC.ink, maxW: 430 });
+    KIT.text(ctx, size, x + w - pad, ry + 1, { w: 400, size: 26, color: KC.ink2, align: 'right', maxW: 300 });
     ctx.restore();
-  }
-  KIT.text(ctx, 'ค่าประมาณทั่วไป, Degasser อยู่หลัง Shaker (ไม่ได้แยกตามขนาด)', x + pad, y + h - 30, { w: 400, size: 26, color: KC.ink2, maxW: w - pad * 2 });
+  });
+  const nu = KIT.eout((t - 35.2) / 0.35);
+  if (nu > 0) { ctx.save(); ctx.globalAlpha *= nu; const ny = top + h - pad - 44; ctx.fillStyle = KC.rule; ctx.fillRect(x + pad, ny - 24, w - pad * 2, 1.5);
+    KIT.text(ctx, 'ตัวอย่าง Land Stack 13-5/8 in, Ram 10,000 psi', x + pad, ny + 4, { w: 400, size: 26, color: KC.ink2, maxW: w - pad * 2 });
+    KIT.text(ctx, 'Arrangement จริงต่างกันตามผู้ดำเนินการ', x + pad, ny + 38, { w: 400, size: 26, color: KC.ink2, maxW: w - pad * 2 }); ctx.restore(); }
   ctx.restore();
 }
-
-// ---- persistent chrome: section tab (current stage crossfades) + loop mini-map
-const STG = [[8.0, 'ระบบไหลเวียน Mud'], [16.0, 'Mud Tank'], [22.5, 'Mud Pump'], [53.5, 'Standpipe'], [61.5, 'Kelly Hose'], [69.5, 'Top Drive'], [76.9, 'Drill String'], [80.6, 'Bit'], [83.7, 'Annulus'], [90.7, 'Flowline'], [106.5, 'Solids Control'], [137.7, 'Driller Monitors'], [145.7, 'สรุป']];
+// ---- floor indicator: the stack pictogram at x 60-130, y 300-900 (UI, not a label)
+const FI = [['bell', 0.13], ['ann', 0.2], ['vbr', 0.12], ['bsr', 0.12], ['spool', 0.1], ['low', 0.17], ['ch', 0.1]];
+function floorIndicator(ctx, t) {
+  const e = KIT.env(t, 20.2, 77.6, 0.4, 0.3); if (!e.live || e.a <= 0) return;
+  let cur = 'bell';
+  if (t < 36.8) { for (const [k] of FI) if (TIER[k] != null && t >= TIER[k] - 0.1) cur = k; }
+  else if (t < 50.1) cur = 'ann'; else if (t < 70.6) cur = 'vbr'; else cur = 'bsr';
+  const x = 60, w = 70, y0 = 300, H0 = 600;
+  ctx.save(); ctx.globalAlpha = e.a;
+  KIT.sheet(ctx, x, y0 - 14, w, H0 + 28);
+  let y = y0; const order = FI.map(f => f[0]), ci = order.indexOf(cur);
+  FI.forEach(([k, f], i) => {
+    const hh = f * H0, ww = k === 'bell' ? 22 : k === 'ann' ? 46 : k === 'spool' ? 30 : k === 'ch' ? 34 : 50;
+    const cx = x + w / 2;
+    ctx.fillStyle = k === cur ? WC : i < ci ? KC.paper2 : KC.paper;
+    const gap = (k === 'bsr') ? 0 : 4;
+    ctx.fillRect(cx - ww / 2, y + gap / 2, ww, hh - gap);
+    ctx.strokeStyle = k === 'bell' || k === 'ch' ? KC.rule : KC.ink; ctx.lineWidth = 2; ctx.strokeRect(cx - ww / 2, y + gap / 2, ww, hh - gap);
+    if (k === 'vbr') { ctx.fillStyle = KC.ink; ctx.fillRect(cx - ww / 2, y + hh - 1, ww, 1.5); } // double body hairline
+    y += hh;
+  });
+  ctx.restore();
+}
+// ---- section tab: "P5 Well Control" + the current stage (crossfades)
+const STG = [[13.2, 'BOP Stack'], [77.6, 'Accumulator'], [98.2, 'Choke & Kill'], [111.8, 'Choke Manifold'], [119.2, 'Mud Gas Separator'], [133.4, 'Trip Tank'], [139.6, 'Inside the pipe'], [152.1, 'Diverter'], [159.2, 'Testing']];
 function sectionTab(ctx, t) {
-  const e = KIT.env(t, 8.0, 153.8, 0.4, 0.3); if (!e.live || e.a <= 0) return;
-  const x = 60, y = 168, h = 64, iw = 64, L = 'Circulating System';
-  const lw = KIT.measure(ctx, L, 600, 30);
-  const subW = Math.max(...STG.map(s => KIT.measure(ctx, s[1], 400, 28)));
+  const e = KIT.env(t, 13.4, 166.1, 0.4, 0.3); if (!e.live || e.a <= 0) return;
+  const x = 60, y = 168, h = 64, iw = 64, L = 'Well Control';
+  const lw = KIT.measure(ctx, L, 600, 30), subW = Math.max(...STG.map(s => KIT.measure(ctx, s[1], 400, 28)));
   const full = iw + 24 + lw + 30 + subW + 28;
   ctx.save(); ctx.globalAlpha = e.a;
-  const g = KIT.eout((t - 8.0) / 0.4);
+  const g = KIT.eout((t - 13.4) / 0.4);
   ctx.save(); ctx.beginPath(); ctx.rect(x - 30, y - 30, iw + (full - iw + 30) * g + 30, h + 60); ctx.clip();
   KIT.sheet(ctx, x, y, full, h);
-  ctx.fillStyle = CIRC; KIT.rr(ctx, x, y, iw, h, 6); ctx.fill(); ctx.fillRect(x + iw - 8, y, 8, h);
-  KIT.text(ctx, 'P4', x + iw / 2, y + h / 2 + 1, { w: 600, size: 28, align: 'center', color: KC.ink });
+  ctx.fillStyle = WC; KIT.rr(ctx, x, y, iw, h, 6); ctx.fill(); ctx.fillRect(x + iw - 8, y, 8, h);
+  KIT.text(ctx, 'P5', x + iw / 2, y + h / 2 + 1, { w: 600, size: 28, align: 'center', color: KC.ink });
   const tx = x + iw + 24;
   KIT.text(ctx, L, tx, y + h / 2 + 1, { w: 600, size: 30, color: KC.ink });
   ctx.fillStyle = KC.rule; ctx.fillRect(tx + lw + 14, y + 16, 2, h - 32);
@@ -1887,320 +1904,329 @@ function sectionTab(ctx, t) {
   ctx.save(); ctx.globalAlpha *= k; KIT.text(ctx, STG[i][1], tx + lw + 30, y + h / 2 + 1 + (1 - k) * 8, { w: 400, size: 28, color: KC.ink2 }); ctx.restore();
   ctx.restore(); ctx.restore();
 }
-const NODE_T = [16.0, 23.0, 56.0, 62.0, 66.5, 77.2, 81.0, 84.0, 91.0, 106.8];
-function mapPhase(t) { // continuous position on the ring, 0..10 (10 = back at the tank)
-  if (t < 16.0) return 0;
-  if (t >= 146.0 && t < 150.0) return 10 + 10 * eio((t - 146.0) / 4.0);
-  if (t >= 150.0) return 20;
-  if (t >= 136.4) return 10;
-  if (t >= 106.8) return 9 + clamp((t - 106.8) / (136.4 - 106.8));
-  let i = 0; while (i < NODE_T.length - 1 && t >= NODE_T[i + 1]) i++;
-  const nx = NODE_T[i + 1] ?? 136.4;
-  return i + clamp((t - NODE_T[i]) / (nx - NODE_T[i])) * 0.999;
+// ---- S13: status tab "Rig Power: OFF" + limit ring "<= 30 s" with a check
+function powerTab(ctx, t) {
+  const e = KIT.env(t, 92.0, 95.4, 0.35, 0.3); if (!e.live || e.a <= 0) return;
+  ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 14);
+  const lab = 'Rig Power: OFF', w = KIT.measure(ctx, lab, 600, 34) + 74, x = 60, y = 660, h = 70;
+  KIT.sheet(ctx, x, y, w, h);
+  ctx.fillStyle = '#6d6f75'; ctx.fillRect(x, y, 10, h);
+  KIT.text(ctx, lab, x + 40, y + h / 2 + 1, { w: 600, size: 34, color: KC.ink });
+  ctx.restore();
 }
-function miniMap(ctx, t) {
-  const e = KIT.env(t, 8.6, 153.8, 0.4, 0.3); if (!e.live || e.a <= 0) return;
-  let a = e.a;
-  if (t > 45.4 && t < 53.6) a *= 1 - sstep(45.4, 45.7, t) * (1 - sstep(53.3, 53.6, t));
-  if (t > 106.5 && t < 137.8) a *= 1 - sstep(106.5, 106.8, t) * (1 - sstep(137.5, 137.8, t));
-  if (a <= 0.001) return;
-  const x = 790, y = 168, s = 170, cx = x + s / 2, cy = y + s / 2 + 4, R = 58;
-  ctx.save(); ctx.globalAlpha = a;
-  KIT.sheet(ctx, x, y, s, s, { band: CIRC });
-  const ang = i => -Math.PI / 2 + i * 2 * Math.PI / 10;
-  const draw = KIT.eio((t - 8.8) / 5.8);
-  ctx.strokeStyle = KC.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R, ang(0), ang(0) + 2 * Math.PI * draw); ctx.stroke();
-  const ph = mapPhase(t), lap = ph > 10 ? ph - 10 : ph;
-  const solidsDone = t >= 135.0;
-  const arc = (p0, p1, col) => { if (p1 <= p0) return; ctx.strokeStyle = col; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R, ang(p0), ang(p1)); ctx.stroke(); };
-  if (ph > 10) { arc(0, 10, CIRC); }
-  else { arc(0, Math.min(ph, 6.5), CIRC); arc(6.5, Math.max(6.5, ph), solidsDone ? CIRC : MUDC); }
-  const cur = ph >= 10 ? (ph >= 20 ? 0 : Math.floor(lap) % 10) : Math.min(9, Math.floor(ph));
-  for (let i = 0; i < 10; i++) {
-    const k = KIT.eout((t - 8.8 - i * 0.58) / 0.3); if (k <= 0) continue;
-    const px = cx + Math.cos(ang(i)) * R, py = cy + Math.sin(ang(i)) * R;
-    const visited = t >= NODE_T[i] || ph > 10;
-    ctx.save(); ctx.globalAlpha *= k;
-    if (i === cur && t >= 16.0) KIT.numKey(ctx, i + 1, px, py, 24, CIRC);
-    else {
-      ctx.fillStyle = visited ? KC.ink : KC.paper; ctx.strokeStyle = KC.ink; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(px, py, 7, 0, 7); ctx.fill(); ctx.stroke();
-    }
-    ctx.restore();
-  }
-  // the parcel = the drop's progress (the only continuous motion)
-  if (t > 15.8 && !(t > 137.7 && t < 146.0)) {
-    const q = ang(lap % 10), px = cx + Math.cos(q) * R, py = cy + Math.sin(q) * R;
-    const col = lap > 6.6 && lap < 9.95 && !solidsDone && ph < 10 ? MUDC : CIRC;
-    ctx.fillStyle = col; ctx.strokeStyle = KC.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 9, 0, 7); ctx.fill(); ctx.stroke();
+function limitRing(ctx, t) {
+  const e = KIT.env(t, 94.2, 98.2, 0.35, 0.3); if (!e.live || e.a <= 0) return;
+  const cx = 840, cy = 760, r = 70;
+  ctx.save(); ctx.globalAlpha = e.a;
+  ctx.fillStyle = KC.paper; ctx.beginPath(); ctx.arc(cx, cy, r + 14, 0, 7); ctx.fill();
+  ctx.strokeStyle = KC.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+  const u = KIT.eio((t - 94.2) / 0.5);
+  ctx.strokeStyle = WC; ctx.lineWidth = 10; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.arc(cx, cy, r - 9, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * u); ctx.stroke();
+  KIT.text(ctx, '≤ 30 s', cx, cy + 2, { w: 600, size: 34, color: KC.ink, align: 'center' });
+  drawOn(ctx, 'check', cx - 20, cy + r + 50, 40, KIT.eout((t - 94.9) / 0.3));
+  ctx.restore();
+}
+// ---- S9: calc card with the count-up
+function calcCard(ctx, t) {
+  card(ctx, t, { t0: 63.9, t1: 70.3, x: 150, w: 810, title: 'แรงบน Ram ที่ปิด', lines: ['Bore 13-5/8 in ≈ 145.8 in²', '× 10,000 psi ≈ 1.46 ล้าน lbf', '≈ 660 ตัน (แรง)'], lineAt: [64.4, 65.2, 68.3],
+    note: 'คำนวณที่แรงดันใช้งานสูงสุดของ Stack 10M', noteAt: 69.1, count: { line: 1, token: '10,000', value: 10000, t: 64.2, dur: 1.0 } });
+}
+// ---- S18: dimension line on the mud leg; S19 tally tick + check
+function legDim(ctx, t) {
+  if (O.shot.id !== 18) return;
+  const e = KIT.env(t, 126.8, 133.4, 0.3, 0.3); if (!e.live || e.a <= 0) return;
+  const b = proj(wa(O.mgs, 'legBottom')), tp = proj(wa(O.mgs, 'legTop'));
+  const x = Math.min(b.x, tp.x) - 70, u = KIT.eio((t - 126.8) / 0.45), y1 = lerp(b.y, tp.y, u);
+  ctx.save(); ctx.globalAlpha = e.a;
+  cased(ctx, () => { ctx.beginPath(); ctx.moveTo(x, b.y); ctx.lineTo(x, y1); });
+  for (const yy of [b.y, y1]) cased(ctx, () => { ctx.beginPath(); ctx.moveTo(x - 14, yy); ctx.lineTo(x + 14, yy); });
+  ctx.restore();
+}
+function tripTally(ctx, t) {
+  if (O.shot.id !== 19.2) return;
+  const e = KIT.env(t, 135.8, 139.6, 0.3, 0.3); if (!e.live || e.a <= 0) return;
+  const lv = wa(O.trip, 'level'), bd = wa(O.trip, 'board');
+  // calculated mark: the level after one stand of steel (computed from the same setLevel step)
+  const yTank = lv[1] - 0.1 * (2.9 - 1.3) * 0; // level anchor tracks the mud; draw the mark at the settled height
+  const P = proj([bd[0] + 0.12, O.tripMarkY || lv[1], bd[2]]);
+  ctx.save(); ctx.globalAlpha = e.a;
+  ctx.setLineDash([10, 8]); cased(ctx, () => { ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(P.x + 90, P.y); }); ctx.setLineDash([]);
+  drawOn(ctx, 'check', P.x + 130, P.y, 40, KIT.eout((t - 137.9) / 0.3));
+  ctx.restore();
+}
+// ---- S10: cross / check on the tool joint (space-out)
+function spaceOut(ctx, t) {
+  if (O.shot.id !== 10) return;
+  const P = proj(inSlot('BSR', [0, 0.64, 0.12]));
+  if (t > 75.4 && t < 76.9) drawOn(ctx, 'cross', P.x, P.y, 64, KIT.eout((t - 75.4) / 0.3), 1 - sstep(76.0, 76.5, t));
+  if (t > 77.0) drawOn(ctx, 'check', P.x, P.y, 64, KIT.eout((t - 77.0) / 0.3));
+}
+// ---- S16: the choke trim as a section inset (needle + seat), the needle steps into the seat, never seals
+function trimInset(ctx, t) {
+  const e = KIT.env(t, 113.6, 116.2, 0.35, 0.3); if (!e.live || e.a <= 0) return;
+  const cx = 770, cy = 870, R0 = 150;
+  ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 14);
+  ctx.fillStyle = KC.paper; ctx.beginPath(); ctx.arc(cx, cy, R0 + 10, 0, 7); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R0, 0, 7); ctx.clip();
+  ctx.fillStyle = KC.paper2; ctx.fillRect(cx - R0, cy - R0, 2 * R0, 2 * R0);
+  // body section (hatched ink), flow passage, seat ring
+  ctx.fillStyle = '#c9c3b6'; ctx.fillRect(cx - R0, cy - R0, 2 * R0, 2 * R0);
+  ctx.fillStyle = KIT.light(MUDC, 0.25); ctx.fillRect(cx - R0, cy - 34, R0 - 34, 68); ctx.fillRect(cx - 34, cy - 34, 68, R0 + 40);
+  let ch = 0.6; for (const [a, b] of [[114.4, 0.48], [114.9, 0.36], [115.4, 0.25]]) if (t > a) ch = lerp(ch, b, KIT.eio((t - a) / 0.3));
+  ctx.fillStyle = KC.ink; ctx.fillRect(cx - 34, cy + 20, 14, 30); ctx.fillRect(cx + 20, cy + 20, 14, 30); // seat
+  // needle: conical tip moves down into the seat as the choke closes (gap stays open)
+  const ny = cy + 24 - 54 * ch;
+  ctx.fillStyle = '#8b939e'; ctx.beginPath(); ctx.moveTo(cx - 26, cy - R0); ctx.lineTo(cx - 26, ny - 30); ctx.lineTo(cx, ny + 12); ctx.lineTo(cx + 26, ny - 30); ctx.lineTo(cx + 26, cy - R0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = KC.ink; ctx.lineWidth = 2.5; ctx.stroke();
+  // flow: arrows in, narrowed jet out (faster, bubbles grow downstream)
+  ctx.fillStyle = WC; for (let i = 0; i < 4; i++) { const u = fract(t * 1.2 + i / 4), x = cx - R0 + 20 + u * (R0 - 70); ctx.beginPath(); ctx.arc(x, cy, 7, 0, 7); ctx.fill(); }
+  for (let i = 0; i < 4; i++) { const u = fract(t * 2.2 + i / 4), y = cy + 40 + u * 120; ctx.beginPath(); ctx.arc(cx + 6 * Math.sin(i * 2 + t * 9), y, 7 + 5 * u, 0, 7); ctx.fill(); }
+  ctx.restore();
+  ctx.strokeStyle = KC.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R0, 0, 7); ctx.stroke();
+  KIT.labelPill(ctx, cx, cy + R0 + 44, 'Needle + Seat', 'ภาพตัด Trim', WC, { size: 28, align: 'center' });
+  ctx.restore();
+}
+// ---- recap: compact sheet with 5 colour chips that land on their words
+function recap(ctx, t) {
+  const t0 = 166.3, t1 = 172.1, e = KIT.env(t, t0, t1, 0.45, 0.3); if (!e.live || e.a <= 0) return;
+  const x = 60, y = 176, w = 900, h = 214, pad = 40;
+  ctx.save(); ctx.globalAlpha = e.a; ctx.translate(0, (1 - e.i) * 24 + e.o * 12);
+  KIT.sheet(ctx, x, y, w, h, { band: WC });
+  KIT.text(ctx, 'Drilling Rig 101: 5 ระบบ', x + pad, y + 8 + 56, { w: 600, size: 52, color: KC.ink, maxW: w - pad * 2 });
+  const chips = [['Power', SYSHEX.power, 167.4], ['Hoisting', SYSHEX.hoist, 168.1], ['Rotating', SYSHEX.rotate, 168.9], ['Circulating', SYSHEX.circ, 169.6], ['Well Control', SYSHEX.wc, 170.9]];
+  let cx = x + pad; const cy = y + 8 + 136;
+  for (const [lab, col, ta] of chips) {
+    const u = KIT.eout((t - ta + 0.1) / 0.35), cw = KIT.measure(ctx, lab, 600, 26) + 44;
+    if (u > 0) { ctx.save(); ctx.globalAlpha *= u; ctx.translate(0, (1 - u) * 10);
+      ctx.fillStyle = KC.paper2; KIT.rr(ctx, cx, cy - 24, cw, 48, 6); ctx.fill(); ctx.fillStyle = col; KIT.rr(ctx, cx, cy - 24, 12, 48, 4); ctx.fill(); ctx.fillRect(cx + 6, cy - 24, 6, 48);
+      KIT.text(ctx, lab, cx + 24, cy + 1, { w: 600, size: 26, color: KC.ink }); ctx.restore(); }
+    cx += cw + 10;
   }
   ctx.restore();
 }
-// a cased ring that marks the drop when it is small on screen (land set)
-function dropRing(ctx, t) {
-  const D = O.drop; if (!D || !D.vis || !D.ring || D.par !== 'L' || O.shot.set !== 'L') return;
-  const P = proj(inSet('L', D.p)); if (!P.ok || P.x < 40 || P.x > 1040 || P.y < 40 || P.y > 1300) return;
-  const rpx = D.rpx || 0;
-  if (rpx > 16) return;
-  const r = Math.max(24, rpx * 2.2);
-  cased(ctx, () => { ctx.beginPath(); ctx.arc(P.x, P.y, r, 0, 7); }, 2.5, 7);
-}
-
-// ---- driller's screen (drawn into the projected quad of the 3D monitor; illustrative, no values except SPM)
-function drillerScreen(ctx, t) {
-  if (O.shot.id !== 24) return;
-  const TL = proj(wOf(O.scr.tl)), TR = proj(wOf(O.scr.tr)), BL = proj(wOf(O.scr.bl));
-  const DW = 1000, DH = 583;
-  ctx.save();
-  ctx.transform((TR.x - TL.x) / DW, (TR.y - TL.y) / DW, (BL.x - TL.x) / DH, (BL.y - TL.y) / DH, TL.x, TL.y);
-  ctx.fillStyle = '#0b1220'; ctx.fillRect(0, 0, DW, DH);
-  const tiles = [
-    { x: 20, y: 20, at: 138.6, title: 'SPP', unit: 'psi' }, { x: 510, y: 20, at: 139.0, title: 'SPM', unit: 'Pump 1' },
-    { x: 20, y: 300, at: 139.4, title: 'Flow Out', unit: '%' }, { x: 510, y: 300, at: 139.8, title: 'PVT', unit: 'bbl, รวมทุกถัง' },
-  ];
-  const tw = 470, th = 263;
-  const gain = sstep(141.4, 143.6, t) * (1 - sstep(144.0, 144.6, t));
-  for (const T of tiles) {
-    const k = KIT.eout((t - T.at) / 0.4); if (k <= 0) continue;
-    ctx.save(); ctx.globalAlpha *= k;
-    ctx.fillStyle = '#121c31'; ctx.fillRect(T.x, T.y, tw, th);
-    ctx.fillStyle = T.title === 'PVT' ? AMBER : CIRC; ctx.fillRect(T.x, T.y, 8, th);
-    KIT.text(ctx, T.title, T.x + 28, T.y + 40, { w: 600, size: 44, color: '#e2e8f0' });
-    KIT.text(ctx, T.unit, T.x + tw - 20, T.y + 42, { w: 400, size: 36, color: '#94a3b8', align: 'right' });
-    const gx = T.x + 28, gy = T.y + 84, gw = tw - 56, gh = th - 110;
-    if (T.title === 'SPP') {
-      ctx.strokeStyle = CIRC; ctx.lineWidth = 5; ctx.beginPath();
-      for (let i = 0; i <= 80; i++) { const v = 0.55 + 0.04 * Math.sin(i * 0.9 + t * 3) + 0.02 * Math.sin(i * 2.3); const px = gx + gw * i / 80, py = gy + gh * (1 - v); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-      ctx.stroke();
-    } else if (T.title === 'SPM') {
-      KIT.text(ctx, '100', gx, gy + gh * 0.55, { w: 600, size: 130, color: '#e2e8f0' });
-    } else if (T.title === 'Flow Out') {
-      ctx.fillStyle = '#1e293b'; ctx.fillRect(gx, gy + gh * 0.35, gw, 46);
-      ctx.fillStyle = CIRC; ctx.fillRect(gx, gy + gh * 0.35, gw * 0.5, 46);
-      KIT.text(ctx, 'Flow Paddle', gx, gy + gh * 0.35 + 96, { w: 400, size: 36, color: '#94a3b8' });
-    } else {
-      const bars = [0.55, 0.6 + 0.22 * gain, 0.5];
-      bars.forEach((b, i) => { const bx = gx + i * 78; ctx.fillStyle = '#1e293b'; ctx.fillRect(bx, gy, 56, gh); ctx.fillStyle = i === 1 && gain > 0.05 ? AMBER : '#5eead4'; ctx.fillRect(bx, gy + gh * (1 - b), 56, gh * b); });
-      const tx0 = gx + 250, tw2 = gw - 250;
-      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 4; ctx.beginPath();
-      for (let i = 0; i <= 40; i++) { const tau = t - 4 + 4 * i / 40, g = sstep(141.4, 143.6, tau) * (1 - sstep(144.0, 144.6, tau)); const px = tx0 + tw2 * i / 40, py = gy + gh * (0.62 - 0.3 * g); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-      ctx.stroke();
-      if (t > 142.0 && t < 143.8) {
-        const blink = Math.floor((t - 142.0) / 0.3) % 2 === 0 ? 1 : 0.35;
-        ctx.save(); ctx.globalAlpha *= blink; ctx.fillStyle = AMBER; KIT.rr(ctx, tx0, gy + gh - 60, 210, 58, 4); ctx.fill();
-        KIT.text(ctx, 'PIT GAIN', tx0 + 105, gy + gh - 30, { w: 600, size: 36, color: KC.ink, align: 'center' }); ctx.restore();
-      }
-      if (t > 144.4 && t < 145.4) { ctx.save(); ctx.globalAlpha *= 1 - sstep(145.0, 145.4, t); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3; KIT.rr(ctx, tx0, gy + gh - 60, 150, 58, 4); ctx.stroke(); KIT.text(ctx, 'LOSS', tx0 + 75, gy + gh - 30, { w: 600, size: 36, color: '#94a3b8', align: 'center' }); ctx.restore(); }
-    }
-    ctx.restore();
-  }
+// ---- EP06 teaser: grey cement tone, "EP.06" in place of the part counter, no parts ruler
+function teaser(ctx, t) {
+  const t0 = 177.4, t1 = 182.7, E = KIT.env(t, t0, t1, 0.5, 0.3); if (!E.live || E.a <= 0) return;
+  const x = 60, y = 220, w = 900, h = 400, px = x + 52, col = '#94a3b8';
+  ctx.save(); ctx.globalAlpha = E.a;
+  const pk = KIT.eout((t - t0) / 0.5);
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 30, y - 30, w + 60, (h + 60) * pk); ctx.clip(); KIT.sheet(ctx, x, y, w, h, { band: col, bandH: 10 }); ctx.restore();
+  const k1 = KIT.stag(t, t0 + 0.2, 0);
+  ctx.save(); ctx.globalAlpha *= k1;
+  const kw = KIT.text(ctx, 'ตอนต่อไป', px, y + 76, { w: 600, size: 34, color: KC.ink, maxW: 500 }).width;
+  KIT.icon(ctx, 'arrowR', px + kw + 30, y + 76, 30, KC.ink, 2.6);
+  KIT.text(ctx, 'EP.06', x + w - 52, y + 76, { w: 600, size: 30, align: 'right', color: KIT.deep(col, 0.45) });
+  ctx.restore();
+  const k2 = KIT.eout((t - t0 - 0.3) / 0.6);
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y + 110, w, 150); ctx.clip();
+  KIT.text(ctx, 'Casing & Cementing', px - 4, y + 186 + (1 - k2) * 130, { w: 600, size: 96, color: KC.ink, maxW: w - 104 });
+  ctx.restore();
+  const k4 = KIT.stag(t, t0 + 0.7, 0);
+  ctx.save(); ctx.globalAlpha *= k4; KIT.text(ctx, 'ท่อกรุ, ซีเมนต์หลุม', px, y + 300, { w: 400, size: 42, color: KC.ink, maxW: w - 104 }); ctx.restore();
   ctx.restore();
 }
-
-// ---- shot 08: dimension marks on the liner + stroke counter
-function linerMarks(ctx, t) {
-  if (O.shot.id !== 8) return;
-  const a = O.pb.anchors, base = addV(OFF.S, SLOT.PUMP_B);
-  const P = p => proj(addV(base, p));
-  const dk = KIT.env(t, 46.6, 49.3, 0.35, 0.3), lk = KIT.env(t, 47.2, 49.3, 0.35, 0.3);
-  if (dk.live && dk.a > 0) {
-    const top = P([-1.2, 2.5, 0.05]), bot = P([-1.2, 1.5, 0.05]);
-    ctx.save(); ctx.globalAlpha = dk.a;
-    const u = KIT.eio((t - 46.6) / 0.45), m = (top.y + bot.y) / 2, y0 = lerp(m, top.y, u), y1 = lerp(m, bot.y, u);
-    cased(ctx, () => { ctx.beginPath(); ctx.moveTo(top.x, y0); ctx.lineTo(top.x, y1); });
-    for (const yy of [y0, y1]) { ctx.fillStyle = CIRC; ctx.fillRect(top.x - 16, yy - 3, 32, 6); }
-    KIT.labelPill(ctx, top.x + 40, m, 'D = 6 in', 'Liner', CIRC, { size: 32, align: 'left', u: KIT.eout((t - 46.9) / 0.35) });
-    ctx.restore();
-  }
-  if (lk.live && lk.a > 0) {
-    const s0 = P([-2.625, 1.38, 0.05]), s1 = P([-0.625, 1.38, 0.05]);
-    ctx.save(); ctx.globalAlpha = lk.a;
-    const u = KIT.eio((t - 47.2) / 0.45), x1 = lerp(s0.x, s1.x, u);
-    cased(ctx, () => { ctx.beginPath(); ctx.moveTo(s0.x, s0.y + 34); ctx.lineTo(x1, s1.y + 34); });
-    for (const xx of [s0.x, x1]) { ctx.fillStyle = CIRC; ctx.fillRect(xx - 3, s0.y + 18, 6, 32); }
-    KIT.labelPill(ctx, 940, s0.y + 34, 'L = 12 in', 'ระยะชัก (Stroke)', CIRC, { size: 32, align: 'right', u: KIT.eout((t - 47.5) / 0.35), from: 'right' });
-    ctx.restore();
-  }
-  const ce = KIT.env(t, 49.4, 53.3, 0.35, 0.3);
-  if (ce.live && ce.a > 0) {
-    const n = Math.round(100 * clamp((t - 49.6) / 2.4));
-    ctx.save(); ctx.globalAlpha = ce.a; ctx.translate(0, (1 - ce.i) * 16);
-    KIT.labelPill(ctx, 100, 1236, `${n} SPM`, 'นับ Stroke ต่อนาที', CIRC, { size: 34, align: 'left', u: KIT.eout((t - 49.4) / 0.35) });
-    ctx.restore();
-  }
-}
-
 // ---- transitions
-const DIPS = [15.7, 45.5, 90.7, 94.6, 106.5, 137.7, 145.7, 165.0];
-const IRIS = [22.5, 29.7, 53.5, 69.5, 98.7];
+const DIPS = [6.2, 13.2, 91.4, 92.7, 93.6, 98.2, 111.8, 116.2, 119.2, 133.4, 135.2, 139.6, 152.1, 159.2, 160.6, 163.3, 166.1];
+const SHORT_DIPS = [42.2, 43.9, 46.4, 75.15];
+const IRIS = [[36.8, () => proj(addV(OFF.L, [0, YC.ch, 0]))], [50.1, null], [70.6, null], [77.6, null], [141.0, () => proj([0, 19.0, 0])], [145.2, null]];
 function transitions(ctx, t) {
   for (const tc of DIPS) KIT.wipe(ctx, t, { tc, dur: 0.5, type: 'dip' });
-  KIT.wipe(ctx, t, { tc: 76.9, dur: 0.3, type: 'dip' });
-  KIT.wipe(ctx, t, { tc: 161.3, dur: 0.6, type: 'dip', color: '#26163d' });
-  for (const tc of IRIS) {
+  for (const tc of SHORT_DIPS) KIT.wipe(ctx, t, { tc, dur: 0.3, type: 'dip' });
+  KIT.wipe(ctx, t, { tc: 148.9, dur: 0.4, type: 'dip' });
+  KIT.wipe(ctx, t, { tc: 177.4, dur: 0.6, type: 'dip', color: '#2b3038' });
+  for (const [tc, f] of IRIS) {
     if (t < tc - 0.3 || t > tc + 0.3) continue;
     let cx = 540, cy = 1000;
-    const D = O.drop; if (D && D.vis) { const P = proj(dropWorld(D)); if (P.ok && P.x > 0 && P.x < W && P.y > 0 && P.y < H) { cx = P.x; cy = P.y; } }
+    if (f && t < tc) { const P = f(); if (P.ok && P.x > 0 && P.x < W && P.y > 0 && P.y < H) { cx = P.x; cy = P.y; } }
     KIT.wipe(ctx, t, { tc, dur: 0.6, type: 'iris', cx, cy });
   }
-  if (t > 169.3) { ctx.save(); ctx.globalAlpha = sstep(169.3, 170.0, t); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-}
-function dropWorld(D) {
-  if (D.par === 'L') return inSet('L', D.p);
-  if (D.par === 'W') return inSet('W', D.p);
-  const g = { PA: O.tri.group, PB: O.pb.group, WS: O.wp.group }[D.par];
-  return addV(g.position.toArray(), addV(OFF.S, D.p));
+  // dive streak (S21): a short vertical motion blur
+  if (t > 183.0) { ctx.save(); ctx.globalAlpha = sstep(183.0, 183.6, t); ctx.fillStyle = KC.ink; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  // edge vignette in studio macros (fog-rack fallback for DOF)
+  if (O.shot.set === 'S') { const g = ctx.createRadialGradient(540, 980, 420, 540, 980, 1250); g.addColorStop(0, 'rgba(5,10,20,0)'); g.addColorStop(1, 'rgba(5,10,20,0.45)'); ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore(); }
 }
 
 function drawOverlay(ctx, t) {
   applyState(t);
   ctx.save(); ctx.textBaseline = 'middle';
-  const id = O.shot.id;
-  dropRing(ctx, t);
-  drillerScreen(ctx, t);
-  // ---- title (0.4-7.8)
-  KIT.titleCard(ctx, t, { t0: 0.4, t1: 7.8, part: 4, total: 5, kicker: 'Drilling Rig 101, EP.05', title: 'Circulating System', subtitle: 'ระบบไหลเวียนของ Mud', hook: 'Mud 1 หยด เดินทางผ่านอะไรบ้าง?', hookAt: 2.8, color: CIRC });
+  const id = O.shot.id, L_ = p => p;
+  if (id === 22) { ctx.save(); ctx.globalAlpha = 0.22 * sstep(152.2, 152.9, t); ctx.fillStyle = '#5b5578'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  // ---- title
+  KIT.titleCard(ctx, t, { t0: 0.4, t1: 5.9, part: 5, total: 5, kicker: 'Drilling Rig 101, ตอน 5', title: 'Well Control System', subtitle: 'BOP, Choke Manifold และ MGS', color: WC });
   sectionTab(ctx, t);
-  miniMap(ctx, t);
-  // ---- callouts (max 2 at once; tabs sit below the card band)
-  const L_ = p => inSet('L', p), Wl = p => inSet('W', p);
+  floorIndicator(ctx, t);
+  // ---- callouts (max 2 at once)
+  const S = O.stack;
   if (id === 2) {
-    co(ctx, t, 11.5, 15.2, L_([4.7, 15, 1.5]), 120, 1170, 'ขาลง', 'ปั๊มอัดแรงดันสูง', { n: 1 });
-    co(ctx, t, 12.6, 15.2, L_([12.25, 5.2, -3.0]), 580, 1170, 'ขาขึ้น', 'กลับมาคัดกรองที่ผิวดิน', { n: 2, color: MUDC });
+    co(ctx, t, 8.9, 12.0, inW([1.15, -20, 0.3]), 700, 880, 'Primary: Mud', 'โคลน', { color: MUDC });
+    co(ctx, t, 10.9, 13.2, inW([0, 2.6, 0.4]), 300, 760, 'Secondary: Equipment', 'BOP');
   }
   if (id === 3) {
-    co(ctx, t, 16.4, 19.2, L_([24.25, 3.05, -1.0]), 120, 790, 'Active Tank', 'Mud ที่หมุนเวียน');
-    co(ctx, t, 17.0, 19.2, L_([28.1, 4.25, -5.2]), 940, 790, 'Trip Tank', 'ถังแคบ', { align: 'right' });
+    co(ctx, t, 17.0, 20.2, wa(S, 'annular'), 760, 720, 'BOP Stack', '');
+    co(ctx, t, 17.4, 20.4, [2.4, -2.4, -2.6], 280, 1180, 'Cellar', 'ห้องใต้พื้นแท่น');
   }
-  if (id === 4) co(ctx, t, 19.6, 22.3, wOf(O.cp.anchors.impeller), 120, 790, 'Charge Pump', 'ปั๊มหอยโข่ง (Centrifugal)');
+  if (id === 4 || (id === 3 && t > 20.1)) {
+    const C = [['Annular Preventer', '', 'annular', TIER.ann, TIER.vbr + 0.6], ['Upper Pipe Ram (VBR)', '', 'upperRam', TIER.vbr, TIER.bsr + 0.5], ['Blind Shear Ram', '', 'bsr', TIER.bsr, TIER.spool + 0.4],
+      ['Drilling Spool', 'Choke ⟷ Kill', 'spool', TIER.spool, TIER.low + 0.1], ['Lower Pipe Ram', '', 'lowerRam', TIER.low, TIER.ch + 0.6], ['Casing Head', '', 'casingHead', TIER.ch, 37.1]];
+    C.forEach(([lab, sub, k, a, b], i) => { const p = wa(S, k); co(ctx, t, a, Math.min(b, a + 4.0), [p[0] - 0.45, p[1], p[2]], 640, 860, lab, sub, { n: i + 1 }); });
+  }
   if (id === 5) {
-    co(ctx, t, 23.6, 29.4, wOf(O.tri.anchors.liner1), 120, 1220, 'Piston', 'ลูกสูบ 3 ลูก อัดทีละจังหวะ', { n: 1 });
-    co(ctx, t, 24.6, 29.4, wOf(O.tri.anchors.crank), 940, 790, 'Crankshaft', 'เพลาข้อเหวี่ยง', { n: 2, align: 'right' });
+    co(ctx, t, 37.6, 41.2, inSlot('ANN', [0.3, 0.7, 0.02]), 300, 1180, 'Packing Element', 'ยาง + Steel Inserts');
+    co(ctx, t, 38.6, 42.0, inSlot('ANN', [0.42, 0.5, 0.02]), 760, 1220, 'Piston', 'ลูกสูบดันขึ้น', { align: 'right' });
+  }
+  if (id === 6) {
+    co(ctx, t, 44.4, 47.4, inSlot('ANN', [0, 0.74, 0.02]), 760, 760, 'Open Hole', 'ไม่มีท่อ', { align: 'right' });
+    co(ctx, t, 46.8, 50.0, inSlot('ANN', [0.08, lerp(1.15, 0.38, clamp((t - 46.6) / 3.2)), 0.05]), 300, 1220, 'Stripping', 'ลดแรงปิด ดันท่อผ่าน');
   }
   if (id === 7) {
-    co(ctx, t, 38.6, 41.8, wOf(O.pb.anchors.n2), 120, 1225, 'Pulsation Dampener', 'ถุงยาง อัดก๊าซไนโตรเจน (N₂)');
-    co(ctx, t, 42.0, 45.2, wOf(O.pb.anchors.popoff), 120, 1225, 'Pop-off Valve', 'ระบายกลับถัง');
-    tag(ctx, t, 43.0, 44.7, 940, 1225, 'ถ้าแรงดันเกิน', 'วาล์วเปิดเอง', AMBER, 'right');
+    co(ctx, t, 50.9, 54.6, wpos(O.sRAM.anchors.ram1L), 300, 1180, 'Pipe Ram', 'ร่องพอดีท่อ 5 in');
+    co(ctx, t, 51.6, 55.0, wpos(O.sRAM.anchors.bonnet1R), 780, 740, 'Bonnet', '', { align: 'right' });
   }
-  if (id === 9 || (id === 10 && t < 58.2)) {
-    co(ctx, t, 54.4, 58.2, L_(O.wp_.spValveA), 120, 1220, 'Standpipe Manifold', 'วาล์วแยกทาง Mud');
-    co(ctx, t, 55.2, 58.2, L_(O.wp_.spGauge), 940, 790, 'SPP Gauge', 'แรงดันที่ Standpipe', { align: 'right' });
+  if (id === 8) {
+    co(ctx, t, 56.8, 59.8, wpos(O.sRAM.anchors.ram0R), 760, 760, 'VBR', '3½–5 in', { align: 'right' });
+    co(ctx, t, 59.8, 63.6, wpos(O.sRAM.anchors.lock0R), 330, 760, 'Ram Lock', 'ล็อกเชิงกล');
   }
+  if (id === 10) {
+    co(ctx, t, 71.0, 74.6, wpos(O.sBSR.anchors.ram0L), 300, 760, 'Blind Shear Ram', '');
+    co(ctx, t, 75.8, 77.6, inSlot('BSR', [0.06, 0.64, 0.08]), 760, 1200, 'Space Out', 'ยกท่อให้ใบมีดตรงเนื้อท่อ', { align: 'right' });
+  }
+  spaceOut(ctx, t);
   if (id === 11) {
-    const H_ = hosePtsDy(tdDy(t)); co(ctx, t, 62.4, 69.2, L_(H_[12]), 940, 1220, 'Kelly Hose', 'สายยางแรงดันสูง', { align: 'right' });
-    co(ctx, t, 66.6, 69.2, wOf(O.tdGoose), 120, 790, 'Gooseneck', 'ท่อโค้ง อยู่กับที่', { color: '#94a3b8' });
+    co(ctx, t, 77.9, 81.0, wa(O.dpanel, 'gauges'), 760, 1180, "Driller's Panel", 'แผงสั่ง BOP', { align: 'right' });
+    co(ctx, t, 81.0, 84.4, wa(O.acc, 'manifold'), 300, 1180, 'Koomey Unit', 'Accumulator');
   }
   if (id === 12) {
-    co(ctx, t, 70.2, 72.4, inSlot('WASH', [1.6, 9.8, 0]), 940, 790, 'Gooseneck', 'อยู่กับที่', { color: '#94a3b8', align: 'right' });
-    co(ctx, t, 72.6, 76.6, inSlot('WASH', [0.45, 5.7, 0]), 120, 790, 'Washpipe + Packing', 'ซีลระหว่างส่วนนิ่งกับส่วนหมุน', { color: '#f97316' });
-    co(ctx, t, 73.8, 76.6, inSlot('WASH', [0.4, 3.0, 0.1]), 940, 1220, 'Main Shaft', 'หมุนไปกับ Top Drive', { align: 'right' });
+    co(ctx, t, 85.0, 88.4, wa(O.acc, 'n2'), 760, 1200, 'N₂ Precharge', 'ถุงยาง Bladder', { align: 'right' });
+    co(ctx, t, 89.0, 91.4, wa(O.acc, 'gauge0'), 300, 760, '3,000 psi', 'Accumulator');
   }
+  if (id >= 13 && id < 14) { powerTab(ctx, t); limitRing(ctx, t); }
   if (id === 14) {
-    const rot = BIT_ROT(t); let best = 0, bz = -9; for (let k = 0; k < 3; k++) { const z = Math.sin(rot + k * 2.094); if (z > bz) { bz = z; best = k; } }
-    const a = rot + best * 2.094;
-    co(ctx, t, 80.9, 83.5, Wl([0.8 * Math.cos(a), YB + 0.4, 0.8 * Math.sin(a)]), 940, 1220, 'Nozzle', 'มี 3 ตัวที่ Bit', { align: 'right' });
+    co(ctx, t, 98.7, 101.9, wa(S, 'chokeManual'), 300, 1200, 'Manual Valve', 'ตัวใน หมุนมือ');
+    co(ctx, t, 101.7, 104.4, wa(S, 'chokeHCR'), 780, 760, 'HCR', 'Hydraulic gate valve', { align: 'right' });
   }
-  if (id === 16) co(ctx, t, 91.4, 94.6, L_([0, 5.4, 0.3]), 940, 790, 'Bell Nipple', 'ไม่ได้ใช้ปิดหลุม', { align: 'right' });
+  if (id === 15) {
+    co(ctx, t, 104.4, 108.0, wa(S, 'chokeHCR'), 780, 760, 'HCR', t < 104.6 ? 'Hydraulic gate valve' : 'เปิดสุด / ปิดสุด', { align: 'right' });
+    co(ctx, t, 108.5, 111.8, wa(S, 'killCheck'), 300, 760, 'Kill Line', 'สูบเข้า Annulus');
+  }
+  if (id === 16) { co(ctx, t, 113.2, 116.2, wa(O.man, 'chokeA'), 300, 1200, 'Adjustable Choke', 'หรี่รู ไม่ปิดสนิท'); trimInset(ctx, t); }
+  if (id === 16.2) co(ctx, t, 116.4, 119.2, wa(O.cpanel, 'dp'), 760, 760, 'Choke Panel', 'บนพื้นแท่น', { align: 'right' });
   if (id === 17) {
-    co(ctx, t, 94.9, 98.7, L_([5.0, 5.66, -2.4]), 120, 1220, 'Flowline', 'ลาดลง ไม่มีแรงดัน');
-    co(ctx, t, 95.8, 98.7, L_(O.wp_.fpSensor), 940, 790, 'Flow Paddle', 'วัด Flow Out', { align: 'right' });
-    const a0 = proj(L_([2.2, 5.85, -1.2])), a1 = proj(L_([5.2, 5.6, -2.5]));
-    const sk = KIT.env(t, 95.4, 97.2, 0.3, 0.3);
-    if (sk.live && sk.a > 0 && a0.ok && a1.ok) {
-      ctx.save(); ctx.globalAlpha = sk.a; const oy = -46, u = KIT.eio((t - 95.4) / 0.45), ex = lerp(a0.x, a1.x, u), ey = lerp(a0.y, a1.y, u) + oy;
-      cased(ctx, () => { ctx.beginPath(); ctx.moveTo(a0.x, a0.y + oy); ctx.lineTo(ex, ey); const ang = Math.atan2(a1.y - a0.y, a1.x - a0.x); ctx.moveTo(ex - 16 * Math.cos(ang - 0.5), ey - 16 * Math.sin(ang - 0.5)); ctx.lineTo(ex, ey); ctx.lineTo(ex - 16 * Math.cos(ang + 0.5), ey - 16 * Math.sin(ang + 0.5)); });
-      ctx.restore();
-    }
+    co(ctx, t, 120.0, 123.2, wa(O.mgs, 'target'), 620, 1000, 'MGS', 'Mud Gas Separator');
+    co(ctx, t, 123.0, 126.4, wpos(O.flare), 300, 1240, 'Flare', 'เผาแก๊สทิ้ง');
   }
-  if (id === 18) tag(ctx, t, 104.0, 106.3, 940, 1236, 'Possible kick → Part 5', 'Flow Out เพิ่ม ทั้งที่ปั๊มเท่าเดิม', AMBER, 'right');
-  if (id === 19) co(ctx, t, 106.8, 110.2, L_([12.25, 5.45, -4.6]), 940, 1200, 'Possum Belly', 'Mud จาก Flowline ตกลงที่นี่', { align: 'right' });
-  if (id === 20) co(ctx, t, 117.0, 121.4, L_(O.wp_.vac), 940, 1200, 'Vacuum Pump', 'ดูดแก๊สออก', { align: 'right' });
-  if (id === 21) co(ctx, t, 122.4, 125.6, L_(O.wp_.dsHead), 940, 1200, 'Desander', 'กรวยใหญ่ 10 in', { align: 'right' });
-  if (id === 22) co(ctx, t, 125.9, 129.5, L_(O.wp_.dlHead), 940, 1200, 'Desilter', 'กรวยเล็ก 4 in', { align: 'right' });
-  if (id === 23) {
-    co(ctx, t, 131.6, 137.3, L_(O.wp_.cfSol), 120, 1220, 'ของแข็ง', 'ออกทางปลายกรวย', { color: MUDC });
-    co(ctx, t, 132.2, 137.3, L_(O.wp_.cfLiq), 940, 1220, 'Mud สะอาด', 'กลับ Active Tank', { align: 'right' });
+  if (id === 18) {
+    const b = wa(O.mgs, 'legBottom'), tp = wa(O.mgs, 'legTop');
+    co(ctx, t, 126.9, 130.4, [(b[0] + tp[0]) / 2, (b[1] + tp[1]) / 2, (b[2] + tp[2]) / 2], 300, 1240, 'Mud Leg ~10 ft', '≈ 5 psi');
+    co(ctx, t, 130.0, 133.4, wa(O.mgs, 'ventBase'), 300, 680, 'Vent Line', 'ท่อใหญ่ 8–12 in');
   }
-  if (id === 27) co(ctx, t, 162.2, 165.0, L_([0.9, 1.5, 0.5]), 940, 1220, 'BOP', 'Blowout Preventer', { color: WC, align: 'right' });
-  if (id === 28) {
-    co(ctx, t, 165.4, 169.2, L_([-10.5, 2.4, 4.0]), 940, 1220, 'Choke Manifold', 'คุมแรงดันตอนปิดหลุม', { color: WC, align: 'right' });
-    co(ctx, t, 166.0, 169.2, L_([-14, 5.0, 5.0]), 120, 860, 'MGS', 'Mud Gas Separator', { color: WC });
+  legDim(ctx, t);
+  if (id === 19.2) co(ctx, t, 135.4, 139.6, wa(O.trip, 'board'), 300, 760, 'Trip Tank', 'ถังแคบ มีสเกล');
+  tripTally(ctx, t);
+  if (id === 20.2) {
+    co(ctx, t, 141.6, 144.8, wpos(O.sIBOP.anchors.upper), 760, 780, 'Upper IBOP', 'Remote', { align: 'right' });
+    co(ctx, t, 142.8, 145.2, wpos(O.sIBOP.anchors.socket), 300, 1220, 'Lower IBOP', 'Manual');
   }
-  linerMarks(ctx, t);
-  // ---- sheets (one at a time)
-  figCard(ctx, t, { t0: 8.6, t1: 15.4, title: 'Circulating System', lines: ['Closed loop · วงปิด', 'ขาลง: ปั๊มอัดแรงดันสูง', 'ขาขึ้น: กลับมาคัดกรองที่ผิวดิน'] });
-  figCard(ctx, t, { t0: 16.2, t1: 22.4, title: 'Mud Tanks', lines: ['Active Tank: Mud ที่หมุนเวียน', 'Trip Tank: ถังแคบ วัดตอนถอนท่อ', 'Charge Pump: ป้อน Mud ให้ปั๊มใหญ่'] });
-  figCard(ctx, t, { t0: 23.0, t1: 29.4, title: 'Triplex Mud Pump', lines: ['3 ลูกสูบ · Single-acting', 'ตัวอย่าง: 1,600 hp · 120 SPM', 'Stroke 12 in · 5,000 / 7,500 psi'] });
-  figCard(ctx, t, { t0: 30.2, t1: 37.2, title: 'Liner Size', lines: ['7 in → 720 gpm · 3,429 psi', '4½ in → 297 gpm · 7,500 psi', 'ข้อมูล FC-1600 @ 120 SPM'], lineAt: [30.7, 33.9, 34.7], fig: seesaw, figH: 236, figAt: 30.5 });
-  figCard(ctx, t, { t0: 38.0, t1: 45.2, title: 'Pump Safety', lines: ['Pulsation Dampener: อัด N₂', 'ลดแรงกระชากของแรงดัน', 'Pop-off Valve: กันแรงดันเกิน'], fig: trace, figH: 190, figAt: 38.4 });
-  KIT.formulaCard(ctx, t, { t0: 46.0, t1: 53.4, title: 'Pump Output (Triplex)', y: 236, first: 0.5, step: 1.6, color: CIRC,
-    lines: [{ label: 'สูตร', text: 'bbl/stk = [[0.000243]] × D² × L' }, { label: 'แทนค่า', text: '6 in × 12 in = [[0.105 bbl/stk]]' }, { label: 'ต่อนาที', text: '× 100 SPM ≈ [[441 gpm*]]' }],
-    result: { label: '* ที่ 100% efficiency (95% ≈ 419 gpm)', value: 441, unit: 'gpm' } });
-  figCard(ctx, t, { t0: 54.0, t1: 61.2, title: 'Standpipe', lines: ['Manifold: วาล์วแยกทาง Mud', 'SPP Gauge ให้ Driller ดู', 'ท่อเหล็กขึ้นเสา ~2/3 ความสูง'], lineAt: [54.5, 55.3, 59.4] });
-  figCard(ctx, t, { t0: 62.0, t1: 69.2, title: 'Rotary / Kelly Hose', lines: ['สายยางเสริมเหล็ก แรงดันสูง', 'ขยับขึ้นลงตาม Top Drive', 'ต่อเข้า Gooseneck ไม่ใช่ Kelly'] });
-  figCard(ctx, t, { t0: 70.0, t1: 76.6, title: 'Gooseneck + Washpipe', lines: ['Gooseneck: ท่อโค้ง อยู่กับที่', 'Washpipe: ซีลระหว่างนิ่งกับหมุน', 'Packing สึกหรอ ต้องเปลี่ยน'] });
-  figCard(ctx, t, { t0: 77.4, t1: 83.4, title: 'Bit Nozzles', lines: ['ขนาดเป็น 1/32 in (12 = 12/32)', 'แรงดันราว ½–⅔ ของ SPP ใช้ที่ Bit', 'เมื่อออกแบบ Hydraulics ให้เหมาะ'], fig: splitBar, figH: 150, figAt: 78.9 });
-  figCard(ctx, t, { t0: 84.2, t1: 90.4, title: 'Annulus', lines: ['ช่องว่างรอบ Drill String', 'พา Cuttings ขึ้นผิวดิน', 'AV ทั่วไป ~100–200 ft/min'], fig: annulusInset, figW: 250, figAt: 85.0 });
-  figCard(ctx, t, { t0: 91.2, t1: 98.4, title: 'Return Line', lines: ['Bell Nipple: บนสุดของ BOP Stack', 'ไม่ได้ใช้ปิดหลุม', 'Flowline: ลาดลง ไม่มีแรงดัน'] });
-  figCard(ctx, t, { t0: 99.2, t1: 106.2, title: 'Flow Check', lines: ['Flow Paddle วัด Flow Out (%)', 'Flow Out ↑ ขณะปั๊มเท่าเดิม', '= สัญญาณ Kick แรกสุดบนผิวดิน'], fig: flowGauges, figH: 236, figAt: 99.6 });
-  solidsSheet(ctx, t);
-  figCard(ctx, t, { t0: 138.2, t1: 145.4, title: 'Driller Monitors', lines: ['SPP: แรงดันที่ Standpipe', 'PVT: รวมปริมาตรทุกถัง', 'เตือน Pit Gain / Loss'] });
-  figCard(ctx, t, { t0: 146.2, t1: 153.4, title: 'Circulating System', lines: ['Tank → Pump → Standpipe → Hose', 'Top Drive → Drill String → Bit', 'Annulus → Flowline → Solids Control'], lineAt: [146.7, 147.5, 148.3] });
-  KIT.ctaFollow(ctx, t, { t0: 154.2, t1: 161.0, avatar: O.avatar, clickAt: 1.3, color: CIRC });
-  KIT.nextTeaser(ctx, t, { t0: 161.8, t1: 169.0, part: 5, total: 5, title: 'Well Control System', sub: 'BOP, Choke Manifold และ MGS', color: WC });
+  if (id === 21) co(ctx, t, 145.5, 148.9, wa(O.fosv, 'valve'), 760, 780, 'FOSV (Open)', 'พร้อมขันเข้า', { align: 'right' });
+  if (id === 21.3) co(ctx, t, 149.5, 152.1, wpos(O.wFloat.anchors.flapper), 760, 780, 'Float Valve', 'Check valve', { align: 'right' });
+  if (id === 22) {
+    co(ctx, t, 155.0, 158.0, wa(O.div, 'diverter'), 760, 1200, 'Diverter', 'บน Conductor', { align: 'right' });
+    const e = wa(O.div, 'ventEndL'); co(ctx, t, 156.4, 159.2, [e[0] * 0.5, e[1], e[2]], 300, 760, 'Vent Line', 'ออกห่างแท่น');
+  }
+  if (id === 23) co(ctx, t, 159.5, 160.6, wa(O.tplug, 'plug'), 760, 760, 'Test Plug', '', { align: 'right' });
+  if (id === 23.2) co(ctx, t, 160.8, 163.3, wa(O.rec, 'pen'), 300, 1220, 'Chart Recorder', 'Low → High');
+  // ---- cards (one at a time)
+  card(ctx, t, { t0: 6.4, t1: 12.9, title: 'Barriers', lines: ['Primary: Mud Hydrostatic', 'Secondary: Well Control Equipment', 'BOP · Choke & Kill · Control Unit'], lineAt: [7.0, 10.9, 11.7] });
+  card(ctx, t, { t0: 13.4, t1: 19.9, title: 'BOP = Blowout Preventer', lines: ['Blowout = ของเหลวในหลุมพุ่งขึ้นมาจนคุมไม่ได้', 'Stack หลายตัว ใน Cellar ใต้พื้นแท่น', 'Double Ram 13-5/8" 10M หนักราว 12 ตัน'], lineAt: [14.0, 15.4, 16.8] });
+  diagramCard(ctx, t);
+  card(ctx, t, { t0: 37.0, t1: 49.8, x: 150, w: 810, title: 'Annular Preventer', lines: ['ยาง + Steel Inserts · ลูกสูบดันบีบ', 'ปิดได้: ท่อ · Tool Joint · Collar · หลุมเปล่า', 'Stripping: ลดแรงปิด ดันท่อผ่านช้าๆ'], lineAt: [37.6, 40.6, 46.6], note: 'ปิดหลุมเปล่าทำให้ยางสึกเร็ว ใช้เมื่อจำเป็น', noteAt: 48.4 });
+  card(ctx, t, { t0: 50.3, t1: 63.4, x: 150, w: 810, title: 'Ram Preventers', lines: ['Pipe Ram: ร่องพอดีท่อ 1 ขนาด (เช่น 5 in)', 'VBR: หลายขนาด (เช่น 3½–5 in)', 'Ram Lock: ล็อกเชิงกล ถ้าไฮดรอลิกหาย'], lineAt: [53.3, 57.2, 59.6], note: 'แรงดันหลุมช่วยดันซีลให้แน่น (แต่ไม่ได้ทำให้ Ram ปิด)', noteAt: 61.8 });
+  calcCard(ctx, t);
+  card(ctx, t, { t0: 70.8, t1: 77.3, x: 150, w: 810, title: 'Blind Shear Ram', lines: ['ใบมีดตัด Drill Pipe แล้วซีลหลุม', 'ตัด Tool Joint / Drill Collar ไม่ได้', 'ต้อง Space Out ก่อน · ทางเลือกสุดท้าย'], lineAt: [72.6, 75.3, 76.3] });
+  card(ctx, t, { t0: 77.8, t1: 91.1, title: 'Accumulator (Koomey Unit)', lines: ['ถัง N₂ Precharge 1,000 psi', 'ชาร์จถึง 3,000 psi · Manifold ~1,500 psi', 'ไนโตรเจนเท่านั้น ห้ามใช้อากาศ'], lineAt: [84.9, 86.9, 88.8], note: 'Koomey = ชื่อคน: Paul Koomey ผู้สร้างระบบยุคแรก', noteAt: 82.8 });
+  card(ctx, t, { t0: 91.6, t1: 97.9, title: 'Closing Time (API 53)', lines: ['ใช้พลังงานในถัง ไฟดับก็ปิดได้', 'Ram ≤ 30 s · Annular 13-5/8 in ≤ 30 s', 'หลังปิดยังเหลือ ≥ 1,200 psi'], lineAt: [92.4, 93.4, 95.2], note: '30 s คือเวลาสูงสุดที่ยอมให้ ไม่ใช่เวลาปกติ', noteAt: 96.4, x: 150, w: 650 });
+  card(ctx, t, { t0: 98.4, t1: 111.5, title: 'Choke & Kill Lines', lines: ['Choke: Manual (ใน) + HCR (นอก)', 'HCR = Gate Valve เปิด/ปิดสุด ≠ Choke', 'Kill Line: สูบเข้า Annulus ใต้ BOP'], lineAt: [98.9, 104.8, 108.6], note: 'ท่อ Choke ใหญ่กว่าหรือเท่าท่อ Kill', noteAt: 110.2 });
+  card(ctx, t, { t0: 112.0, t1: 118.9, title: 'Choke Manifold', lines: ['Adjustable Choke: Manual + Remote', 'Panel: DP Pressure · Casing Pressure · Strokes', 'Choke หรี่ได้ แต่ไม่ใช่ตัวปิดสนิท'], lineAt: [112.5, 116.5, 117.3], note: 'Kill ตาม EP04: คุม Bottomhole Pressure ให้คงที่', noteAt: 118.1 });
+  card(ctx, t, { t0: 119.4, t1: 133.1, x: 520, w: 440, title: 'Mud Gas Separator', lines: ['แก๊ส → Vent Line → Flare', 'โคลน → Shaker / Pits', 'Mud Leg ≥ 10 ft ≈ 5 psi'], lineAt: [122.9, 124.8, 129.6], note: '≠ Vacuum Degasser (Part 4)', noteAt: 131.2 });
+  card(ctx, t, { t0: 133.6, t1: 139.3, title: 'Trip Tank', lines: ['ถังแคบ สูง มีสเกลวัด', 'เติมน้อยกว่าที่คำนวณ = ระวัง Kick', 'ร่วมกับ Flow Sensor · PVT (Part 4)'], lineAt: [134.1, 136.6, 137.6] });
+  card(ctx, t, { t0: 139.8, t1: 151.8, title: 'ปิดข้างในก้านเจาะ', lines: ['Upper IBOP: Remote · Lower IBOP: Manual', 'FOSV: Ball Valve เปิดค้าง พร้อมขันเข้า', 'Float Valve: Check Valve เหนือ Bit'], lineAt: [142.4, 145.6, 149.5], note: 'BOP ปิด Annulus · วาล์วเหล่านี้ปิดใน Drill String', noteAt: 140.4 });
+  card(ctx, t, { t0: 152.3, t1: 158.9, title: 'Diverter', lines: ['ติดบน Conductor ก่อนติด BOP', 'ปิดแล้วเปิด Vent Line ออกห่างแท่น', 'เบี่ยงทาง ไม่หยุดการไหล'], lineAt: [152.8, 155.6, 157.0], note: 'ปิดหลุมตื้นอาจทำให้ชั้นหินแตก แก๊สขึ้นรอบแท่น', noteAt: 157.9 });
+  card(ctx, t, { t0: 159.4, t1: 165.8, title: 'BOP Testing (API 53)', lines: ['Low 250–350 psi → High · Hold ≥ 5 min', 'Pressure Test ≤ 21 วัน', 'Function Test ทุก 7 วัน'], lineAt: [159.9, 161.4, 163.2], glyph: [null, 'calendar', 'calendar'], note: 'ข้อกำหนดแต่ละประเทศอาจต่างกัน', noteAt: 164.4 });
+  recap(ctx, t);
+  KIT.ctaFollow(ctx, t, { t0: 172.6, t1: 176.9, avatar: O.avatar, clickAt: 174.2 - 172.6, color: WC });
+  teaser(ctx, t);
   transitions(ctx, t);
   ctx.restore();
 }
 
 // ================================================================ captions & cues
 const captions = [
-  { t0: 0, t1: 8.0, th: 'Part 4: Circulating System ระบบไหลเวียน Mud', en: 'Part 4: the circulating system' },
-  { t0: 8.0, t1: 15.7, th: 'Mud วิ่งเป็นวงปิด: ถัง → หลุม → ถัง', en: 'Mud runs in a closed loop: tank, hole, tank' },
-  { t0: 15.7, t1: 22.5, th: 'Active Tank → Charge Pump → Mud Pump', en: 'Active tank, charge pump, then the mud pump' },
-  { t0: 22.5, t1: 29.7, th: 'Triplex Pump: 3 ลูกสูบ อัดทางเดียว', en: 'Triplex pump: three single-acting pistons' },
-  { t0: 29.7, t1: 37.5, th: 'Liner เล็ก = แรงดันสูง แต่ไหลน้อย', en: 'Smaller liner: more pressure, less flow' },
-  { t0: 37.5, t1: 45.5, th: 'Dampener ลดกระชาก · Pop-off กันแรงดันเกิน', en: 'Dampener smooths pulses; pop-off stops overpressure' },
-  { t0: 45.5, t1: 53.5, th: 'Liner 6 in · 100 SPM ≈ 441 gpm', en: '6-in liner at 100 SPM: about 441 gpm' },
-  { t0: 53.5, t1: 61.5, th: 'Standpipe Manifold → Standpipe ขึ้นเสาแท่น', en: 'Manifold to standpipe, up the mast' },
-  { t0: 61.5, t1: 69.5, th: 'Kelly Hose ขยับขึ้นลงตาม Top Drive', en: 'The kelly hose moves with the top drive' },
-  { t0: 69.5, t1: 76.9, th: 'Gooseneck → Washpipe ซีลเข้าเพลาที่หมุน', en: 'Gooseneck and washpipe: the rotating seal' },
-  { t0: 76.9, t1: 83.7, th: 'Mud ลงก้านเจาะ พุ่งออก Nozzle ที่ Bit', en: 'Down the drill string, out of the bit nozzles' },
-  { t0: 83.7, t1: 90.7, th: 'เศษหินขึ้นทาง Annulus รอบก้านเจาะ', en: 'Cuttings ride up the annulus' },
-  { t0: 90.7, t1: 98.7, th: 'Bell Nipple → Flowline ไหลด้วยแรงโน้มถ่วง', en: 'Bell nipple to flowline, by gravity' },
-  { t0: 98.7, t1: 106.5, th: 'Flow Out มากกว่า Flow In: ระวัง Kick', en: 'More flow out than in: a possible kick' },
-  { t0: 106.5, t1: 113.9, th: 'Solids Control: หยาบ → ละเอียด เริ่ม Shaker', en: 'Solids control, coarse to fine: shakers first' },
-  { t0: 113.9, t1: 121.7, th: 'Degasser ดึงแก๊สออก ก่อนถึงปั๊มหอยโข่ง', en: 'The degasser removes gas before centrifugal pumps' },
-  { t0: 121.7, t1: 129.7, th: 'Desander แยกทราย · Desilter แยกตะกอน', en: 'Desander takes sand; desilter takes silt' },
-  { t0: 129.7, t1: 137.7, th: 'Centrifuge: อนุภาคเล็กสุด / เก็บ Barite', en: 'Centrifuge: finest solids, or barite recovery' },
-  { t0: 137.7, t1: 145.7, th: 'Driller ดู SPP และ PVT เตือนเพิ่ม/ลด', en: 'The driller watches SPP and PVT alarms' },
-  { t0: 145.7, t1: 153.7, th: 'ครบวง: นี่คือ Circulating System', en: 'Full loop: that is the circulating system' },
-  { t0: 153.7, t1: 161.3, th: 'กดติดตามไว้ เพื่อไม่พลาดตอนต่อไป', en: 'Follow so you don’t miss the next part' },
-  { t0: 161.3, t1: 169.3, th: 'ตอนต่อไป: Well Control System', en: 'Next: the well control system' },
+  { t0: 0.0, t1: 6.2, th: 'Part 5/5: Well Control System', en: 'Part 5 of 5: the well control system' },
+  { t0: 6.2, t1: 13.2, th: 'ด่านแรก Mud · ด่านสอง Well Control Equipment', en: 'Mud is barrier one; this equipment is barrier two' },
+  { t0: 13.2, t1: 20.2, th: 'BOP: วาล์วหลายตัวซ้อนกัน ไม่ใช่ตัวเดียว', en: 'The BOP is a stack of preventers, not one valve' },
+  { t0: 20.2, t1: 25.6, th: 'บนสุด Annular → Upper Pipe Ram (VBR)', en: 'Top down: annular, then the upper pipe ram' },
+  { t0: 25.6, t1: 31.7, th: 'Blind Shear Ram → Drilling Spool', en: 'Blind-shear ram, then the drilling spool' },
+  { t0: 31.7, t1: 36.8, th: 'Lower Pipe Ram บน Casing Head', en: 'Lower pipe ram, sitting on the casing head' },
+  { t0: 36.8, t1: 43.6, th: 'Annular: ยางโดนัทเสริมเหล็ก ปิดได้ทุกรูปทรง', en: 'Annular: a steel-reinforced rubber donut' },
+  { t0: 43.6, t1: 50.1, th: 'ปิดหลุมเปล่าได้ · Stripping ดันท่อผ่าน', en: 'Seals open hole; pipe can strip through' },
+  { t0: 50.1, t1: 56.3, th: 'Ram: เหล็ก 2 ฝั่ง · Pipe Ram = ท่อ 1 ขนาด', en: 'Rams close from both sides; one pipe size' },
+  { t0: 56.3, t1: 63.7, th: 'VBR หลายขนาด · Ram Lock ล็อกเชิงกล', en: 'VBRs fit a range; ram locks hold mechanically' },
+  { t0: 63.7, t1: 70.6, th: '10,000 psi ใต้ Ram ที่ปิด ≈ 660 ตัน', en: '10,000 psi under closed rams: about 660 t' },
+  { t0: 70.6, t1: 77.6, th: 'Blind Shear Ram: ตัดท่อแล้วปิดสนิท', en: 'Blind-shear ram: cuts the pipe, then seals' },
+  { t0: 77.6, t1: 84.6, th: 'Accumulator (Koomey Unit) สั่งจาก Panel', en: 'Panels command; the accumulator powers it' },
+  { t0: 84.6, t1: 91.4, th: 'N₂ Precharge 1,000 psi · ชาร์จถึง 3,000 psi', en: '1,000 psi nitrogen precharge, charged to 3,000' },
+  { t0: 91.4, t1: 98.2, th: 'ไฟดับก็ยังปิดได้ · Ram ปิด ≤ 30 วินาที', en: 'Works with rig power off; rams close in ≤30 s' },
+  { t0: 98.2, t1: 104.4, th: 'Choke Line: Manual Valve + HCR', en: 'Choke line: inner manual valve, outer HCR' },
+  { t0: 104.4, t1: 111.8, th: 'HCR เปิด/ปิดสุด · Kill Line สูบโคลนเข้า', en: 'HCR is on/off; the kill line pumps in' },
+  { t0: 111.8, t1: 119.2, th: 'Choke Manifold: หรี่โช้ก คุม BHP คงที่', en: 'The choke manifold holds bottomhole pressure' },
+  { t0: 119.2, t1: 126.4, th: 'MGS: แก๊ส → Flare · โคลน → ถัง', en: 'MGS: gas to the flare, mud back to the tanks' },
+  { t0: 126.4, t1: 133.4, th: 'Mud Seal ตัว U รับได้แค่ ~5 psi', en: 'A U-tube mud seal holds only about 5 psi' },
+  { t0: 133.4, t1: 139.6, th: 'Trip Tank: วัดโคลนที่เติมตอนถอนท่อ', en: 'Trip tank: checks hole fill while tripping' },
+  { t0: 139.6, t1: 145.2, th: 'IBOP บน Top Drive ปิดในก้านเจาะ', en: 'IBOPs on the top drive close the bore' },
+  { t0: 145.2, t1: 152.1, th: 'FOSV เปิดค้างไว้ · Float Valve เหนือ Bit', en: 'FOSV kept open; float valve above the bit' },
+  { t0: 152.1, t1: 159.2, th: 'Diverter: เบี่ยงแก๊สตื้น ไม่ได้ปิดหลุม', en: 'A diverter redirects shallow gas' },
+  { t0: 159.2, t1: 166.1, th: 'Pressure Test ≤ 21 วัน · Function ทุกสัปดาห์', en: 'Pressure test ≤21 days; function test weekly' },
+  { t0: 166.1, t1: 172.4, th: 'ครบ 5 ระบบ: Drilling Rig 101', en: 'All five systems of the drilling rig' },
+  { t0: 172.4, t1: 177.4, th: 'กดติดตามไว้ เพื่อไม่พลาดตอนต่อไป', en: 'Follow so you don’t miss the next episode' },
+  { t0: 177.4, t1: 183.3, th: 'ตอนต่อไป: EP06 Casing & Cementing', en: 'Next: EP06, casing and cementing' },
 ];
+// SFX (music.js cue names; vol / pan / dur where useful). Times follow the storyboard §7 table, retimed to the shots.
 const cues = [
-  { t: 0.3, sfx: 'whoosh' }, { t: 0.8, sfx: 'impact' }, { t: 3.2, sfx: 'blip' }, { t: 6.0, sfx: 'bubble' },
-  { t: 8.0, sfx: 'whoosh' }, { t: 8.6, sfx: 'flow' }, { t: 8.7, sfx: 'blip' },
-  { t: 15.5, sfx: 'whoosh' }, { t: 16.2, sfx: 'blip' }, { t: 16.7, sfx: 'bubble' }, { t: 19.4, sfx: 'blip' }, { t: 19.8, sfx: 'swirl' },
-  { t: 22.3, sfx: 'whoosh' }, { t: 23.0, sfx: 'blip' }, { t: 23.2, sfx: 'pump' }, { t: 25.0, sfx: 'pump' }, { t: 26.8, sfx: 'pump' }, { t: 28.6, sfx: 'pump' },
-  { t: 29.5, sfx: 'whoosh' }, { t: 30.2, sfx: 'blip' }, { t: 30.65, sfx: 'pump' }, { t: 33.2, sfx: 'clunk' }, { t: 35.0, sfx: 'pump' },
-  { t: 37.6, sfx: 'whoosh' }, { t: 38.0, sfx: 'blip' }, { t: 39.2, sfx: 'hiss' }, { t: 43.0, sfx: 'hiss' }, { t: 43.1, sfx: 'pulse' },
-  { t: 45.3, sfx: 'whoosh' }, { t: 46.0, sfx: 'blip' },
-  ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => ({ t: 49.84 + i * 0.24, sfx: 'blip' })), { t: 51.3, sfx: 'success' },
-  { t: 53.3, sfx: 'whoosh' }, { t: 54.0, sfx: 'blip' }, { t: 54.4, sfx: 'clunk' }, { t: 57.4, sfx: 'flow' },
-  { t: 61.5, sfx: 'whoosh' }, { t: 62.0, sfx: 'blip' }, { t: 62.2, sfx: 'flow' },
-  { t: 69.3, sfx: 'whoosh' }, { t: 70.0, sfx: 'blip' }, { t: 72.6, sfx: 'spin' }, { t: 75.0, sfx: 'blip' },
-  { t: 76.8, sfx: 'whoosh' }, { t: 77.4, sfx: 'blip' }, { t: 77.6, sfx: 'flow' }, { t: 81.2, sfx: 'zap' }, { t: 82.2, sfx: 'clunk' },
-  { t: 84.2, sfx: 'blip' }, { t: 86.0, sfx: 'bubble' },
-  { t: 90.5, sfx: 'whoosh' }, { t: 91.2, sfx: 'blip' }, { t: 92.3, sfx: 'flow' }, { t: 94.4, sfx: 'whoosh' }, { t: 97.8, sfx: 'bubble' },
-  { t: 98.5, sfx: 'whoosh' }, { t: 99.2, sfx: 'blip' }, { t: 103.0, sfx: 'alarm' }, { t: 104.0, sfx: 'blip' },
-  { t: 106.3, sfx: 'whoosh' }, { t: 107.4, sfx: 'blip' }, { t: 107.6, sfx: 'vibe' }, { t: 112.5, sfx: 'bubble' },
-  { t: 114.4, sfx: 'blip' }, { t: 114.6, sfx: 'hiss' }, { t: 117.0, sfx: 'bubble' }, { t: 120.6, sfx: 'bubble' },
-  { t: 122.2, sfx: 'blip' }, { t: 122.4, sfx: 'swirl' }, { t: 125.6, sfx: 'blip' }, { t: 126.0, sfx: 'swirl' },
-  { t: 130.2, sfx: 'blip' }, { t: 130.6, sfx: 'spin' }, { t: 136.4, sfx: 'bubble' },
-  { t: 137.5, sfx: 'whoosh' }, { t: 138.2, sfx: 'blip' }, { t: 142.0, sfx: 'alarm' },
-  { t: 145.5, sfx: 'whoosh' }, { t: 146.0, sfx: 'flow' }, { t: 150.0, sfx: 'success' }, { t: 150.0, sfx: 'bubble' },
-  { t: 154.2, sfx: 'whoosh' }, { t: 155.5, sfx: 'blip' },
-  { t: 161.1, sfx: 'whoosh' }, { t: 161.8, sfx: 'impact' }, { t: 164.8, sfx: 'whoosh' },
+  { t: 0.4, sfx: 'whoosh' },
+  { t: 6.6, sfx: 'bubble', vol: 0.5 },
+  { t: 7.0, sfx: 'blip' }, { t: 10.9, sfx: 'blip' }, { t: 11.7, sfx: 'blip' },
+  { t: 14.0, sfx: 'blip' }, { t: 15.4, sfx: 'blip' }, { t: 16.0, sfx: 'whoosh', vol: 0.4 }, { t: 16.6, sfx: 'clunk', vol: 0.6 }, { t: 16.8, sfx: 'blip' },
+  ...['ann', 'vbr', 'bsr', 'spool', 'low', 'ch'].flatMap(k => [{ t: TIER[k], sfx: 'valve', vol: 0.55 }, { t: TIER[k] + 0.1, sfx: 'blip' }]),
+  { t: 37.6, sfx: 'blip' }, { t: 38.4, sfx: 'hydraulic', dur: 1.8, vol: 0.6 }, { t: 39.0, sfx: 'rubber', dur: 1.2 }, { t: 40.6, sfx: 'blip' },
+  { t: 42.4, sfx: 'hydraulic', dur: 0.9, vol: 0.45 }, { t: 42.8, sfx: 'rubber', dur: 0.6, vol: 0.6 },
+  { t: 44.4, sfx: 'hydraulic', dur: 1.2, vol: 0.6 }, { t: 44.6, sfx: 'rubber', dur: 1.2 }, { t: 46.6, sfx: 'blip' },
+  { t: 47.6, sfx: 'rubber', dur: 1.8, vol: 0.7 }, { t: 47.6, sfx: 'vibe', vol: 0.4 }, { t: 48.4, sfx: 'blip' },
+  { t: 50.4, sfx: 'hydraulic', dur: 2.2 }, { t: 52.6, sfx: 'clunk' }, { t: 53.3, sfx: 'blip' },
+  { t: 56.5, sfx: 'hydraulic', dur: 1.8 }, { t: 57.2, sfx: 'blip' }, { t: 58.3, sfx: 'clunk' }, { t: 59.6, sfx: 'blip' },
+  { t: 59.8, sfx: 'ratchet', dur: 1.4 }, { t: 61.2, sfx: 'clunk' }, { t: 61.4, sfx: 'hiss', vol: 0.5 }, { t: 61.8, sfx: 'blip' },
+  { t: 64.4, sfx: 'blip' }, { t: 65.2, sfx: 'blip' }, { t: 68.3, sfx: 'impact', vol: 0.45 }, { t: 69.1, sfx: 'blip' },
+  { t: 71.0, sfx: 'hiss' }, { t: 72.6, sfx: 'blip' }, { t: 73.25, sfx: 'shear', pre: 0.35 }, { t: 74.8, sfx: 'clunk' }, { t: 75.3, sfx: 'blip' },
+  { t: 76.0, sfx: 'winch', vol: 0.5 }, { t: 76.3, sfx: 'blip' }, { t: 77.0, sfx: 'blip' },
+  { t: 77.8, sfx: 'blip' }, { t: 78.1, sfx: 'blip' }, { t: 78.3, sfx: 'pulse', vol: 0.6 }, { t: 80.6, sfx: 'valve', vol: 0.5 }, { t: 82.8, sfx: 'blip' },
+  { t: 84.9, sfx: 'blip' }, { t: 85.0, sfx: 'hiss', vol: 0.5 }, { t: 86.5, sfx: 'pump', vol: 0.6 }, { t: 86.6, sfx: 'tick', n: 6, rate: 2 }, { t: 86.9, sfx: 'blip' },
+  { t: 88.0, sfx: 'pump', vol: 0.6 }, { t: 88.8, sfx: 'blip' }, { t: 89.8, sfx: 'clunk', vol: 0.7 },
+  { t: 91.9, sfx: 'powerdown' }, { t: 92.75, sfx: 'hiss' }, { t: 93.7, sfx: 'pulse' }, { t: 94.2, sfx: 'hydraulic', dur: 0.7 }, { t: 94.9, sfx: 'clunk' },
+  { t: 98.9, sfx: 'blip' }, { t: 100.4, sfx: 'ratchet', dur: 1.1 }, { t: 101.5, sfx: 'valve' }, { t: 102.4, sfx: 'hydraulic', dur: 1.4, vol: 0.6 }, { t: 103.8, sfx: 'valve', open: true }, { t: 103.8, sfx: 'bubble', vol: 0.5 },
+  { t: 104.8, sfx: 'blip' }, { t: 105.6, sfx: 'valve', vol: 0.7 }, { t: 106.5, sfx: 'valve', vol: 0.7 },
+  { t: 108.4, sfx: 'clunk', vol: 0.3, pan: 0.6 }, { t: 108.6, sfx: 'pump', vol: 0.4 }, { t: 108.6, sfx: 'blip' }, { t: 108.8, sfx: 'flow' }, { t: 110.1, sfx: 'pump', vol: 0.4 }, { t: 110.2, sfx: 'blip' },
+  { t: 112.0, sfx: 'gas', dur: 1.4, vent: false }, { t: 112.5, sfx: 'blip' },
+  { t: 114.4, sfx: 'flow' }, { t: 114.4, sfx: 'blip', vol: 0.6 }, { t: 114.9, sfx: 'blip', vol: 0.6 }, { t: 115.4, sfx: 'blip', vol: 0.6 },
+  { t: 116.5, sfx: 'blip' }, { t: 117.2, sfx: 'blip' }, { t: 118.1, sfx: 'blip' },
+  { t: 120.0, sfx: 'gas', dur: 2.6 }, { t: 122.9, sfx: 'blip' }, { t: 123.4, sfx: 'flare', dur: 4.5 }, { t: 124.7, sfx: 'flow', dir: 'down' }, { t: 124.8, sfx: 'blip' },
+  { t: 126.8, sfx: 'blip' }, { t: 128.0, sfx: 'bubble', vol: 0.4 }, { t: 129.6, sfx: 'blip' }, { t: 130.5, sfx: 'bubble', vol: 0.4 }, { t: 131.2, sfx: 'blip' },
+  { t: 133.6, sfx: 'winch', vol: 0.5 }, { t: 134.1, sfx: 'blip' }, { t: 135.0, sfx: 'clunk' }, { t: 136.2, sfx: 'flow' }, { t: 136.6, sfx: 'blip' }, { t: 137.6, sfx: 'blip' }, { t: 137.9, sfx: 'success' },
+  { t: 140.4, sfx: 'blip' }, { t: 141.6, sfx: 'hiss' }, { t: 142.4, sfx: 'blip' }, { t: 142.6, sfx: 'valve' }, { t: 144.2, sfx: 'ratchet', dur: 0.5, vol: 0.7 },
+  { t: 145.6, sfx: 'blip' }, { t: 148.9, sfx: 'whoosh' }, { t: 149.4, sfx: 'flow' }, { t: 149.5, sfx: 'blip' }, { t: 150.4, sfx: 'valve', vol: 0.7 },
+  { t: 152.2, sfx: 'whoosh', vol: 0.5 }, { t: 152.8, sfx: 'blip' }, { t: 153.0, sfx: 'bubble', vol: 0.5 }, { t: 154.9, sfx: 'hydraulic', dur: 0.6 }, { t: 155.4, sfx: 'gas', dur: 3.4, vol: 0.6 },
+  { t: 155.6, sfx: 'blip' }, { t: 157.0, sfx: 'blip' }, { t: 157.9, sfx: 'blip' },
+  { t: 159.9, sfx: 'blip' }, { t: 160.2, sfx: 'clunk' }, { t: 160.8, sfx: 'pump', vol: 0.4 }, { t: 160.8, sfx: 'tick', n: 8, rate: 4 }, { t: 161.4, sfx: 'blip' },
+  { t: 163.0, sfx: 'hiss' }, { t: 163.2, sfx: 'blip' }, { t: 163.6, sfx: 'hydraulic', dur: 0.6, vol: 0.5 }, { t: 164.2, sfx: 'clunk' }, { t: 164.4, sfx: 'blip' }, { t: 165.4, sfx: 'clunk' },
+  { t: 171.2, sfx: 'success' },
+  { t: 177.4, sfx: 'whoosh', vol: 0.5 },
 ];
 
-export default { DURATION, init, renderFrame, post, drawOverlay, captions, cues };
+export default { DURATION, init, renderFrame, post, drawOverlay, captions, cues, dbg: () => O };

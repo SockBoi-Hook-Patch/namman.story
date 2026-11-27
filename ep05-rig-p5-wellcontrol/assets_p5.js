@@ -18,7 +18,7 @@
 // env). On top, each material gets (onBeforeCompile, chained after look.js):
 //   * weathering: tri-planar object-space grunge from a code-generated noise texture (blotches, vertical run-off
 //     streaks, paint chips), varying albedo and roughness at a consistent world scale (no UVs needed);
-//   * cut caps: with a clipping plane, back faces render as a flat section colour with a faint screen-space hatch,
+//   * cut caps: with a clipping plane, back faces render as a clean flat section colour (no hatch, no z-fight streaks),
 //     so closed solids read as solid steel / rubber in a half-section (the "capping by back faces" trick).
 // Cut-aways use a per-asset clipping plane (setCut(u) sweeps it from closed to the half section). The materials of
 // an asset are its own, so cutting one asset never cuts another. Internal moving parts are not clipped (shown whole,
@@ -92,10 +92,10 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       wTex: { value: NOISE },
       wP: { value: new THREE.Vector4(o.blotch ?? 0.16, o.streak ?? 0.12, o.chip ?? 0.0, o.rough ?? 0.18) },
       wQ: { value: new THREE.Vector2(o.scale ?? 0.9, o.chipT ?? 0.88) },
-      capCol: { value: new THREE.Color(o.cap ?? 0xd6d0c2) }, capOn: { value: 0 }, capH: { value: o.capH ?? 1 },
+      capCol: { value: new THREE.Color(o.cap ?? 0xb9bdc2) }, capOn: { value: 0 }, capH: { value: o.capH ?? 1 },
     };
     // cap colour is written after tone mapping / sRGB encoding: give it as raw sRGB components
-    const cc = new THREE.Color(o.cap ?? 0xd6d0c2); U.capCol.value.setRGB(...cc.clone().convertLinearToSRGB().toArray());
+    const cc = new THREE.Color(o.cap ?? 0xb9bdc2); U.capCol.value.setRGB(...cc.clone().convertLinearToSRGB().toArray());
     m.userData.wU = U;
     const prev = m.onBeforeCompile;
     m.onBeforeCompile = (sh, r) => {
@@ -114,10 +114,16 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   roughnessFactor = clamp(roughnessFactor + (wN.r - 0.5) * 2.0 * wP.w + wStreak * wP.w * 0.8 + wChip * 0.25, 0.04, 1.0);`)
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>
   #if NUM_CLIPPING_PLANES > 0
-  if (capOn > 0.5 && !gl_FrontFacing) {
-    // cap: flat section colour with a faint hatch (back faces of closed solids seen through the cut)
-    float hh = step(0.82, fract((gl_FragCoord.x + gl_FragCoord.y * capH) / 11.0));
-    gl_FragColor = vec4(capCol * (1.0 - 0.07 * hh), 1.0);
+  // cap: clean solid section colour (back faces of closed solids seen through the cut). Front faces that lie in the
+  // cut plane (within 3 mm) are capped too, so coplanar faces never z-fight with the cap (no streaks / stripes).
+  // Caps also win depth ties (a small view-relative bias toward the camera, ~0.04 % of the distance), so contact faces
+  // between touching solids (bonnet flange on body, ring gasket faces) can't shimmer through the section.
+  float wCd = clippingPlanes[0].w - dot(vClipPosition, clippingPlanes[0].xyz);
+  gl_FragDepth = gl_FragCoord.z;
+  if (capOn > 0.5 && (!gl_FrontFacing || wCd < 0.003)) {
+    float wTone = 0.975 + 0.035 * (wN.r - 0.5);
+    gl_FragColor = vec4(capCol * wTone, 1.0);
+    gl_FragDepth = gl_FragCoord.z - (1.0 - gl_FragCoord.z) * 0.0004;
   }
   #endif`);
     };
@@ -147,11 +153,11 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   function palette(over = {}) {
     const c = { ...PAL, ...over };
     return {
-      paint: mat(c.paint ?? c.bopRed, { metal: 0.15, rough: 0.5, blotch: 0.16, streak: 0.2, chip: 0.22, chipT: 0.88, rv: 0.16, scale: 0.7, cap: 0xd9d3c6 }),
-      paintDk: mat(c.paintDk ?? c.bopRedDk, { metal: 0.15, rough: 0.55, blotch: 0.12, streak: 0.14, chip: 0.4, cap: 0xd9d3c6 }),
-      grey: mat(c.grey, { metal: 0.25, rough: 0.55, blotch: 0.14, streak: 0.18, chip: 0.4, cap: 0xd9d3c6 }),
-      greyLt: mat(c.greyLt, { metal: 0.3, rough: 0.5, blotch: 0.1, streak: 0.1, chip: 0.3, cap: 0xd9d3c6 }),
-      gun: mat(c.gunmetal, { metal: 0.45, rough: 0.48, blotch: 0.12, streak: 0.1, cap: 0xd9d3c6 }),
+      paint: mat(c.paint ?? c.bopRed, { metal: 0.15, rough: 0.5, blotch: 0.16, streak: 0.2, chip: 0.22, chipT: 0.88, rv: 0.16, scale: 0.7, cap: 0xb9bdc2 }),
+      paintDk: mat(c.paintDk ?? c.bopRedDk, { metal: 0.15, rough: 0.55, blotch: 0.12, streak: 0.14, chip: 0.4, cap: 0xb9bdc2 }),
+      grey: mat(c.grey, { metal: 0.25, rough: 0.55, blotch: 0.14, streak: 0.18, chip: 0.4, cap: 0xb9bdc2 }),
+      greyLt: mat(c.greyLt, { metal: 0.3, rough: 0.5, blotch: 0.1, streak: 0.1, chip: 0.3, cap: 0xb9bdc2 }),
+      gun: mat(c.gunmetal, { metal: 0.45, rough: 0.48, blotch: 0.12, streak: 0.1, cap: 0xb9bdc2 }),
       machined: mat(c.machined, { kind: 'steel', metal: 0.88, rough: 0.3, blotch: 0.08, streak: 0.04, rv: 0.1, scale: 2.5, cap: 0xdedad0 }),
       chrome: mat(c.chrome, { kind: 'steel', metal: 1.0, rough: 0.12, blotch: 0.03, streak: 0.0, rv: 0.04, scale: 3, cap: 0xe4e2dc }),
       stud: mat(c.stud, { kind: 'steel', metal: 0.6, rough: 0.5, blotch: 0.1, streak: 0.05, scale: 4, cap: 0xcfcac0 }),
@@ -159,16 +165,16 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       rubber: mat(c.rubber, { kind: 'rubber', metal: 0.0, rough: 0.82, blotch: 0.12, streak: 0.0, rv: 0.08, scale: 2, cap: 0x4a4a55, capH: -1 }),
       hose: mat(c.hose, { kind: 'rubber', metal: 0.0, rough: 0.7, blotch: 0.1, streak: 0.06, scale: 3, cap: 0x303036 }),
       brass: mat(c.brass, { kind: 'steel', metal: 1.0, rough: 0.32, blotch: 0.1, streak: 0.0, scale: 4, cap: 0xe6d3a0 }),
-      yellow: mat(c.yellow, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.14, chip: 0.55, cap: 0xd9d3c6 }),
-      wheel: mat(c.wheel, { metal: 0.15, rough: 0.45, blotch: 0.12, streak: 0.06, chip: 0.5, chipT: 0.8, cap: 0xd9d3c6 }),
-      white: mat(c.white, { metal: 0.05, rough: 0.55, blotch: 0.1, streak: 0.2, chip: 0.3, cap: 0xd9d3c6 }),
+      yellow: mat(c.yellow, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.14, chip: 0.55, cap: 0xb9bdc2 }),
+      wheel: mat(c.wheel, { metal: 0.15, rough: 0.45, blotch: 0.12, streak: 0.06, chip: 0.5, chipT: 0.8, cap: 0xb9bdc2 }),
+      white: mat(c.white, { metal: 0.05, rough: 0.55, blotch: 0.1, streak: 0.2, chip: 0.3, cap: 0xb9bdc2 }),
       stainless: mat(c.stainless, { kind: 'steel', metal: 0.9, rough: 0.34, blotch: 0.06, streak: 0.03, scale: 2, cap: 0xdedad0 }),
       black: mat(c.black, { kind: 'dark', metal: 0.2, rough: 0.6, blotch: 0.06, streak: 0.0, cap: 0x2a2a30 }),
-      skid: mat(c.skid, { kind: 'dark', metal: 0.3, rough: 0.6, blotch: 0.16, streak: 0.2, chip: 0.5, cap: 0xd9d3c6 }),
+      skid: mat(c.skid, { kind: 'dark', metal: 0.3, rough: 0.6, blotch: 0.16, streak: 0.2, chip: 0.5, cap: 0xb9bdc2 }),
       carbide: mat(c.carbide, { kind: 'steel', metal: 0.8, rough: 0.35, blotch: 0.05, cap: 0x8e9196 }),
-      orange: mat(c.orange, { metal: 0.12, rough: 0.5, blotch: 0.12, streak: 0.15, chip: 0.4, cap: 0xd9d3c6 }),
-      green: mat(c.green, { metal: 0.12, rough: 0.5, blotch: 0.12, streak: 0.12, chip: 0.4, cap: 0xd9d3c6 }),
-      blueGrey: mat(c.blueGrey, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.15, chip: 0.4, cap: 0xd9d3c6 }),
+      orange: mat(c.orange, { metal: 0.12, rough: 0.5, blotch: 0.12, streak: 0.15, chip: 0.4, cap: 0xb9bdc2 }),
+      green: mat(c.green, { metal: 0.12, rough: 0.5, blotch: 0.12, streak: 0.12, chip: 0.4, cap: 0xb9bdc2 }),
+      blueGrey: mat(c.blueGrey, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.15, chip: 0.4, cap: 0xb9bdc2 }),
     };
   }
   function tintCaps(pal, color, h = 1) {
@@ -1738,7 +1744,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   // api.setOpen(u) (0 = needle in the seat .. 1 = full open), api.setCut(u) (body half-section)
   function adjustableChoke(o = {}) {
     const g = asset(o.hydraulic ? 'chokeHydraulic' : 'chokeManual'); const P = o.pal || palette(), B = bin(), bolts = o.bolts || boltSet();
-    const CP = tintCaps(palette({ grey: (P.grey && P.grey.color && P.grey.color.getHex()) || 0x5d646d }), 0xd9d3c6, 1);
+    const CP = tintCaps(palette({ grey: (P.grey && P.grey.color && P.grey.color.getHex()) || 0x5d646d }), 0xb9bdc2, 1);
     const F3 = FL['3-1/16x10M'], CB = bin();
     // body: side profile (x-y) with passages as voids, extruded along z; solid side plates close it
     const sh = rrectShape(-0.2, -0.2, 0.2, 0.17, 0.03);

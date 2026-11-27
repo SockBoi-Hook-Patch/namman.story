@@ -118,6 +118,7 @@ window.renderAudio = async function () {
   for (let i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
   return btoa(s);
 };
+window.Scene = Scene; window.glr = renderer;
 window.ready = ensureInit().then(() => true);
 </script>
 </body>
