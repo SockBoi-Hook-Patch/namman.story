@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>P5 assets demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}#gl{position:absolute;left:-99999px}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="out" width="1080" height="1920"></canvas>
+<script type="module">
+// Studio "product shot" stills of every assets_p5.js builder with the look.js upgrade.
+// window.SCENES = { name: nViews }, window.render(name, i) -> PNG data URL, window.sheet(name) -> contact sheet,
+// window.stats() -> triangle counts. Driven by assets_p5_demo.js (node + playwright, SwiftShader).
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { applyLook, stdMat } from './look.js';
+import { createAssetsP5 } from './assets_p5.js';
+import { CFG } from './assets_p5_views.js';
+
+const W = 1080, H = 1920;
+const out = document.getElementById('out'), ctx = out.getContext('2d');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false); renderer.domElement.id = 'gl'; document.body.appendChild(renderer.domElement);
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x15181d);
+const camera = new THREE.PerspectiveCamera(40, W / H, 0.02, 400);
+const hemi = new THREE.HemisphereLight(0xf2f4ff, 0x2a2622, 1.1); scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xfff4e6, 2.6); scene.add(dir); scene.add(dir.target);
+const fill = new THREE.DirectionalLight(0xc8d8ff, 0.5); scene.add(fill); scene.add(fill.target);
+
+try { await Promise.race([document.fonts.load('600 40px Kanit'), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
+const P5 = createAssetsP5({ THREE, mergeGeometries, stdMat, quality: 1 });
+window.P5 = P5;
+
+const S = new THREE.Group(); scene.add(S);
+// studio cyclorama: concrete-grey floor disc that fades into the backdrop
+const floorMat = stdMat(0x2a2c30, 'ground'); floorMat.roughness = 0.9;
+const floor = new THREE.Mesh(new THREE.CircleGeometry(60, 64).rotateX(-Math.PI / 2), floorMat); floor.receiveShadow = true;
+S.add(floor);
+const built = {};
+function get(name) {
+  if (!built[name]) { const c = CFG[name]; const a = c.build(P5, THREE); S.add(a); built[name] = a; a.visible = false; }
+  return built[name];
+}
+const LOOKP = {
+  S: { refl: { top: 0xdfe6f2, hor: 0x6a6f78, ground: 0x1d1e21, sun: 0xfff2dd, sunK: 2.6, sunDir: [0.5, 0.65, 0.55] },
+       exposure: 1.0, envIntensity: 1.0, shadowMin: 3, shadowFit: 0.7, lightDir: [0.55, 0.9, 0.6],
+       glow: { strength: 0.18, threshold: 0.9 }, grade: { saturate: 1.04, contrast: 1.05 }, rim: { color: 0xbfd4ff, intensity: 1.4, lift: 0.5, side: 0.6 },
+       backdrop: { top: 0x0e1014, mid: 0x23272e, hor: 0x2b2f36, low: 0x1a1c20 } },
+};
+const ONLY = (new URLSearchParams(location.search).get('s') || '').split(',').filter(Boolean);
+const NAMES = Object.keys(CFG).filter(k => !ONLY.length || ONLY.includes(k));
+for (const k of NAMES) get(k);
+const LOOK = await applyLook({ THREE, renderer, scene, camera, sets: { S }, light: dir, presets: LOOKP, opts: { shadowMapSize: 2048 } });
+const tgt = new THREE.Vector3();
+
+function renderView(name, i) {
+  const c = CFG[name], v = c.views[i], a = get(name);
+  for (const k of Object.keys(built)) built[k].visible = k === name;
+  floor.position.y = c.floor ?? 0;
+  if (v.p) v.p(a);
+  if (a.api && a.api.refreshCut) a.api.refreshCut();
+  camera.fov = v.fov || 35; camera.position.set(...v.cam); tgt.set(...v.look); camera.lookAt(tgt); camera.updateProjectionMatrix();
+  const kd = v.key || [0.55, 0.9, 0.6];
+  LOOKP.S.lightDir = kd;
+  fill.position.copy(tgt).add(new THREE.Vector3(-kd[0], 0.3, -kd[2] * 0.2 + 0.6).multiplyScalar(20)); fill.target.position.copy(tgt);
+  LOOK.frame('S', camera, tgt);
+  LOOK.render(scene, camera);
+  ctx.drawImage(renderer.domElement, 0, 0, W, H);
+  LOOK.post(ctx, renderer.domElement, 'S');
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '500 26px Kanit, sans-serif';
+  ctx.fillText(`${name} · view ${i}${v.note ? ' · ' + v.note : ''}`, 40, 1880);
+}
+window.SCENES = Object.fromEntries(Object.entries(CFG).filter(([k]) => NAMES.includes(k)).map(([k, c]) => [k, c.views.length]));
+window.render = (name, i) => { renderView(name, i); return out.toDataURL('image/png'); };
+window.sheet = (name) => {
+  const n = CFG[name].views.length, s = 0.4, w = W * s, h = H * s;
+  const sc = document.createElement('canvas'); sc.width = w * n; sc.height = h;
+  const x = sc.getContext('2d');
+  for (let i = 0; i < n; i++) { renderView(name, i); x.drawImage(out, i * w, 0, w, h); }
+  return sc.toDataURL('image/jpeg', 0.9);
+};
+window.stats = () => Object.fromEntries(Object.entries(built).map(([k, a]) => { a.visible = true; const t = P5.triCount(a); a.visible = false; let mats = new Set(); a.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => mats.add(m)); }); return [k, { tri: t, materials: mats.size }]; }));
+window.ready = true;
+</script>
+</body>
+</html>
