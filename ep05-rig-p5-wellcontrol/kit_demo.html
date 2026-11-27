@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overlay Kit Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=block" rel="stylesheet">
+<style>
+  :root { --bg: #05070d; --fg: #e2e8f0; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px Kanit, system-ui, sans-serif; }
+  #ui { position: fixed; top: 8px; left: 8px; z-index: 2; display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,0.6); padding: 6px 10px; border-radius: 8px; }
+  canvas { display: block; height: 100vh; width: auto; max-width: 100vw; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div id="ui"><select id="scene"></select><input id="time" type="range" min="0" max="12" step="0.02" value="2"><span id="tv"></span><label><input id="guides" type="checkbox" checked> guides</label></div>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script type="module">
+// Demo harness for overlay_kit.js. window.render(scene, t, guides) draws one still; window.SCENES lists scenes + sample times.
+import * as K from './overlay_kit.js';
+const { SYS, C } = K;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const avatar = new Image(); avatar.src = 'assets/avatar.png';
+const CIRC = SYS.circ;
+
+// ---------- backdrop: real 3D plates rendered from lookdev/ (kit_preview/bg/*.jpg), so legibility is judged honestly.
+// Plates 0,1,4 = bright desert dusk (worst case for paper), 2,3 = dark navy studio.
+const PLATES = ['p_00004', 'p_00021', 'p_00037', 'p_00099', 'p_00123'].map(n => { const i = new Image(); i.src = `kit_preview/bg/${n}.jpg`; return i; });
+let plate = 0;
+function backdrop() {
+  const im = PLATES[plate % PLATES.length];
+  if (im && im.naturalWidth) ctx.drawImage(im, 0, 0, 1080, 1920);
+  else { ctx.fillStyle = '#7a6a5a'; ctx.fillRect(0, 0, 1080, 1920); }
+}
+function guides() {
+  ctx.save();
+  ctx.setLineDash([6, 10]); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.strokeRect(60, 160, 900, 1120); ctx.setLineDash([]);
+  // the real caption card (frame.html): rgba(12,18,34,.78) box, radius 28, 54px Kanit 600, amber bar
+  ctx.fillStyle = 'rgba(12,18,34,0.78)'; K.rr(ctx, 130, 1350, 820, 170, 28); ctx.fill();
+  ctx.fillStyle = '#ffb627'; K.rr(ctx, 500, 1346, 80, 8, 4); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.font = '600 54px Kanit'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('คำบรรยายภาษาไทยตรงนี้', 540, 1412);
+  ctx.fillStyle = 'rgba(190,215,255,0.92)'; ctx.font = '400 30px Kanit'; ctx.fillText('English caption line goes here', 540, 1474);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 1600, 1080, 320);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '400 26px Kanit'; ctx.fillText('platform UI (y > 1600)', 540, 1660);
+  ctx.restore();
+}
+
+const FLOW = [
+  { label: 'Mud Tank', th: 'บ่อพัก Mud (Active Pit)' }, { label: 'Mud Pump', th: 'ปั๊มแรงดันสูง' }, { label: 'Standpipe', th: 'ท่อตั้งข้างเสา Derrick' },
+  { label: 'Rotary Hose', th: 'ท่ออ่อนแรงดันสูง' }, { label: 'Top Drive', th: 'Gooseneck และ Washpipe' }, { label: 'Drill String', th: 'ไหลลงในท่อเจาะ' },
+  { label: 'Bit', th: 'พุ่งออกจาก Nozzle' }, { label: 'Annulus', th: 'พาเศษหินกลับขึ้นมา' }, { label: 'Flowline', th: 'ท่อไหลกลับ' }, { label: 'Shakers', th: 'แยกเศษหินออก' },
+];
+const STAGES = [
+  { name: 'Shale Shaker', th: 'ตะแกรงสั่น API 200', cut: 75, prefix: '> ', unit: 'µm' },
+  { name: 'Desander', th: 'Hydrocyclone 10 นิ้ว', cut: '40–50', prefix: '~', unit: 'µm' },
+  { name: 'Desilter', th: 'Hydrocyclone 4 นิ้ว', cut: '15–25', prefix: '~', unit: 'µm' },
+  { name: 'Centrifuge', th: 'เหวี่ยงแยกด้วยแรง G', cut: '2–7', prefix: '~', unit: 'µm' },
+];
+const pwl = (pts, t) => { if (t <= pts[0][0]) return pts[0][1]; for (let i = 0; i < pts.length - 1; i++) if (t < pts[i + 1][0]) return K.lerp(pts[i][1], pts[i + 1][1], K.sstep(pts[i][0], pts[i + 1][0], t)); return pts[pts.length - 1][1]; };
+
+// scene name -> { times, bg (plate index, or one per time), draw(t) }
+const SCENES = {
+  titleCard: { times: [0.55, 1.0, 1.5, 2.9, 5.0, 6.7], bg: 0, draw: t => K.titleCard(ctx, t, { t0: 0.3, t1: 6.8, part: 4, title: 'Circulating System', subtitle: 'ระบบหมุนเวียน Mud ลงหลุมแล้วกลับขึ้นมา', hook: 'Mud 1 หยด เดินทางผ่านอะไรบ้าง?', color: CIRC }) },
+  sectionHeader: { times: [0.15, 0.35, 0.7, 3.0, 5.85], bg: [4, 4, 1, 3, 0], draw: t => {
+    K.sectionHeader(ctx, t, { t0: 0, t1: 6, index: 'P4', label: 'Circulating System', sub: 'Mud Pumps', color: CIRC });
+    K.sectionHeader(ctx, t, { t0: 0.2, t1: 6, index: '07', label: 'ระบบควบคุมของแข็ง (Solids Control) ที่ทำงานต่อเนื่องตลอดเวลา', sub: 'หัวข้อยาวมากเพื่อทดสอบการย่อ', color: SYS.power, y: 260 });
+  } },
+  factCard: { times: [0.25, 0.6, 1.2, 2.5, 5.9], bg: [1, 1, 1, 0, 3], draw: t => {
+    K.factCard(ctx, t, { t0: 0, t1: 6, kicker: 'MUD PUMP', title: 'Triplex Mud Pump', lines: ['ลูกสูบ 3 ตัว อัด Mud แรงดันสูง', 'แรงดันใช้งานได้ถึง ~5,000 psi', 'ทำงานคู่กัน 2–3 ตัวบนแท่นเจาะ'], big: { value: 1600, unit: 'hp', label: 'กำลังต่อเครื่อง (ทั่วไป)' }, color: CIRC, stagger: 0.8 });
+    K.factCard(ctx, t, { t0: 0.4, t1: 6, title: 'Mud ทำหน้าที่อะไร?', lines: ['พาเศษหินขึ้นมา', 'กดแรงดันในหลุม และหล่อเย็น Bit'], theme: 'dark', color: CIRC, bottom: 720, stagger: 0.8 });
+  } },
+  callout: { times: [0.1, 0.3, 0.55, 2.0, 5.8], bg: [2, 2, 2, 2, 1], draw: t => {
+    K.callout(ctx, t, { t0: 0, t1: 6, ax: 640, ay: 700, x: 330, y: 470, label: 'Kelly Bushing', sub: 'จับ Kelly ให้หมุนตาม', color: CIRC, n: 1 });
+    K.callout(ctx, t, { t0: 0.3, t1: 6, ax: 900, ay: 900, x: 940, y: 1150, label: 'Rotary Table', sub: 'โต๊ะหมุนบนพื้นแท่น', color: CIRC, align: 'right', n: 2 });
+  } },
+  flowPathMap: { times: [0.3, 0.8, 1.6, 3.0, 4.5, 7.0], bg: 4, draw: t => K.flowPathMap(ctx, t, { t0: 0, t1: 8, nodes: FLOW, current: pwl([[0, 0], [2.0, 0], [2.6, 1], [3.6, 1], [4.2, 4], [5.5, 4], [6.2, 7], [8, 7]], t), color: CIRC }) },
+  stepList: { times: [0.2, 0.6, 1.5, 3.0, 4.4, 5.9], bg: 0, draw: t => K.stepList(ctx, t, { t0: 0, t1: 6, title: 'SOLIDS CONTROL', items: [{ label: 'Shale Shaker', sub: 'ตะแกรงสั่น' }, { label: 'Degasser', sub: 'แยกแก๊ส' }, { label: 'Desander', sub: 'แยกทราย' }, { label: 'Desilter', sub: 'แยกตะกอนละเอียด' }, { label: 'Centrifuge', sub: 'เหวี่ยงแยก' }], current: pwl([[0, 0], [1.4, 0], [1.8, 1], [2.8, 1], [3.2, 2], [4.2, 2], [4.6, 3], [6, 3]], t), color: CIRC }) },
+  sizeFunnel: { times: [0.3, 1.0, 1.8, 3.2, 4.6, 6.0], bg: [3, 3, 3, 4, 4, 4], draw: t => K.sizeFunnel(ctx, t, { t0: 0, t1: 8, stages: STAGES, active: t > 4 ? 1 : -1, color: CIRC }) },
+  formulaCard: { times: [0.3, 1.0, 1.9, 2.8, 4.2, 6.0], bg: 1, draw: t => K.formulaCard(ctx, t, { t0: 0, t1: 8, kicker: 'PUMP OUTPUT', title: 'ปั๊มส่ง Mud ได้กี่บาร์เรลต่อสโตรก?', color: CIRC,
+    lines: [{ label: 'สูตร', text: 'Output = [[0.000243]] × D² × L' }, { label: 'แทนค่า', text: 'D = 6 in (Liner), L = 12 in (Stroke)' }, { label: 'คำนวณ', text: '= 0.000243 × 36 × 12 = [[0.105 bbl/stk]]' }],
+    result: { label: '0.105 bbl × 42 gal/bbl', value: 4.41, unit: 'gal / stroke' } }) },
+  gaugeDial: { times: [0.2, 0.6, 1.2, 2.5, 5.9], bg: [4, 4, 4, 4, 3], draw: t => {
+    K.gaugeDial(ctx, t, { t0: 0, t1: 6, cx: 200, cy: 560, r: 112, value: 120 + 4 * Math.sin(t * 2), max: 200, unit: 'SPM', label: 'Pump Rate', sub: 'สโตรก/นาที', color: CIRC });
+    K.gaugeDial(ctx, t, { t0: 0, t1: 6, delay: 0.15, cx: 510, cy: 560, r: 112, value: 3200 + 60 * Math.sin(t * 3), max: 5000, unit: 'psi', label: 'SPP', sub: 'แรงดัน Standpipe', color: CIRC, zones: [{ from: 4500, to: 5000, color: '#ef4444' }] });
+    K.gaugeDial(ctx, t, { t0: 0, t1: 6, delay: 0.3, cx: 820, cy: 560, r: 112, value: 529, max: 800, unit: 'gpm', label: 'Flow Rate', sub: 'อัตราการไหล', color: CIRC });
+  } },
+  recapGrid: { times: [0.4, 1.2, 2.2, 3.5, 7.8], bg: 4, draw: t => K.recapGrid(ctx, t, { t0: 0, t1: 8, kicker: 'สรุป Part 4', title: 'Circulating System', color: CIRC,
+    items: ['Mud Tank และ Pits', 'Mud Pump (Triplex)', 'Standpipe Manifold', 'Rotary Hose, Gooseneck', 'Drill String ลงถึง Bit', 'Annulus ขึ้นสู่ Flowline', 'Shale Shakers', 'Degasser', 'Desander, Desilter', 'Centrifuge'] }) },
+  recapGridSub: { times: [3.0], bg: 3, draw: t => K.recapGrid(ctx, t, { t0: 0, t1: 8, kicker: 'สรุป', title: 'Solids Control', color: CIRC, items: STAGES.map(s => ({ label: s.name, sub: s.th })) }) },
+  ctaFollow: { times: [0.3, 1.0, 2.0, 2.6, 3.05, 3.4, 3.9, 4.6, 7.0], bg: 4, draw: t => K.ctaFollow(ctx, t, { t0: 0, t1: 8, avatar, clickAt: 3.0 }) },
+  nextTeaser: { times: [0.3, 0.7, 1.3, 3.0], bg: 0, draw: t => K.nextTeaser(ctx, t, { t0: 0, part: 5, title: 'Well Control', sub: 'BOP ปิดหลุมกัน Kick ได้ยังไง?', color: SYS.wc }) },
+  wipeDiag: { times: [0.2, 0.35, 0.5, 0.65, 0.8], bg: [0, 0, 0, 3, 3], draw: t => K.wipe(ctx, t, { tc: 0.5, dur: 0.7, type: 'diag', accent: CIRC }) },
+  wipeBars: { times: [0.25, 0.4, 0.5, 0.6, 0.75], bg: [0, 0, 0, 3, 3], draw: t => K.wipe(ctx, t, { tc: 0.5, dur: 0.7, type: 'bars', accent: CIRC }) },
+  wipeIris: { times: [0.3, 0.45, 0.6, 0.75], bg: [0, 0, 3, 3], draw: t => K.wipe(ctx, t, { tc: 0.5, dur: 0.7, type: 'iris', accent: CIRC, cy: 800 }) },
+  wipeSlide: { times: [0.3, 0.45, 0.6, 0.75], bg: [0, 0, 3, 3], draw: t => K.wipe(ctx, t, { tc: 0.5, dur: 0.7, type: 'slide', accent: CIRC }) },
+  // the same busy frame over all five plates: the legibility test
+  composite: { times: [2.5, 2.51, 2.52, 2.53, 2.54], bg: [0, 1, 2, 3, 4], draw: t => {
+    t = 2.5;
+    K.sectionHeader(ctx, t, { t0: 0, t1: 9, index: 'P4', label: 'Mud Pumps', sub: 'ปั๊มโคลน', color: CIRC });
+    K.callout(ctx, t, { t0: 0.4, t1: 9, ax: 700, ay: 640, x: 120, y: 470, align: 'left', label: 'Fluid End', sub: 'ลูกสูบและวาล์ว', color: CIRC, n: 1 });
+    K.factCard(ctx, t, { t0: 0.6, t1: 9, kicker: 'MUD PUMP', title: 'Triplex Pump', lines: ['ลูกสูบ 3 ตัว ดันต่อเนื่อง', 'ส่ง Mud ลงหลุมแรงดันสูง'], big: { value: 4.41, unit: 'gal/stk', label: 'Liner 6", Stroke 12"' }, color: CIRC, stagger: 0.5 });
+  } },
+};
+window.SCENES = Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.times]));
+window.render = (name, t, g = true) => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.clearRect(0, 0, 1080, 1920);
+  const sc = SCENES[name], bg = sc.bg ?? 0, ti = sc.times.findIndex(v => Math.abs(v - t) < 1e-6);
+  plate = Array.isArray(bg) ? bg[Math.max(0, ti) % bg.length] : bg;
+  backdrop(); if (g) guides();
+  sc.draw(t);
+  return cv.toDataURL('image/png');
+};
+// contact sheet: all times of a scene side by side at 1/3 scale
+window.sheet = (name, g = true) => {
+  const times = SCENES[name].times, s = 1 / 3, sw = 1080 * s, sh = 1920 * s, pad = 12;
+  const out = document.createElement('canvas'); out.width = times.length * (sw + pad) + pad; out.height = sh + 56;
+  const o = out.getContext('2d'); o.fillStyle = '#05070d'; o.fillRect(0, 0, out.width, out.height);
+  times.forEach((t, i) => {
+    window.render(name, t, g); o.drawImage(cv, pad + i * (sw + pad), 44, sw, sh);
+    o.fillStyle = '#cbd5e1'; o.font = '600 20px Kanit'; o.textBaseline = 'middle'; o.fillText(`${name}  t=${t.toFixed(2)}s`, pad + i * (sw + pad), 22);
+  });
+  return out.toDataURL('image/png');
+};
+
+// interactive preview
+const sel = document.getElementById('scene'), rng = document.getElementById('time'), tv = document.getElementById('tv'), gd = document.getElementById('guides');
+for (const k of Object.keys(SCENES)) sel.add(new Option(k, k));
+const redraw = () => { tv.textContent = (+rng.value).toFixed(2) + 's'; window.render(sel.value, +rng.value, gd.checked); };
+sel.onchange = rng.oninput = gd.onchange = redraw;
+Promise.all([document.fonts.load('400 32px Kanit', 'กขค abc'), document.fonts.load('600 32px Kanit', 'กขค abc'), document.fonts.ready,
+  new Promise(r => { if (avatar.complete) r(); else { avatar.onload = r; avatar.onerror = r; } }),
+  ...PLATES.map(im => new Promise(r => { if (im.complete) r(); else { im.onload = r; im.onerror = r; } }))])
+  .then(() => { window.ready = document.fonts.check('600 32px Kanit') ? 'kanit' : 'fallback'; redraw(); });
+</script>
+</body>
+</html>

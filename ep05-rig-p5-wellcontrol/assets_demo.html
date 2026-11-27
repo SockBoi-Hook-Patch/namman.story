@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>P4 assets demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}#gl{position:absolute;left:-99999px}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="out" width="1080" height="1920"></canvas>
+<script type="module">
+// Studio stills of every assets_p4.js builder with the lookdev/look.js upgrade (S "studio" preset from LOOKDEV.md).
+// window.SCENES = { name: [times] }, window.render(name, t) -> PNG data URL, window.sheet(name) -> contact sheet.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { applyLook, stdMat } from '../lookdev/look.js';
+import { createAssets } from './assets_p4.js';
+
+const W = 1080, H = 1920;
+const out = document.getElementById('out'), ctx = out.getContext('2d');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false); renderer.domElement.id = 'gl'; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1a2e);
+scene.fog = new THREE.Fog(0x0d1a2e, 80, 260);
+const camera = new THREE.PerspectiveCamera(40, W / H, 0.05, 2000);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x3a4a66, 1.8); scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 2.1); scene.add(dir); scene.add(dir.target);
+
+try { await Promise.race([document.fonts.load('600 40px Kanit'), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
+const A = createAssets({ THREE, mergeGeometries, stdMat });
+
+const S = new THREE.Group(); scene.add(S);
+const floor = new THREE.Mesh(new THREE.CylinderGeometry(120, 120, 0.4, 64), stdMat(0x16233a, 'ground'));
+S.add(floor);
+const Lmat = c => new THREE.MeshLambertMaterial({ color: c });
+
+// ---------------------------------------------------------------- scenes
+// each: build() -> asset, floor y, views: [{ t, cam, look, fov, p: params(t) }]
+const dropPath = t => [Math.sin(t * 1.3) * 0.5, 1.2 + 0.2 * Math.sin(t * 2.1), Math.cos(t * 1.3) * 0.3];
+const CFG = {
+  drop: {
+    build: () => A.drop({ radius: 0.22 }), floor: 0,
+    views: [
+      { t: 1.0, cam: [0, 1.7, 4.4], look: [0, 1.0, 0], fov: 40, p: t => ({ path: dropPath, dirt: 0, shimmer: 1 }) },
+      { t: 2.0, cam: [0, 1.7, 4.4], look: [0, 1.0, 0], fov: 40, p: t => ({ path: dropPath, dirt: 1 }) },
+      { t: 3.0, cam: [0, 1.7, 4.4], look: [0, 1.0, 0], fov: 40, p: t => ({ path: dropPath, dirt: 0.45, splashPos: [0, 0.22, 0], splashAge: 0.25 }) },
+    ],
+  },
+  pumpB: {
+    build: () => A.pumpSection(), floor: -2.25,
+    views: [
+      { t: 0.15, cam: [-4.6, 3.4, 15], look: [-3.0, 2.4, 0], fov: 40, p: t => ({ theta: Math.PI * 0.5 }) },
+      { t: 0.45, cam: [-4.6, 3.4, 15], look: [-3.0, 2.4, 0], fov: 40, p: t => ({ theta: Math.PI * 1.5, bore: 0.583 }) },
+      { t: 0.75, cam: [-5.8, 6.2, 12.5], look: [-6.4, 5.4, 0], fov: 40, p: t => ({ theta: Math.PI * 1.45, popoff: 1 }) },
+      { t: 1.0, cam: [-1.6, 2.4, 7.5], look: [-1.6, 2.0, 0], fov: 36, vo: [0, 140], p: t => ({ theta: Math.PI * 0.2, bore: 0.375 }) },
+    ],
+  },
+  triplex: {
+    build: () => A.triplex(), floor: 0,
+    views: [
+      { t: 0.0, cam: [-12, 14, 12], look: [-2.2, 2.0, 0], fov: 40, p: t => ({}) },
+      { t: 0.2, cam: [-15, 11, 7], look: [-1, 2.4, 0], fov: 44, p: t => ({}) },
+      { t: 0.4, cam: [-3, 4.2, 9.5], look: [0.4, 1.9, 2.0], fov: 40, p: t => ({}) },
+    ],
+  },
+  chargePump: {
+    build: () => A.chargePump(), floor: -0.7,
+    views: [
+      { t: 0.0, cam: [3.6, 2.5, 3.5], look: [0, 0.2, -0.3], fov: 40, p: t => ({ open: 0 }) },
+      { t: 0.5, cam: [3.6, 2.5, 3.5], look: [0, 0.2, -0.3], fov: 40, p: t => ({ open: 1 }) },
+      { t: 0.8, cam: [2.0, 1.4, 2.6], look: [-0.05, 0.1, 0], fov: 40, p: t => ({ open: 1 }) },
+    ],
+  },
+  degasser: {
+    build: () => A.degasser(), floor: -0.0,
+    views: [
+      { t: 0.0, cam: [2.6, 2.9, 4.6], look: [0, 1.4, 0], fov: 40, p: t => ({ open: 0 }) },
+      { t: 1.0, cam: [2.6, 2.9, 4.6], look: [0, 1.4, 0], fov: 40, p: t => ({ open: 1 }) },
+      { t: 2.3, cam: [1.4, 1.9, 2.6], look: [0, 1.15, -0.1], fov: 40, p: t => ({ open: 1 }) },
+    ],
+  },
+  desander: {
+    build: () => A.hydrocyclones({ kind: 'desander' }), floor: 0,
+    views: [
+      { t: 0.0, cam: [2.6, 2.6, 4.6], look: [0, 1.5, 0.2], fov: 40, p: t => ({ open: 0 }) },
+      { t: 1.0, cam: [2.6, 2.6, 4.6], look: [0, 1.5, 0.2], fov: 40, p: t => ({ open: 1 }) },
+      { t: 1.7, cam: [1.1, 1.8, 2.6], look: [0, 1.5, 0.4], fov: 40, p: t => ({ open: 1 }) },
+    ],
+  },
+  desilter: {
+    build: () => A.hydrocyclones({ kind: 'desilter' }), floor: 0,
+    views: [
+      { t: 0.0, cam: [2.2, 2.2, 3.8], look: [0, 1.1, 0.2], fov: 40, p: t => ({ open: 0 }) },
+      { t: 1.0, cam: [2.2, 2.2, 3.8], look: [0, 1.1, 0.2], fov: 40, p: t => ({ open: 1 }) },
+      { t: 1.6, cam: [0.8, 1.4, 2.4], look: [0, 1.2, 0.9], fov: 40, p: t => ({ open: 1 }) },
+    ],
+  },
+  centrifuge: {
+    build: () => A.centrifuge(), floor: -4.6, props: g => { // stand-in for mud tank C under the stand
+      const tm = stdMat(0x56677d, 'white');
+      for (const [w, h, d, x, z] of [[4.6, 3, 0.15, 0, -1.4], [4.6, 3, 0.15, 0, 2.6], [0.15, 3, 4, -2.3, 0.6], [0.15, 3, 4, 2.3, 0.6]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), tm); m.position.set(x, -3.1, z); g.add(m); }
+      const mud = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 3.9).rotateX(-Math.PI / 2), stdMat(0x0f8f80, 'paint', { roughness: 0.4 })); mud.position.set(0, -2.05, 0.6); g.add(mud); },
+    views: [
+      { t: 0.0, cam: [3.4, 1.8, 8.4], look: [0, -1.6, -0.8], fov: 40, p: t => ({ open: 0 }) },
+      { t: 1.0, cam: [3.4, 1.8, 8.4], look: [0, -1.6, -0.8], fov: 40, p: t => ({ open: 1 }) },
+      { t: 1.6, cam: [1.3, 0.8, 3.0], look: [-0.1, 0, 0], fov: 40, p: t => ({ open: 1 }) },
+    ],
+  },
+  washpipe: {
+    build: () => A.washpipe(), floor: -0.4,
+    views: [
+      { t: 0.0, cam: [2.0, 9.0, 9.5], look: [1.2, 7.6, 0], fov: 40, p: t => ({}) },
+      { t: 1.0, cam: [0.6, 6.8, 8.6], look: [0.3, 5.0, 0], fov: 40, p: t => ({ glow: 1 }) },
+      { t: 2.0, cam: [4.5, 8.0, 14], look: [1.2, 5.0, 0], fov: 40, p: t => ({ ghost: 0.15, wear: 1 }) },
+    ],
+  },
+  standpipe: {
+    build: () => A.standpipeManifold(), floor: -0.57,
+    views: [
+      { t: 0.0, cam: [3.2, 1.9, 4.6], look: [0, 0.2, -0.2], fov: 40, p: t => ({ spp: 0 }) },
+      { t: 1.0, cam: [3.2, 1.9, 4.6], look: [0, 0.2, -0.2], fov: 40, p: t => ({ spp: 0.62, wheelA: 1 }) },
+      { t: 2.0, cam: [5.15, 2.45, 7.0], look: [-0.15, 0.55, 0], fov: 40, p: t => ({ spp: 0.62 }) },
+    ],
+  },
+  flowPaddle: {
+    build: () => A.flowPaddle(), floor: -1.2,
+    views: [
+      { t: 0.0, cam: [1.0, 0.75, 2.2], look: [0, 0, 0], fov: 40, p: t => ({ flow: 1 }) },
+      { t: 1.0, cam: [1.0, 0.75, 2.2], look: [0, 0, 0], fov: 40, p: t => ({ flow: 1.55 }) },
+      { t: 2.0, cam: [-1.6, 1.4, 2.6], look: [0, 0.05, 0], fov: 40, p: t => ({ flow: 1.2 }) },
+    ],
+  },
+};
+window.CFG = CFG;
+const built = {};
+function get(name) {
+  if (!built[name]) {
+    const c = CFG[name], a = c.build();
+    if (c.props) c.props(a.group);
+    S.add(a.group); built[name] = a;
+  }
+  return built[name];
+}
+const LOOKP = {
+  S: { refl: { top: 0xe6eefc, hor: 0x5a6b8a, ground: 0x1a2840, sun: 0xffffff, sunK: 3, sunDir: [0.4, 0.7, 0.6] },
+       exposure: 1.0, envIntensity: 1.1, shadowMin: 6, lightDir: [45, 55, 40],
+       glow: { strength: 0.4, threshold: 0.8 }, rim: { color: 0x9cc4ff, intensity: 2.2, lift: 0.6, side: 0.5 },
+       backdrop: { top: 0x0a1222, mid: 0x1c2f52, hor: 0x0d1a2e, low: 0x0d1a2e } },
+};
+// build everything first so applyLook sees all materials / shadow flags
+for (const k of Object.keys(CFG)) get(k);
+const LOOK = await applyLook({ THREE, renderer, scene, camera, sets: { S }, light: dir, presets: LOOKP, opts: window.LOOK_OPTS || {} });
+const tgt = new THREE.Vector3();
+
+function renderView(name, i) {
+  const c = CFG[name], v = c.views[i], a = get(name);
+  for (const k of Object.keys(built)) built[k].group.visible = k === name;
+  floor.position.y = c.floor - 0.2;
+  a.update(v.t, v.p(v.t));
+  camera.fov = v.fov; camera.position.set(...v.cam); tgt.set(...v.look); camera.lookAt(tgt);
+  const vo = v.vo || [0, 0];
+  camera.setViewOffset(W, H, -vo[0], -vo[1], W, H); camera.updateProjectionMatrix();
+  dir.position.set(30, 50, 60); dir.target.position.set(30, 0, 0);
+  LOOK.frame('S', camera, tgt);
+  LOOK.render(scene, camera);
+  ctx.drawImage(renderer.domElement, 0, 0, W, H);
+  LOOK.post(ctx, renderer.domElement, 'S');
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '600 30px Kanit, sans-serif';
+  ctx.fillText(`${name} · view ${i} · t ${v.t}`, 40, 1880);
+}
+window.SCENES = Object.fromEntries(Object.entries(CFG).map(([k, c]) => [k, c.views.length]));
+window.render = (name, i) => { renderView(name, i); return out.toDataURL('image/png'); };
+window.sheet = (name) => {
+  const n = CFG[name].views.length, s = 0.4, w = W * s, h = H * s;
+  const sc = document.createElement('canvas'); sc.width = w * n; sc.height = h;
+  const x = sc.getContext('2d');
+  for (let i = 0; i < n; i++) { renderView(name, i); x.drawImage(out, i * w, 0, w, h); }
+  return sc.toDataURL('image/jpeg', 0.88);
+};
+// triangle budget per asset (instanced meshes count instances)
+window.stats = () => Object.fromEntries(Object.entries(built).map(([k, a]) => {
+  let tri = 0; a.group.traverse(o => { if (!o.isMesh || !o.visible) return; const g = o.geometry; const n = (g.index ? g.index.count : g.attributes.position.count) / 3; tri += n * (o.isInstancedMesh ? o.count : 1); });
+  const t0 = performance.now(); for (let i = 0; i < 50; i++) a.update(1 + i * 0.033, CFG[k].views[0].p(1)); const ms = (performance.now() - t0) / 50;
+  return [k, { tri: Math.round(tri), updateMs: +ms.toFixed(3) }];
+}));
+window.ready = true;
+</script>
+</body>
+</html>
