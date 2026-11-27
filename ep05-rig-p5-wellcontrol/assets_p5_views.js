@@ -7,7 +7,7 @@ export const CFG = {
       { cam: [4.4, 4.6, 6.0], look: [0, 4.2, 0], fov: 32, note: 'annular + double ram', p: a => { a.api.setCut(0); } },
       { cam: [2.6, 2.4, 6.5], look: [0, 2.9, 0], fov: 40, note: 'half-section', p: a => { a.api.setCut(1); a.api.setAnnular(0.0); a.api.setUpperRam(0); a.api.setBSR(0); } },
       { cam: [2.2, 2.6, 5.2], look: [0, 3.0, 0], fov: 38, note: 'section, closed', p: a => { a.api.setCut(1); a.api.setAnnular(1); a.api.setUpperRam(1); a.api.setLowerRam(1); a.api.setBSR(0); } },
-      { cam: [3.4, 2.3, 2.6], look: [1.0, 1.9, 0], fov: 36, note: 'choke side valves', p: a => { a.api.setCut(0); a.api.setChokeHCR(1); } },
+      { cam: [3.0, 2.6, 3.4], look: [1.0, 2.0, 0], fov: 38, note: 'choke side valves', p: a => { a.api.setCut(0); a.api.setChokeHCR(1); } },
     ],
   },
 };
@@ -37,7 +37,7 @@ CFG.doubleRam = {
 CFG.accumulator = {
   build: P => P.accumulatorUnit(), floor: 0,
   views: [
-    { cam: [4.2, 2.9, 6.2], look: [0, 0.9, 0], fov: 38, note: 'unit', p: a => { a.api.setBottleCut(0); } },
+    { cam: [5.6, 3.6, 8.4], look: [0, 0.9, 0], fov: 40, note: 'unit', p: a => { a.api.setBottleCut(0); } },
     { cam: [1.2, 1.9, 2.4], look: [0, 1.4, 0.3], fov: 36, note: 'manifold + gauges', p: a => { a.api.setBottleCut(0); a.api.setValve(2, 0); a.api.setPumpLamp(1); } },
     { cam: [-1.6, 1.2, 2.3], look: [-2.3, 0.95, 0.57], fov: 34, note: 'bottle cut, precharge', p: a => { a.api.setBottleCut(1); a.api.setCharge(0); a.api.setPsi(0, 1000); } },
     { cam: [-1.6, 1.2, 2.3], look: [-2.3, 0.95, 0.57], fov: 34, note: 'bottle cut, 3000 psi', p: a => { a.api.setBottleCut(1); a.api.setCharge(1); a.api.setPsi(0, 3000); } },
@@ -59,8 +59,8 @@ CFG.chokePanel = {
 CFG.chokeManifold = {
   build: P => P.chokeManifold(), floor: -0.25,
   views: [
-    { cam: [3.4, 3.4, 5.2], look: [0, 0.6, 0], fov: 40, note: 'manifold', p: a => { a.api.setChokeCut(0); } },
-    { cam: [0.9, 1.3, 0.3], look: [-0.1, 0.85, -0.86], fov: 34, note: 'choke A trim cut-away', p: a => { a.api.setChokeCut(1); a.api.setChokeA(0.3); } },
+    { cam: [4.8, 4.6, 7.6], look: [0, 0.5, 0], fov: 42, note: 'manifold', p: a => { a.api.setChokeCut(0); } },
+    { cam: [0.5, 1.1, 0.0], look: [-0.15, 0.85, -0.86], fov: 34, note: 'choke A trim cut-away', p: a => { a.api.setChokeCut(1); a.api.setChokeA(0.3); } },
   ],
 };
 CFG.mgs = {
@@ -75,5 +75,47 @@ CFG.tripTank = {
   views: [
     { cam: [3.4, 2.6, 4.6], look: [-0.2, 1.8, 0], fov: 40, note: 'trip tank', p: a => { a.api.setCut(0); a.api.setLevel(0.6); } },
     { cam: [1.6, 2.2, 3.6], look: [0, 1.9, 0], fov: 40, note: 'cut, level 0.35', p: a => { a.api.setCut(1); a.api.setLevel(0.35); } },
+  ],
+};
+CFG.ibop = {
+  build: P => P.ibopValves(), floor: 0,
+  views: [
+    { cam: [1.1, 1.4, 1.9], look: [0, 0.95, 0], fov: 38, note: 'upper + lower IBOP', p: a => { a.api.setCut(0); } },
+    { cam: [0.5, 1.1, 1.5], look: [0, 0.8, 0], fov: 38, note: 'cut: upper closed, lower open', p: a => { a.api.setCut(1); a.api.setUpper(1); a.api.setLower(0); } },
+  ],
+};
+CFG.fosv = {
+  build: P => P.fosv(), floor: 0,
+  views: [
+    { cam: [0.9, 0.8, 1.3], look: [0.05, 0.3, 0], fov: 38, note: 'FOSV open, wrench beside', p: a => { a.api.setCut(0); a.api.setWrenchIn(0); a.api.setClose(0); } },
+    { cam: [0.6, 0.6, 1.0], look: [0, 0.33, 0], fov: 38, note: 'cut, wrench in, closed', p: a => { a.api.setCut(1); a.api.setWrenchIn(1); a.api.setClose(1); } },
+  ],
+};
+CFG.floatSub = {
+  build: P => P.floatSub(), floor: 0,
+  views: [
+    { cam: [0.3, 0.55, 0.55], look: [0, 0.45, 0], fov: 36, note: 'cut, flapper open', p: a => { a.api.setCut(1); a.api.setFlap(0); } },
+    { cam: [0.3, 0.55, 0.55], look: [0, 0.45, 0], fov: 36, note: 'cut, flapper closed', p: a => { a.api.setCut(1); a.api.setFlap(1); } },
+  ],
+};
+CFG.diverter = {
+  build: P => P.diverter(), floor: 0,
+  views: [
+    { cam: [5.5, 3.6, 8.0], look: [0, 1.0, 0], fov: 40, note: 'diverter + vents', p: a => { a.api.setCut(0); a.api.setVent('R', 1); } },
+    { cam: [1.2, 1.6, 3.2], look: [0, 1.0, 0], fov: 38, note: 'cut, closed', p: a => { a.api.setCut(1); a.api.setClose(1); } },
+  ],
+};
+CFG.testPlug = {
+  build: (P, THREE) => { const g = new THREE.Group(); const ch = P.casingHead(); g.add(ch); const tp = P.testPlug(); tp.position.y = 0.315; g.add(tp); g.api = { setCut: u => ch.api ? null : null }; g.userData.ch = ch; g.userData.tp = tp; return g; }, floor: 0,
+  views: [
+    { cam: [1.0, 1.4, 1.8], look: [0, 0.7, 0], fov: 38, note: 'test plug above casing head', p: a => { a.userData.tp.api.setDrop(0.6); } },
+    { cam: [0.9, 0.9, 1.6], look: [0, 0.5, 0], fov: 38, note: 'landed', p: a => { a.userData.tp.api.setDrop(0); a.userData.tp.api.setSeal(1); } },
+  ],
+};
+CFG.chart = {
+  build: P => P.chartRecorder(), floor: 0,
+  views: [
+    { cam: [0.45, 1.45, 1.35], look: [0, 1.15, 0], fov: 36, note: 'low test', p: a => a.api.setTrace(0.3) },
+    { cam: [0.45, 1.45, 1.35], look: [0, 1.15, 0], fov: 36, note: 'high test hold', p: a => a.api.setTrace(0.95) },
   ],
 };
