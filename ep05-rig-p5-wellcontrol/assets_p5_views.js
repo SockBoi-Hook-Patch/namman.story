@@ -56,3 +56,24 @@ CFG.chokePanel = {
     { cam: [0.8, 1.7, 1.6], look: [0, 1.36, 0], fov: 36, note: 'panel', p: a => { a.api.setDP(0.32); a.api.setCasing(0.45); a.api.setChokePos(0.35); a.api.setCounter(30, 1250); a.api.setLever(1); a.api.setPumpLamp(1); } },
   ],
 };
+CFG.chokeManifold = {
+  build: P => P.chokeManifold(), floor: -0.25,
+  views: [
+    { cam: [3.4, 3.4, 5.2], look: [0, 0.6, 0], fov: 40, note: 'manifold', p: a => { a.api.setChokeCut(0); } },
+    { cam: [0.9, 1.3, 0.3], look: [-0.1, 0.85, -0.86], fov: 34, note: 'choke A trim cut-away', p: a => { a.api.setChokeCut(1); a.api.setChokeA(0.3); } },
+  ],
+};
+CFG.mgs = {
+  build: P => P.mudGasSeparator(), floor: 0,
+  views: [
+    { cam: [7.5, 6.0, 12.5], look: [0, 5.5, 0], fov: 42, note: 'MGS + vent', p: a => { a.api.setCut(0); } },
+    { cam: [2.2, 3.4, 6.4], look: [0, 3.0, 0.6], fov: 40, note: 'cut-away', p: a => { a.api.setCut(1); a.api.setLevel(0.8); } },
+  ],
+};
+CFG.tripTank = {
+  build: P => P.tripTank(), floor: 0,
+  views: [
+    { cam: [3.4, 2.6, 4.6], look: [-0.2, 1.8, 0], fov: 40, note: 'trip tank', p: a => { a.api.setCut(0); a.api.setLevel(0.6); } },
+    { cam: [1.6, 2.2, 3.6], look: [0, 1.9, 0], fov: 40, note: 'cut, level 0.35', p: a => { a.api.setCut(1); a.api.setLevel(0.35); } },
+  ],
+};

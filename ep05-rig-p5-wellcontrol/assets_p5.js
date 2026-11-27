@@ -1485,7 +1485,6 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
     B.add('stainless', place(cbox(W + 0.04, 0.03, D + 0.06, 0.008), [0, 1.0 + Hc + 0.015, 0.015])); // rain hood
     B.add('grey', place(cbox(0.14, 1.0, 0.14, 0.01), [0, 0.5, -0.02])); // pedestal
     B.add('grey', place(cbox(0.55, 0.02, 0.45, 0.004), [0, 0.01, 0]));
-    bolts.line && null;
     // purge / pressurisation unit + air supply + hose bundle entering from below
     B.add('stainless', place(cbox(0.12, 0.16, 0.1, 0.01), [W / 2 + 0.07, 1.0 + Hc * 0.75, -D * 0.2]));
     B.add('gun', place(cyl(0.028, 0.04, 12), [W / 2 + 0.07, 1.0 + Hc * 0.75 + 0.1, -D * 0.2]));
@@ -1549,7 +1548,6 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
     const guard = new THREE.Group(); const bsr = btn['blindShear.close'].group.position; guard.position.set(bsr.x, bsr.y + 0.04, 0.0); face.add(guard);
     const gm = makeStd(0xcc2222, 'paint', { transparent: true, opacity: 0.55, depthWrite: false }); gm.roughness = 0.2; gm.metalness = 0;
     const gbox = new THREE.Mesh(cbox(0.085, 0.08, 0.045, 0.006), gm); gbox.position.set(0, -0.04, 0.026); guard.add(gbox);
-    face.add(place(new THREE.Mesh(toX(cyl(0.006, 0.09, 8)), P.chrome), [0, 0, 0])); 
     const hinge = new THREE.Mesh(toX(cyl(0.006, 0.09, 8)), P.chrome); hinge.position.copy(guard.position); face.add(hinge);
     g.anchor('guard', [bsr.x, 1.0 + Hc / 2 + bsr.y, D / 2 + 0.06]);
     // master button
@@ -1598,7 +1596,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       lx.fillText(`SPM ${String(Math.round(spm)).padStart(3, ' ')}`, 24, 80); lx.fillText(`STK ${String(Math.round(stk)).padStart(5, '0')}`, 24, 168); lt.needsUpdate = true; };
     // choke control lever (3-position, spring return to HOLD)
     const lev = new THREE.Group(); lev.position.set(fx(764), fy(700), 0.01); face.add(lev);
-    face.add(place(new THREE.Mesh(toZ(cyl(0.03, 0.03, 20)), P.chrome), [fx(764), fy(700), 0.015]));
+    { const hub = new THREE.Mesh(toZ(cyl(0.03, 0.03, 20)), P.chrome); hub.position.set(fx(764), fy(700), 0.015); face.add(hub); }
     const LB = bin(); LB.add('chrome', cylBetween([0, 0, 0.02], [0, 0.11, 0.05], 0.007, 10)); LB.add('black', place(new THREE.SphereGeometry(0.022, 16, 10), [0, 0.115, 0.052])); LB.build(lev, P, 'lever');
     const pl = lamp(P, 0x22c55e, 0.01); pl.group.position.set(fx(900), fy(600), 0); face.add(pl.group);
     const rb = pushButton(P, 0xe5e7eb, 0.015); rb.group.position.set(fx(640), fy(600), 0); face.add(rb.group);
@@ -1614,13 +1612,352 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
     return g;
   }
 
+
+  // ================================================================== CHOKE MANIFOLD (10M, 3-1/16 bore, 2 adjustable chokes)
+  // chokeManifold()  skid top at y = 0 (skid stands on the ground at y = -0.25). Inlet from the choke line at -x.
+  //   inlet: 2 gate valves in series -> 5-way cross (gauge on top) -> 3 parallel paths along +x:
+  //   z = -1.04 manual adjustable choke A (trim cut-away), z = 0 straight-through bleed line, z = +1.04 hydraulic choke B;
+  //   each with an upstream and downstream gate valve -> buffer chamber (x 1.55) -> outlets: MGS (top), flare, pits.
+  // api: setValve(id, u)  ids: in1, in2, upA, upB, bleed, dnA, dnB, mgs, flare, pit   (u 1 = open; handwheel turns)
+  //      setChokeA(u) / setChokeB(u)  choke opening 0..1 (needle lifts out of the seat; A handwheel turns, B indicator)
+  //      setChokeCut(u)   half-section of choke A's body (trim, seat, needle)   setGauge(v01) / setBufferGauge(v01)
+  // anchors: inlet, cross, chokeA, chokeB, trimA, buffer, toMGS, toFlare, toPit, gauge, + one per valve id
+  //   paths: g.userData.paths.{ chokeA, chokeB, bleed } polylines (local) for the gas bubble
+  function chokeManifold(o = {}) {
+    const g = asset('chokeManifold'); const P = palette({ grey: 0x5d646d, ...(o.colors || {}) }), B = bin(), bolts = boltSet();
+    const F3 = FL['3-1/16x10M'], Y = 0.85, nh = F3.d * 0.98;
+    // ---- skid with grating deck + pipe stands
+    B.add('skid', place(cbox(4.6, 0.25, 2.9, 0.01), [0.1, -0.125, 0]));
+    const grate = (() => { const c = canvas(256, 256), x = c.getContext('2d'); x.fillStyle = '#2b2f35'; x.fillRect(0, 0, 256, 256); x.fillStyle = '#4b525b';
+      for (let i = 0; i < 256; i += 16) { x.fillRect(i, 0, 4, 256); } for (let j = 0; j < 256; j += 32) x.fillRect(0, j, 256, 3); const t = ctex(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(18, 11); return t; })();
+    const deck = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.8).rotateX(-PI / 2), labelMat(grate, { metal: 0.4, rough: 0.6 })); deck.position.set(0.1, 0.002, 0); deck.receiveShadow = true; g.add(deck);
+    const stand = (x, z, y = Y) => { B.add('skid', place(cbox(0.1, y - 0.07, 0.1, 0.006), [x, (y - 0.07) / 2, z])); B.add('skid', place(cbox(0.22, 0.03, 0.16, 0.004), [x, y - 0.075, z])); B.add('grey', place(new THREE.TorusGeometry(0.065, 0.008, 6, 16, PI), [x, y, z], [0, 0, PI])); };
+    // ---- generic flanged run helpers
+    const valves = {};
+    const addValve = (id, pos, axis, open = 1, kind = 'manual') => {
+      const v = gateValve({ kind, bolts, bodyKey: 'grey', wheelMat: P.wheel });
+      v.position.set(...pos); if (axis === 'z') v.rotation.y = -PI / 2; g.add(v); valves[id] = v; g.part('valve_' + id, v);
+      const hw = v.userData.ftf / 2;
+      for (const s of [1, -1]) { // flange pairs at both faces (studs with nuts both sides)
+        const fp = axis === 'x' ? [pos[0] + s * hw, pos[1], pos[2]] : [pos[0], pos[1], pos[2] + s * hw];
+        bolts.circle(frameAt(fp, axis === 'x' ? 'x' : 'z'), F3.BC, F3.n, F3.d, -F3.T - nh - 0.01, F3.T + nh + 0.01, [-F3.T - nh / 2, F3.T + nh / 2], 0.5, Math.round((pos[0] + pos[2]) * 37 + s));
+      }
+      v.api.setOpen(open); g.anchor(id, [pos[0], pos[1] + 0.5, pos[2] + 0.15]);
+      return v;
+    };
+    const spoolX = (x0, x1, z, y = Y) => { // flanged pipe spool along x (companion flanges at both ends)
+      B.add('grey', cylBetween([x0, y, z], [x1, y, z], 0.06, 20));
+      for (const [xx, s] of [[x0, 1], [x1, -1]]) B.add('grey', place(toX(lathe([[0.04, 0], [F3.R, 0], [F3.R, F3.T], [0.075, F3.T + 0.02], [0.06, F3.T + 0.06], [0.04, F3.T + 0.06]], SEG(24))), [xx, y, z], s > 0 ? [0, 0, 0] : [0, PI, 0]));
+    };
+    const block = (pos, faces) => { // forged cross / tee block with flanged faces (studded)
+      B.add('grey', place(cbox(0.34, 0.34, 0.34, 0.03), pos));
+      for (const f of faces) {
+        const n = { '+x': [1, 0, 0], '-x': [-1, 0, 0], '+z': [0, 0, 1], '-z': [0, 0, -1], '+y': [0, 1, 0] }[f];
+        const fp = [pos[0] + n[0] * 0.17, pos[1] + n[1] * 0.17, pos[2] + n[2] * 0.17];
+        const ax = { '+x': 'x', '-x': '-x', '+z': 'z', '-z': '-z', '+y': 'y' }[f];
+        bolts.circle(frameAt(fp, ax), F3.BC, F3.n, F3.d, -0.04, F3.T + nh + 0.012, [F3.T + nh / 2], 0.5, Math.round(fp[0] * 91 + fp[2] * 13));
+      }
+    };
+    // ---- inlet run
+    const xIn = -2.05;
+    spoolX(xIn - 0.3, xIn, 0);
+    g.anchor('inlet', [xIn - 0.3, Y, 0]);
+    addValve('in1', [xIn + 0.26, Y, 0], 'x'); addValve('in2', [xIn + 0.78, Y, 0], 'x');
+    const xc = xIn + 1.04 + F3.T + 0.17;
+    block([xc, Y, 0], ['-x', '+x', '+z', '-z', '+y']);
+    g.anchor('cross', [xc, Y, 0.3]);
+    // gauge on the cross (needle valve + gauge), pressure transmitter
+    B.add('grey', place(lathe([[0, 0], [F3.R, 0], [F3.R, F3.T], [0.04, F3.T + 0.02], [0.03, F3.T + 0.12], [0, F3.T + 0.12]], SEG(24)), [xc, Y + 0.17, 0]));
+    B.add('stainless', place(cbox(0.06, 0.06, 0.06, 0.006), [xc, Y + 0.17 + F3.T + 0.15, 0])); B.add('wheel', place(cyl(0.012, 0.06, 8), [xc + 0.05, Y + 0.17 + F3.T + 0.15, 0], [0, 0, PI / 2]));
+    const gz = gauge(P, 0.08, dialTex({ max: 10000, major: 1000, minor: 250, label: 'CHOKE MANIFOLD', sub: 'PSI' }), { stem: 0.06 });
+    gz.group.position.set(xc, Y + 0.17 + F3.T + 0.33, 0); gz.group.rotation.y = 0.0; g.add(gz.group); g.anchor('gauge', [xc, Y + 0.6, 0.12]);
+    B.add('stainless', place(cyl(0.022, 0.14, 12), [xc + 0.12, Y + 0.17 + F3.T + 0.1, 0.0])); // transmitter body
+    B.add('grey', cylBetween([xc + 0.04, Y + 0.17 + F3.T + 0.05, 0], [xc + 0.12, Y + 0.17 + F3.T + 0.05, 0], 0.012, 8));
+    // ---- branches
+    const ZB = 1.04, xb = xc;
+    for (const s of [1, -1]) {
+      addValve(s > 0 ? 'upB' : 'upA', [xb, Y, s * (0.17 + F3.T * 0 + 0.26)], 'z');
+      block([xb, Y, s * (0.17 + 0.52 + 0.17)], [s > 0 ? '-z' : '+z', '+x']);
+    }
+    const zBr = 0.86;
+    // chokes at x0 + ..
+    const xCh = xb + 0.17 + 0.32;
+    const chokes = {};
+    for (const [id, s] of [['A', -1], ['B', 1]]) {
+      const ch = adjustableChoke({ hydraulic: id === 'B', pal: P, bolts });
+      ch.position.set(xCh, Y, s * zBr); g.add(ch); chokes[id] = ch; g.part('choke' + id, ch);
+      bolts.circle(frameAt([xCh - 0.32, Y, s * zBr], 'x'), F3.BC, F3.n, F3.d, -F3.T - nh - 0.01, F3.T + nh + 0.01, [-F3.T - nh / 2, F3.T + nh / 2], 0.5, 300 + s);
+      spoolX(xCh + 0.32, xCh + 0.62, s * zBr);
+      addValve(s > 0 ? 'dnB' : 'dnA', [xCh + 0.62 + 0.26, Y, s * zBr], 'x');
+      spoolX(xCh + 1.14, 1.55 - 0.25, s * zBr);
+      g.anchor('choke' + id, [xCh, Y + 0.6, s * zBr + 0.2]);
+      stand(xCh + 1.2, s * zBr); stand(xb, s * zBr);
+    }
+    // straight-through bleed line
+    addValve('bleed', [xb + 0.17 + 0.26, Y, 0], 'x');
+    spoolX(xb + 0.17 + 0.52, 1.55 - 0.25, 0);
+    stand(xIn + 0.0, 0); stand(xb + 1.3, 0);
+    // ---- buffer chamber (heavy-wall vessel along z) with saddles, outlets
+    const BR = 0.25, BL = 2.5, xB = 1.55;
+    B.add('grey', toZ(lathe([[0, -BL / 2 - 0.12], [0.12, -BL / 2 - 0.11, 1], [0.2, -BL / 2 - 0.06, 1], [BR, -BL / 2], [BR, BL / 2], [0.2, BL / 2 + 0.06, 1], [0.12, BL / 2 + 0.11, 1], [0, BL / 2 + 0.12]], SEG(40))).translate(xB, Y, 0));
+    for (const z of [-0.8, 0.8]) { B.add('skid', place(cbox(0.4, Y - 0.2, 0.12, 0.01), [xB, (Y - 0.2) / 2, z])); }
+    for (const z of [-zBr, 0, zBr]) B.add('grey', place(toX(cyl(0.075, 0.1, 20)), [xB - BR - 0.02, Y, z]));
+    const outs = [['mgs', [xB, Y + BR, -0.5], 'y'], ['flare', [xB + BR, Y, 0.45], 'x'], ['pit', [xB + BR, Y, -0.45], 'x']];
+    for (const [id, p, ax] of outs) {
+      if (ax === 'y') { B.add('grey', place(cyl(0.075, 0.12, 20), [p[0], p[1] + 0.03, p[2]])); const v = gateValve({ kind: 'manual', bolts, bodyKey: 'grey' }); v.rotation.z = PI / 2; v.position.set(p[0], p[1] + 0.09 + 0.26, p[2]); g.add(v); valves[id] = v; v.api.setOpen(1);
+        B.add('grey', pipe([[p[0], p[1] + 0.61, p[2]], [p[0], p[1] + 0.95, p[2]], [p[0] - 0.5, p[1] + 0.95, p[2]]], 0.06, 0.2, 16)); g.anchor('toMGS', [p[0] - 0.5, p[1] + 0.95, p[2]]); }
+      else { B.add('grey', place(toX(cyl(0.075, 0.12, 20)), [p[0] + 0.03, p[1], p[2]])); const v = gateValve({ kind: 'manual', bolts, bodyKey: 'grey' }); v.position.set(p[0] + 0.09 + 0.26, p[1], p[2]); g.add(v); valves[id] = v; v.api.setOpen(id === 'flare' ? 0 : 0);
+        spoolX(p[0] + 0.61, p[0] + 1.0, p[2]); g.anchor(id === 'flare' ? 'toFlare' : 'toPit', [p[0] + 1.0, p[1], p[2]]); }
+    }
+    const gb = gauge(P, 0.07, dialTex({ max: 5000, major: 1000, minor: 250, label: 'BUFFER', sub: 'PSI' }), { stem: 0.05 });
+    gb.group.position.set(xB, Y + BR + 0.16, 0.55); g.add(gb.group); B.add('grey', place(cyl(0.03, 0.06, 12), [xB, Y + BR, 0.55]));
+    g.anchor('buffer', [xB, Y + 0.3, 1.3]);
+    // stencil on the buffer chamber
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(BR + 0.002, BR + 0.002, 1.2, 24, 1, true, -0.6, 1.2).rotateX(PI / 2), decalMat(stencilTex([['CHOKE MANIFOLD 10M', 90]], { w: 1024, h: 160 })));
+    st.position.set(xB, Y, 0.0); st.rotation.z = -PI / 2; g.add(st);
+    B.build(g, P, 'cm'); bolts.build(g, P);
+    // ---- api
+    g.api.setValve = (id, u) => { if (valves[id]) valves[id].api.setOpen(u); };
+    g.api.setChokeA = u => chokes.A.api.setOpen(u); g.api.setChokeB = u => chokes.B.api.setOpen(u);
+    g.api.setChokeCut = u => chokes.A.api.setCut(u);
+    g.api.refreshCut = () => chokes.A.api.refreshCut();
+    g.api.setGauge = v => gz.setValue(v); g.api.setBufferGauge = v => gb.setValue(v);
+    g.anchor('trimA', [xCh, Y + 0.05, -zBr + 0.15]);
+    const L = (...pts) => pts.map(p => V3(...p));
+    g.userData.paths = {
+      chokeA: L([xIn - 0.3, Y, 0], [xc, Y, 0], [xb, Y, -zBr], [xCh - 0.06, Y, -zBr], [xCh - 0.06, Y + 0.06, -zBr], [xCh, Y - 0.02, -zBr], [xCh + 0.08, Y - 0.06, -zBr], [xCh + 0.3, Y, -zBr], [xB - BR, Y, -zBr], [xB, Y + 0.1, -0.5], [xB, Y + BR + 0.95, -0.5], [xB - 0.5, Y + BR + 0.95, -0.5]),
+      chokeB: L([xIn - 0.3, Y, 0], [xc, Y, 0], [xb, Y, zBr], [xCh, Y, zBr], [xB - BR, Y, zBr], [xB, Y + 0.1, -0.5], [xB, Y + BR + 0.95, -0.5], [xB - 0.5, Y + BR + 0.95, -0.5]),
+      bleed: L([xIn - 0.3, Y, 0], [xc, Y, 0], [xB - BR, Y, 0], [xB + BR, Y, 0.45], [xB + 1.0, Y, 0.45]),
+    };
+    g.api.setChokeA(0.35); g.api.setChokeB(0.0);
+    g.traverse(mm => { if (mm.isMesh) mm.userData.sys = 'wc'; });
+    return g;
+  }
+  // adjustable choke: globe-pattern body (flow in -x, out +x through a carbide seat), needle on a vertical stem.
+  // manual: bonnet + handwheel + position scale; hydraulic: actuator + position transmitter.
+  // api.setOpen(u) (0 = needle in the seat .. 1 = full open), api.setCut(u) (body half-section)
+  function adjustableChoke(o = {}) {
+    const g = asset(o.hydraulic ? 'chokeHydraulic' : 'chokeManual'); const P = o.pal || palette(), B = bin(), bolts = o.bolts || boltSet();
+    const CP = tintCaps(palette({ grey: (P.grey && P.grey.color && P.grey.color.getHex()) || 0x5d646d }), 0xd9d3c6, 1);
+    const F3 = FL['3-1/16x10M'], CB = bin();
+    // body: side profile (x-y) with passages as voids, extruded along z; solid side plates close it
+    const sh = rrectShape(-0.2, -0.2, 0.2, 0.17, 0.03);
+    const pas = new THREE.Path(); // inlet channel -> upper chamber -> seat throat -> lower chamber -> outlet
+    pas.moveTo(-0.2 + 0.0001, -0.035); pas.lineTo(-0.2 + 0.0001, 0.035); pas.lineTo(-0.075, 0.035); pas.lineTo(-0.075, 0.12); pas.lineTo(0.075, 0.12); pas.lineTo(0.075, 0.0);
+    pas.lineTo(0.03, 0.0); pas.lineTo(0.03, -0.03); pas.lineTo(0.06, -0.06); pas.lineTo(0.2 - 0.0001, -0.06); pas.lineTo(0.2 - 0.0001, -0.0); pas.lineTo(0.2 - 0.0001, 0.035);
+    // (outlet at mid height): rebuild cleanly as a closed polygon
+    const hole = new THREE.Path();
+    hole.moveTo(-0.199, -0.034); hole.lineTo(-0.06, -0.034); hole.lineTo(-0.06, -0.0); hole.lineTo(-0.03, 0.0); hole.lineTo(-0.03, 0.13); hole.lineTo(0.06, 0.13); hole.lineTo(0.06, 0.034); hole.lineTo(0.199, 0.034); hole.lineTo(0.199, -0.034);
+    hole.lineTo(0.02, -0.034); hole.lineTo(0.02, -0.11); hole.lineTo(-0.1, -0.11); hole.lineTo(-0.1, -0.06); hole.lineTo(-0.199, -0.06); hole.closePath();
+    // simpler readable path: inlet low-left -> up into the chamber around the needle -> seat at the chamber floor -> outlet low-right
+    const h2 = new THREE.Path();
+    h2.moveTo(-0.199, -0.035); h2.lineTo(-0.045, -0.035); h2.lineTo(-0.045, 0.14); h2.lineTo(0.045, 0.14); h2.lineTo(0.045, -0.01); h2.lineTo(0.022, -0.035); h2.lineTo(0.022, -0.075);
+    h2.lineTo(0.199, -0.075); h2.lineTo(0.199, -0.145); h2.lineTo(-0.012, -0.145); h2.lineTo(-0.012, -0.035 - 0.001);
+    // keep it simple and valid: one closed polygon without self-touching
+    const H = new THREE.Path();
+    H.moveTo(-0.199, -0.03); H.lineTo(-0.05, -0.03); H.lineTo(-0.05, 0.135); H.lineTo(0.05, 0.135); H.lineTo(0.05, 0.03); H.lineTo(0.03, 0.03); H.lineTo(0.03, 0.03); H.lineTo(0.022, 0.0);
+    H.lineTo(0.022, -0.04); H.lineTo(0.199, -0.04); H.lineTo(0.199, -0.1); H.lineTo(-0.022, -0.1); H.lineTo(-0.022, -0.06); H.lineTo(-0.03, -0.06); H.lineTo(-0.03, -0.03); H.closePath();
+    sh.holes.push(H);
+    CB.add('grey', extZ(sh, -0.05, 0.05, 0, 8));
+    CB.add('grey', extZ(rrectShape(-0.2, -0.2, 0.2, 0.17, 0.03), 0.05, 0.13, 0.012, 8));
+    CB.add('grey', extZ(rrectShape(-0.2, -0.2, 0.2, 0.17, 0.03), -0.13, -0.05, 0.012, 8));
+    for (const s of [1, -1]) { // end flanges (inlet low, outlet low)
+      const yy = s < 0 ? 0 : -0.07;
+      const gg = toX(lathe([[0.03, 0], [F3.R, 0], [F3.R, F3.T], [0.08, F3.T + 0.02], [0.075, 0.12], [0.03, 0.12], [0.03, 0]], SEG(28)));
+      if (s > 0) gg.rotateY(PI); gg.translate(s * 0.32, yy * 0 + 0, 0); CB.add('grey', gg);
+    }
+    CB.build(g, CP, 'chokeBody');
+    // seat ring (tungsten carbide) at the chamber floor + needle (stem + carbide tip)
+    const IB = bin();
+    IB.add('carbide', lathe([[0.012, -0.03], [0.03, -0.03], [0.03, 0.005], [0.016, 0.005], [0.012, -0.002], [0.012, -0.03]], SEG(28)).translate(0, 0, 0));
+    IB.build(g, CP, 'seat');
+    const needle = new THREE.Group(); g.add(g.part('needle', needle));
+    const NB = bin();
+    NB.add('carbide', lathe([[0, -0.012], [0.006, -0.01], [0.022, 0.03], [0.024, 0.05], [0, 0.05]], SEG(28)));
+    NB.add('machined', lathe([[0, 0.05], [0.016, 0.05], [0.016, 0.30], [0, 0.30]], SEG(16)));
+    NB.build(needle, CP, 'needle');
+    // bonnet (outside, not cut) + operator
+    B.add('grey', place(lathe([[0.017, 0], [0.1, 0], [0.1, 0.06], [0.07, 0.08], [0.06, 0.2], [0.03, 0.22], [0.017, 0.22]], SEG(28)), [0, 0.17, 0]));
+    bolts.circle(frameAt([0, 0.17, 0]), 0.085, 6, 0.75 * IN, -0.03, 0.08, [0.064], 0.5, 401);
+    let setOp;
+    if (!o.hydraulic) {
+      const wheel = new THREE.Mesh(handwheelGeo(0.18, 5, 0.014).rotateX(-PI / 2), P.wheel); wheel.position.y = 0.46; wheel.castShadow = true; g.add(g.part('handwheel', wheel));
+      B.add('machined', place(cyl(0.018, 0.1, 12), [0, 0.41, 0]));
+      // position indicator scale (1/64 in bean sizes) beside the stem
+      const sc = canvas(128, 512), sx = sc.getContext('2d'); sx.fillStyle = '#e9e6dd'; sx.fillRect(0, 0, 128, 512); sx.fillStyle = '#111'; sx.font = `600 30px ${FONT}`;
+      for (let i = 0; i <= 8; i++) { const yy = 490 - i * 58; sx.fillRect(0, yy, i % 2 ? 40 : 70, 5); if (!(i % 2)) sx.fillText(String(i * 8), 76, yy + 12); }
+      const scale = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 0.14), labelMat(ctex(sc))); scale.position.set(0.035, 0.32, 0.035); g.add(scale);
+      const ptr = new THREE.Mesh(cbox(0.02, 0.006, 0.01, 0.001), P.wheel); g.add(ptr);
+      setOp = u => { wheel.rotation.y = -u * 6 * TAU; ptr.position.set(0.03, 0.26 + u * 0.12, 0.04); };
+    } else {
+      B.add('blueGrey', place(lathe([[0, 0], [0.13, 0], [0.13, 0.02], [0.12, 0.03], [0.12, 0.33], [0.13, 0.34], [0.13, 0.36], [0, 0.36]], SEG(36)), [0, 0.39, 0]));
+      bolts.circle(null, 0.115, 8, 0.5 * IN, 0.70, 0.765, [0.757], 0.5, 403);
+      B.add('stainless', place(cbox(0.08, 0.1, 0.06, 0.008), [0.17, 0.6, 0])); // position transmitter
+      B.add('hose', pipe([[0.1, 0.45, -0.08], [0.2, 0.45, -0.16], [0.25, 0.1, -0.35], [0.3, -0.85, -0.5]], 0.012, 0.06, 8));
+      B.add('hose', pipe([[0.1, 0.68, -0.08], [0.22, 0.68, -0.18], [0.29, 0.1, -0.38], [0.34, -0.85, -0.52]], 0.012, 0.06, 8));
+      const ind = new THREE.Mesh(cyl(0.015, 0.12, 10), P.yellow); g.add(g.part('indicator', ind));
+      setOp = u => { ind.position.y = 0.75 + 0.04 + u * 0.06; };
+    }
+    B.build(g, P, 'chokeTop'); if (!o.bolts) bolts.build(g, P);
+    g.api.setOpen = u => { u = clamp(u); needle.position.y = -0.012 + 0.0 + u * 0.075; setOp(u); };
+    const cmats = [...collectMats(g).filter(m => Object.values(CP).includes(m))];
+    const cut = cutter(g, cmats, { extent: 0.14 });
+    g.api.setCut = u => cut.set(u); g.api.refreshCut = () => cut.refresh();
+    g.api.setOpen(0.3);
+    g.anchor('seat', [0, 0, 0.0]);
+    return g;
+  }
+
+  // ================================================================== MUD GAS SEPARATOR (poor-boy, closed-bottom U-tube mud leg)
+  // mudGasSeparator({ ventHeight = 9 })  y = 0 ground. Vessel 48" x 16 ft (r 0.61, shell y 0.9..5.8), 4" inlet at y 4.4
+  // from +x onto a target (wear) plate, 5 staggered baffles, 10" vent line from the top head, 10" liquid outlet down into
+  // the U-tube mud leg (seal height ~3 m = 10 ft), siphon breaker, outlet to the shaker header (+z).
+  // api: setCut(u)  half-section of vessel + mud leg;  setLevel(u)  vessel mud level 0 (low, 1.3) .. 1 (2.9, normal)
+  //      setLegLevel(u)  mud-leg column on the vessel side (1 = full seal; < 1 shows gas pushing the column down)
+  // anchors: inlet, target, gasTop, ventBase, ventTop, ventEnd, legBottom, legTop, mudOut, level, stencil, gauge
+  // paths (g.userData.paths): gas [inlet .. vent end], mud [inlet .. baffles .. leg .. out] (local Vector3 polylines)
+  function mudGasSeparator(o = {}) {
+    const g = asset('mudGasSeparator'); const P = palette({ paint: 0xd0731c, ...(o.colors || {}) }), B = bin(), bolts = boltSet();
+    const R = 0.61, Y0 = 0.9, Y1 = 5.8, t = 0.012, ventH = o.ventHeight ?? 9;
+    const head = (y, dir) => { const pts = []; for (let i = 0; i <= 10; i++) { const a = i / 10 * PI / 2; pts.push([R * Math.cos(a), y + dir * 0.32 * Math.sin(a), 1]); } return pts; };
+    // shell + 2:1 heads as one closed solid with wall thickness
+    const outer = [[0.13, Y0 - 0.32], ...head(Y0, -1).reverse().slice(0, -1), [R, Y0], [R, Y1, 1], ...head(Y1, 1).slice(1), [0.14, Y1 + 0.32]];
+    const inner = outer.map(([r, y]) => [Math.max(0.12, r - t), y + (y < Y0 ? t : y > Y1 ? -t : 0)]);
+    B.add('paint', lathe([...outer, ...inner.slice().reverse(), outer[0]], SEG(56)));
+    // legs (4 pipe legs) + base plates, nozzle reinforcement pads
+    for (let i = 0; i < 4; i++) { const a = PI / 4 + i * PI / 2, x = Math.cos(a) * (R - 0.02), z = Math.sin(a) * (R - 0.02);
+      B.add('paint', cylBetween([x * 1.18, 0.02, z * 1.18], [x, Y0 + 0.3, z], 0.07, 14)); B.add('skid', place(cbox(0.3, 0.02, 0.3, 0.004), [x * 1.18, 0.01, z * 1.18])); }
+    // inlet nozzle (4") at +x, flanged, with incoming line
+    const yIn = 4.4;
+    B.add('paint', place(toX(cyl(0.06, 0.4, 18)), [R + 0.1, yIn, 0])); B.add('grey', place(toX(lathe([[0.05, 0], [0.135, 0], [0.135, 0.05], [0.07, 0.07], [0.05, 0.07]], SEG(24))), [R + 0.3, yIn, 0], [0, PI, 0]));
+    B.add('grey', pipe([[R + 0.3, yIn, 0], [R + 1.0, yIn, 0], [R + 1.0, 1.2, 0], [R + 2.4, 1.2, 0]], 0.057, 0.25, 16));
+    g.anchor('inlet', [R + 1.0, yIn, 0]);
+    // vent (10") from the top head, straight up, elbow at the top
+    const vr = 0.137, yv = Y1 + 0.32;
+    B.add('paint', place(cyl(vr + 0.012, 0.2, 24), [0, yv + 0.05, 0]));
+    B.add('grey', pipe([[0, yv + 0.15, 0], [0, yv + ventH, 0], [0.9, yv + ventH, 0]], vr, 0.4, 24));
+    for (let k = 1; k <= Math.floor(ventH / 3); k++) B.add('grey', place(lathe([[vr, -0.03], [vr + 0.11, -0.03], [vr + 0.11, 0.03], [vr, 0.03]], SEG(24)), [0, yv + k * 3, 0])); // flanged joints
+    // guy collar + 3 guy wires to ground anchors
+    B.add('skid', place(cyl(vr + 0.04, 0.08, 24), [0, yv + ventH * 0.7, 0]));
+    for (let i = 0; i < 3; i++) { const a = i / 3 * TAU + 0.4; B.add('stud', cylBetween([0, yv + ventH * 0.7, 0], [Math.cos(a) * 5.5, 0.05, Math.sin(a) * 5.5], 0.006, 4)); }
+    g.anchor('ventBase', [0, yv + 0.2, 0]); g.anchor('ventTop', [0, yv + ventH, 0]); g.anchor('ventEnd', [0.9, yv + ventH, 0]);
+    // liquid outlet (10") from the bottom head -> U-tube mud leg -> outlet to the shakers
+    const lr = 0.137, legTop = 3.0;
+    const leg = [[0, Y0 - 0.32, 0], [0, 0.32, 0], [0, 0.32, 1.25], [0, legTop, 1.25], [0, legTop, 2.3], [0, 1.6, 3.2]];
+    B.add('grey', pipe(leg, lr, 0.35, 22));
+    B.add('grey', pipe([[0, legTop + 0.15, 1.25], [0, Y1 + 0.1, 1.25], [0, Y1 + 0.1, R + 0.05]], 0.03, 0.12, 10)); // siphon breaker / equaliser
+    B.add('skid', place(cbox(0.3, 0.3, 0.3, 0.01), [0, 0.15, 1.25])); // leg support
+    B.add('grey', place(cyl(0.025, 0.08, 10), [0, 0.32 - lr - 0.04, 0.6])); // drain
+    B.add('wheel', place(cyl(0.05, 0.01, 14), [0, 0.32 - lr - 0.09, 0.6]));
+    g.anchor('legBottom', [0, 0.32, 0.6]); g.anchor('legTop', [0, legTop, 1.25]); g.anchor('mudOut', [0, 1.6, 3.2]);
+    // ladder (rails + rungs) on -x side, top platform ring
+    for (const z of [-0.22, 0.22]) B.add('yellow', cylBetween([-R - 0.18, 0.05, z], [-R - 0.18, Y1 + 0.3, z], 0.018, 8));
+    for (let y = 0.35; y < Y1 + 0.2; y += 0.3) B.add('yellow', cylBetween([-R - 0.18, y, -0.22], [-R - 0.18, y, 0.22], 0.011, 6));
+    for (let y = 1.0; y < Y1 + 0.2; y += 1.6) for (const z of [-0.2, 0.2]) B.add('skid', cylBetween([-R - 0.18, y, z], [-R, y, z * 0.7], 0.012, 6));
+    // pressure gauge on top
+    B.add('paint', place(cyl(0.03, 0.12, 12), [0.32, Y1 + 0.22, 0.0]));
+    const gz = gauge(P, 0.07, dialTex({ max: 30, major: 5, minor: 1, label: 'MGS', sub: 'PSI' }), { stem: 0.04 }); gz.group.position.set(0.32, Y1 + 0.42, 0.02); g.add(gz.group);
+    g.anchor('gauge', [0.32, Y1 + 0.45, 0.12]);
+    // stencil (orange band label as in EP04)
+    const lab = (() => { const c = canvas(1024, 512), x = c.getContext('2d'); x.clearRect(0, 0, 1024, 512); x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillStyle = '#1f2937'; fit(x, 'MUD GAS SEPARATOR', 700, 96, 940); x.fillText('MUD GAS SEPARATOR', 512, 110); x.fillRect(80, 186, 864, 8);
+      x.fillStyle = '#fff7e6'; fit(x, 'namman.story', 700, 160, 900); x.fillText('namman.story', 512, 315);
+      x.fillStyle = '#1f2937'; fit(x, 'MAX 150 PSI · VENT TO FLARE', 600, 48, 860); x.fillText('MAX 150 PSI · VENT TO FLARE', 512, 448); return ctex(c); })();
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.003, R + 0.003, 1.4, 32, 1, true, -0.9, 1.8), decalMat(lab)); st.position.y = 3.2; g.add(st);
+    g.anchor('stencil', [0, 3.2, R + 0.05]);
+    // ---- internals (clipped too, shown as sections): target plate, 5 staggered baffles
+    const IB = bin();
+    IB.add('greyLt', place(cbox(0.03, 0.5, 0.6, 0.006), [-R + 0.08, yIn, 0]));
+    IB.add('greyLt', place(cbox(0.12, 0.03, 0.5, 0.004), [-R + 0.14, yIn - 0.26, 0]));
+    const baff = [];
+    for (let k = 0; k < 5; k++) {
+      const yb = 3.9 - k * 0.42, s = k % 2 ? 1 : -1;
+      const shp = new THREE.Shape(); const cx = s * 0.12; // half-disc (chord at x = cx), slightly tilted
+      shp.absarc(0, 0, R - t - 0.002, s > 0 ? PI / 2 + Math.acos(0.12 / R) - PI / 2 : -Math.acos(-0.12 / R), 0, false);
+      const sd = new THREE.Shape(); const a0 = Math.acos(clamp(-cx * s / (R - 0.014), -1, 1));
+      sd.moveTo(cx, -Math.sqrt((R - 0.014) ** 2 - cx * cx)); sd.absarc(0, 0, R - 0.014, -Math.acos(cx / (R - 0.014)), Math.acos(cx / (R - 0.014)), s < 0 ? true : false); sd.closePath();
+      const gg = slab(sd, yb - 0.01, yb + 0.01, 0, 24); if (s < 0) gg.rotateY(0);
+      gg.translate(0, -yb, 0); gg.rotateZ(-s * 0.18); gg.translate(0, yb, 0);
+      IB.add('greyLt', gg); baff.push([s * 0.3, yb]);
+    }
+    IB.build(g, P, 'mgsInternals');
+    // mud: vessel pool + mud in the leg (seal column)
+    const mudM = mat(0xc8925a, { kind: 'wet', metal: 0.0, rough: 0.35, blotch: 0.1, streak: 0.0, scale: 1.5, cap: 0xb88452 });
+    const pool = new THREE.Mesh(lathe([[0, Y0 - 0.32 + t], ...inner.filter(p => p[1] <= Y0 + 0.01).reverse().map(p => [p[0] - 0.002, p[1], 1]), [R - t - 0.002, Y0 + 0.01], [R - t - 0.002, Y0 + 1], [0, Y0 + 1]], SEG(48)), mudM); g.add(g.part('pool', pool));
+    const legMud = new THREE.Mesh(pipe(leg.slice(0, 4), lr - 0.012, 0.35, 18, true), mudM); g.add(g.part('legMud', legMud));
+    B.build(g, P, 'mgs'); bolts.build(g, P);
+    const cutMats = collectMats(g, []);
+    const cut = cutter(g, cutMats, { extent: R + 0.4 });
+    g.api.setCut = u => cut.set(u); g.api.refreshCut = () => cut.refresh();
+    const levelA = g.anchor('level', [0, 2.9, 0.0]);
+    const poolBaseH = 1; // pool geometry top at Y0 + 1 (scaled about Y0)
+    g.api.setLevel = u => { const yl = lerp(1.3, 2.9, clamp(u)); const sy = (yl - Y0) / poolBaseH; pool.scale.y = 1; pool.geometry.computeBoundingBox();
+      // scale only the cylindrical part: shift by moving the mesh and scaling around Y0
+      pool.position.y = Y0 * (1 - sy); pool.scale.y = sy; levelA.position.y = yl; };
+    g.api.setLegLevel = u => { legMud.visible = u > 0.01; };
+    g.api.setGauge = v => gz.setValue(v);
+    g.api.setLevel(1);
+    const L = (...pts) => pts.map(p => V3(...p));
+    g.userData.paths = {
+      gas: L([R + 1.0, yIn, 0], [R + 0.1, yIn, 0], [-R + 0.15, yIn, 0], [-0.1, yIn + 0.4, 0], [0, Y1 + 0.2, 0], [0, yv + ventH, 0], [0.9, yv + ventH, 0]),
+      mud: L([R + 1.0, yIn, 0], [-R + 0.15, yIn, 0], [-R + 0.2, yIn - 0.3, 0], ...baff.map(([x, y]) => [x, y + 0.05, 0]), [0, 2.9, 0], [0, Y0 - 0.3, 0], [0, 0.32, 0], [0, 0.32, 1.25], [0, legTop, 1.25], [0, legTop, 2.3], [0, 1.6, 3.2]),
+    };
+    g.anchor('target', [-R + 0.12, yIn, 0.2]); g.anchor('gasTop', [0, Y1 + 0.1, 0]);
+    g.traverse(mm => { if (mm.isMesh) mm.userData.sys = 'wc'; });
+    return g;
+  }
+
+  // ================================================================== TRIP TANK (tall narrow, sight glass + scale, pump)
+  // tripTank()  y = 0 ground. Tank r 0.55 x 3.2 m on a skirt, sight glass + level board (+z), fill line to the bell
+  // nipple (top), suction to a small centrifugal pump. api: setLevel(u) (0 empty .. 1 full), setCut(u)
+  // anchors: level, board, pump, fillLine, top
+  function tripTank(o = {}) {
+    const g = asset('tripTank'); const P = palette({ paint: 0xb9b2a4, ...(o.colors || {}) }), B = bin();
+    const R = 0.55, Y0 = 0.35, Y1 = 3.55, t = 0.008;
+    const outer = [[0.0, Y0], [R - 0.02, Y0], [R, Y0 + 0.02], [R, Y1 - 0.02], [R - 0.02, Y1], [0.0, Y1]];
+    B.add('paint', lathe([[0.0, Y0], [R - 0.02, Y0], [R, Y0 + 0.02], [R, Y1 - 0.02], [R - 0.02, Y1], [0.05, Y1], [0.05, Y1 - t], [R - t, Y1 - t], [R - t, Y0 + t], [0, Y0 + t]], SEG(56)));
+    B.add('paint', lathe([[R - 0.05, 0], [R + 0.02, 0], [R + 0.02, 0.03], [R - 0.0, 0.03], [R - 0.0, Y0], [R - 0.05, Y0], [R - 0.05, 0]], SEG(56))); // skirt
+    for (const y of [1.2, 2.4]) B.add('paint', lathe([[R, y - 0.025], [R + 0.012, y - 0.02], [R + 0.012, y + 0.02], [R, y + 0.025]], SEG(56))); // stiffener rings
+    // sight glass (+z) with guards and the level board
+    B.add('stainless', place(cbox(0.06, Y1 - Y0 - 0.2, 0.04, 0.006), [0.18, (Y0 + Y1) / 2, R + 0.06]));
+    for (const y of [Y0 + 0.12, Y1 - 0.12]) B.add('grey', cylBetween([0.18, y, R - 0.01], [0.18, y, R + 0.07], 0.018, 10));
+    const glass = new THREE.Mesh(cyl(0.02, Y1 - Y0 - 0.3, 12), new THREE.MeshStandardMaterial({ color: 0xdfe8ee, transparent: true, opacity: 0.25, roughness: 0.05, metalness: 0, depthWrite: false })); glass.position.set(0.18, (Y0 + Y1) / 2, R + 0.09); g.add(glass);
+    const mudM = mat(0xc8925a, { kind: 'wet', metal: 0, rough: 0.35, blotch: 0.08, streak: 0, cap: 0xb88452 });
+    const col = new THREE.Mesh(cyl(0.016, 1, 12), mudM); g.add(g.part('sightMud', col));
+    const bc = canvas(256, 1536), bx = bc.getContext('2d'); bx.fillStyle = '#f2efe6'; bx.fillRect(0, 0, 256, 1536); bx.fillStyle = '#16181b'; bx.font = `600 44px ${FONT}`;
+    for (let i = 0; i <= 40; i++) { const y = 1500 - i * 36; bx.fillRect(0, y, i % 5 ? 50 : 110, i % 5 ? 4 : 8); if (!(i % 5)) bx.fillText(String(i), 128, y + 16); }
+    bx.font = `700 40px ${FONT}`; bx.fillText('BBL', 120, 40);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.16, Y1 - Y0 - 0.25), labelMat(ctex(bc))); board.position.set(0.32, (Y0 + Y1) / 2, R + 0.03); board.rotation.y = 0.15; g.add(board);
+    // fill line up to the bell nipple, suction + pump
+    B.add('grey', pipe([[-0.25, Y1, 0.1], [-0.25, Y1 + 0.5, 0.1], [-1.4, Y1 + 0.5, 0.1]], 0.05, 0.15, 14)); g.anchor('fillLine', [-1.4, Y1 + 0.5, 0.1]);
+    B.add('grey', pipe([[-R + 0.02, Y0 + 0.15, 0], [-R - 0.4, Y0 + 0.15, 0], [-R - 0.4, 0.4, 0]], 0.05, 0.12, 14));
+    const PB = new THREE.Group(); PB.position.set(-R - 0.75, 0, 0); g.add(g.part('pump', PB));
+    const pb = bin(); pb.add('skid', place(cbox(0.9, 0.08, 0.45, 0.006), [0, 0.04, 0]));
+    pb.add('grey', toZ(lathe([[0, -0.08], [0.16, -0.08], [0.18, -0.05], [0.18, 0.05], [0.16, 0.08], [0, 0.08]], SEG(28))).translate(0.32, 0.34, 0));
+    pb.add('green', toX(lathe([[0, -0.2], [0.12, -0.2], [0.13, -0.18], [0.13, 0.18], [0.1, 0.2], [0, 0.22]], SEG(28))).translate(-0.12, 0.25, 0));
+    pb.add('yellow', place(cbox(0.12, 0.2, 0.2, 0.008), [0.16, 0.25, 0])); pb.build(PB, P, 'ttPump');
+    g.anchor('pump', [-R - 0.75, 0.5, 0.3]);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.003, R + 0.003, 1.6, 24, 1, true, -0.55, 0.7), decalMat(stencilTex([['TRIP TANK', 120], ['40 BBL', 80]], { w: 512, h: 512, color: '#1f2937' })));
+    st.position.y = 2.2; st.rotation.y = -0.5; g.add(st);
+    // tank mud column (for the cut)
+    const tm = new THREE.Mesh(cyl(R - t - 0.002, 1, 48), mudM); g.add(g.part('mud', tm));
+    B.build(g, P, 'trip');
+    const cut = cutter(g, collectMats(g, [glass.material]), { extent: R + 0.3 });
+    g.api.setCut = u => cut.set(u); g.api.refreshCut = () => cut.refresh();
+    const levA = g.anchor('level', [0, 2, R + 0.1]); g.anchor('board', [0.32, 2, R + 0.12]); g.anchor('top', [0, Y1, 0]);
+    g.api.setLevel = u => { const h = lerp(0.05, Y1 - Y0 - 0.25, clamp(u)); tm.scale.y = h; tm.position.y = Y0 + t + h / 2; col.scale.y = Math.max(0.01, h - 0.1); col.position.set(0.18, Y0 + 0.15 + (h - 0.1) / 2, R + 0.09); levA.position.y = Y0 + h; };
+    g.api.setLevel(0.6);
+    g.traverse(mm => { if (mm.isMesh) mm.userData.sys = 'wc'; });
+    return g;
+  }
+
   // @@MORE_BUILDERS@@
 
   // ================================================================== exports
   return {
     // BOP stack and its components
     bopStack, annularPreventer, ramPreventer, drillingSpool, casingHead, bellNipple, gateValve,
-    accumulatorUnit, drillerPanel, chokePanel,
+    accumulatorUnit, drillerPanel, chokePanel, chokeManifold, adjustableChoke, mudGasSeparator, tripTank,
     // helpers for the lead
     triCount, palette, easing: { easeIO, easeOut, easeIn, overshoot, ramTravel, sstep }, noiseTexture: NOISE,
     enableClipping: renderer => { renderer.localClippingEnabled = true; },
