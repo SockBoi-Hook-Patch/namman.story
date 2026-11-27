@@ -80,7 +80,7 @@ export function createAssetsP5({ THREE, mergeGeometries, stdMat = null, quality 
   const W_VERT_DECL = 'varying vec3 wOP; varying vec3 wON;';
   const W_FRAG_DECL_ = `
 uniform sampler2D wTex; uniform vec4 wP; uniform vec2 wQ; uniform vec3 capCol; uniform float capOn;
-uniform mat4 projectionMatrix;
+uniform float capH;
 varying vec3 wOP; varying vec3 wON;
 vec3 wTri(vec3 p, vec3 n, out float side) {
   vec3 b = pow(abs(n), vec3(4.0)); b /= (b.x + b.y + b.z + 1e-4); side = 1.0 - b.y;
@@ -92,7 +92,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       wTex: { value: NOISE },
       wP: { value: new THREE.Vector4(o.blotch ?? 0.16, o.streak ?? 0.12, o.chip ?? 0.0, o.rough ?? 0.18) },
       wQ: { value: new THREE.Vector2(o.scale ?? 0.9, o.chipT ?? 0.88) },
-      capCol: { value: new THREE.Color(o.cap ?? 0xd6d0c2) }, capOn: { value: 0 },
+      capCol: { value: new THREE.Color(o.cap ?? 0xd6d0c2) }, capOn: { value: 0 }, capH: { value: o.capH ?? 1 },
     };
     // cap colour is written after tone mapping / sRGB encoding: give it as raw sRGB components
     const cc = new THREE.Color(o.cap ?? 0xd6d0c2); U.capCol.value.setRGB(...cc.clone().convertLinearToSRGB().toArray());
@@ -115,15 +115,10 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>
   #if NUM_CLIPPING_PLANES > 0
   if (capOn > 0.5 && !gl_FrontFacing) {
-    // cap: flat section colour, depth moved onto the cut plane so parts embedded in the solid stay hidden
-    float hh = step(0.82, fract((gl_FragCoord.x + gl_FragCoord.y) / 11.0));
+    // cap: flat section colour with a faint hatch (back faces of closed solids seen through the cut)
+    float hh = step(0.82, fract((gl_FragCoord.x + gl_FragCoord.y * capH) / 11.0));
     gl_FragColor = vec4(capCol * (1.0 - 0.07 * hh), 1.0);
-    vec4 cpl = clippingPlanes[0];
-    float cdn = dot(vClipPosition, cpl.xyz);
-    vec3 cq = -vClipPosition * (cpl.w / (abs(cdn) > 1e-6 ? cdn : 1e-6));
-    vec4 ccp = projectionMatrix * vec4(cq, 1.0);
-    gl_FragDepth = clamp(ccp.z / ccp.w * 0.5 + 0.5, 0.0, 1.0);
-  } else { gl_FragDepth = gl_FragCoord.z; }
+  }
   #endif`);
     };
     m.customProgramCacheKey = () => 'lkEnv1+p5w';
@@ -135,11 +130,11 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   }
   // mat(color, { metal, rough, kind, cap, blotch, streak, chip, rough, scale, side, ... })
   function mat(color, o = {}) {
-    const { metal = 0.1, rough = 0.55, kind = 'paint', cap, blotch, streak, chip, rv, scale, chipT, noW, ...rest } = o;
+    const { metal = 0.1, rough = 0.55, kind = 'paint', cap, capH, blotch, streak, chip, rv, scale, chipT, noW, ...rest } = o;
     const m = makeStd(color, kind, rest);
     m.metalness = metal; m.roughness = rough;
     m.userData.pbr = { metalness: metal, roughness: rough };
-    if (!noW) enhance(m, { cap, blotch, streak, chip, rough: rv, scale, chipT });
+    if (!noW) enhance(m, { cap, capH, blotch, streak, chip, rough: rv, scale, chipT });
     return m;
   }
   // one palette per asset instance (so clip planes / highlight tints stay per asset)
@@ -161,7 +156,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       chrome: mat(c.chrome, { kind: 'steel', metal: 1.0, rough: 0.12, blotch: 0.03, streak: 0.0, rv: 0.04, scale: 3, cap: 0xe4e2dc }),
       stud: mat(c.stud, { kind: 'steel', metal: 0.6, rough: 0.5, blotch: 0.1, streak: 0.05, scale: 4, cap: 0xcfcac0 }),
       nut: mat(c.nut, { kind: 'steel', metal: 0.75, rough: 0.42, blotch: 0.12, streak: 0.05, scale: 4, flatShading: true, cap: 0xcfcac0 }),
-      rubber: mat(c.rubber, { kind: 'rubber', metal: 0.0, rough: 0.82, blotch: 0.12, streak: 0.0, rv: 0.08, scale: 2, cap: 0x3c3c47 }),
+      rubber: mat(c.rubber, { kind: 'rubber', metal: 0.0, rough: 0.82, blotch: 0.12, streak: 0.0, rv: 0.08, scale: 2, cap: 0x4a4a55, capH: -1 }),
       hose: mat(c.hose, { kind: 'rubber', metal: 0.0, rough: 0.7, blotch: 0.1, streak: 0.06, scale: 3, cap: 0x303036 }),
       brass: mat(c.brass, { kind: 'steel', metal: 1.0, rough: 0.32, blotch: 0.1, streak: 0.0, scale: 4, cap: 0xe6d3a0 }),
       yellow: mat(c.yellow, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.14, chip: 0.55, cap: 0xd9d3c6 }),
@@ -175,6 +170,11 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       green: mat(c.green, { metal: 0.12, rough: 0.5, blotch: 0.12, streak: 0.12, chip: 0.4, cap: 0xd9d3c6 }),
       blueGrey: mat(c.blueGrey, { metal: 0.15, rough: 0.5, blotch: 0.12, streak: 0.15, chip: 0.4, cap: 0xd9d3c6 }),
     };
+  }
+  function tintCaps(pal, color, h = 1) {
+    const c = new THREE.Color(color).convertLinearToSRGB();
+    for (const m of Object.values(pal)) { const U = m.userData.wU; if (!U || m.userData.kind === 'rubber') continue; U.capCol.value.setRGB(c.r, c.g, c.b); U.capH.value = h; }
+    return pal;
   }
   // flat (unlit-ish) helpers
   const basic = (color, o = {}) => new THREE.MeshBasicMaterial({ color, ...o });
@@ -197,7 +197,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       if (want === has) continue;
       m.clippingPlanes = on ? [m.userData.clipPlane] : null;
       const cap = on && !m.userData.noCap && m.userData.wU;
-      m.side = cap ? THREE.DoubleSide : THREE.FrontSide;
+      m.side = cap ? THREE.DoubleSide : THREE.FrontSide; m.shadowSide = cap ? THREE.BackSide : null;
       if (m.userData.wU) m.userData.wU.capOn.value = cap ? 1 : 0;
       m.needsUpdate = true;
     }
@@ -451,7 +451,16 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
           const im = new THREE.InstancedMesh(geo, mt, list.length); list.forEach((mm, i) => im.setMatrixAt(i, mm));
           im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.name = name; im.computeBoundingSphere(); parent.add(im); return im;
         };
-        return { studs: mk(STUD_G, studs, mats.stud, 'studs'), nuts: mk(NUT_G, nuts, mats.nut, 'nuts'), caps: mk(CAPSCREW_G, caps, mats.stud, 'capscrews') };
+        const res = { studs: mk(STUD_G, studs, mats.stud, 'studs'), nuts: mk(NUT_G, nuts, mats.nut, 'nuts'), caps: mk(CAPSCREW_G, caps, mats.stud, 'capscrews') };
+        // in a half-section, studs lying wholly behind the cut plane (z < 0) sit inside flange material: hide them
+        const zero = new THREE.Matrix4().makeScale(0, 0, 0), pz = V3();
+        res.hideBehind = on => {
+          if (!res.studs) return;
+          studs.forEach((mm, i) => { pz.setFromMatrixPosition(mm); res.studs.setMatrixAt(i, on && pz.z < -0.03 ? zero : mm); });
+          res.studs.instanceMatrix.needsUpdate = true;
+        };
+        (parent.userData.boltSets = parent.userData.boltSets || []).push(res);
+        return res;
       },
     };
   }
@@ -536,6 +545,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       u0 = u;
       for (const m of mats) m.userData.clipPlane = plane; // last cutter assigned wins (a stack overrides its parts)
       setClipActive(mats, u > 0);
+      g.traverse(o => { if (o.userData.boltSets) for (const b of o.userData.boltSets) b.hideBehind(u > 0); if (o.userData.onCut) o.userData.onCut(u > 0); });
       if (u <= 0) return;
       local.set(axis, lerp(extent, offset, easeIO(u))); // plane: axis . p + c >= 0 is kept
       g.updateWorldMatrix(true, false);
@@ -560,7 +570,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
     const flush = () => { if (run.length >= 2) (out[key] = out[key] || []).push(new THREE.LatheGeometry(run.map(p => V2(Math.max(0, p[0]), p[1])), seg, p0, pl)); };
     for (let i = 1; i < pts.length; i++) {
       run.push(pts[i]);
-      const nk = pts[i][3] || def;
+      const nk = pts[i][3] || key;
       if (!pts[i][2] || nk !== key || i === pts.length - 1) { flush(); run = [pts[i]]; key = nk; }
     }
     for (const k of Object.keys(out)) out[k] = merge(out[k]);
@@ -609,7 +619,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
   // anchors: element, piston, closeChamber, openChamber, top, bottom, toolJoint
   function annularPreventer(o = {}) {
     const g = asset('annular');
-    const P = palette(o.colors), PI_ = palette(o.colors); // body / internals (internals cut too: rings read as halves)
+    const P = palette(o.colors), PI_ = tintCaps(palette(o.colors), 0xa7b2be, -1); // body / internals (internals cut too: rings read as halves)
     const B = bin(), bolts = boltSet(), seg = SEG(72);
     const F10 = FL['13-5/8x10M'], F5 = FL['13-5/8x5M'];
     // ---- body (bottom flange, hub flaring out to the piston housing, inner sleeve)
@@ -692,7 +702,7 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
       if (target === 'square') { const a = 0.054, s = PI / 2; return a / Math.cos((((th - PI / 4) % s) + s) % s - s / 2); }
       return pipeProfileR(y, propY);
     };
-    const insAng = k => (k + 0.5) / NI * TAU;
+    const insAng = k => k / NI * TAU + PI / 2; // k = 0 and 6 lie on the section plane
     function deform() {
       const e = close, dy = 0.14 * e, ec = easeIO(clamp(e / 0.9));
       const open = target === 'open';
@@ -712,14 +722,22 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
         epos.setXYZ(i, r * Math.sin(th), y, r * Math.cos(th));
       }
       epos.needsUpdate = true; eg.computeVertexNormals(); eg.computeBoundingSphere();
+      lastEc = ec; updateInserts();
+      piston.position.y = dy;
+    }
+    let lastEc = 0, lastCut = false;
+    function updateInserts() {
+      const cutOn = !!(inserts.material.clippingPlanes && inserts.material.clippingPlanes.length); lastCut = cutOn;
       for (let k = 0; k < NI; k++) {
-        const th = insAng(k), tip = Math.max(lerp(0.19, rt(th, 0.70) + 0.006, ec), 0.088);
-        _m.compose(V3(Math.sin(th) * (tip - 0.19), 0, Math.cos(th) * (tip - 0.19)), _q.setFromAxisAngle(V3(0, 1, 0), th), V3(1, 1, 1));
+        const th = insAng(k), tip = Math.max(lerp(0.19, rt(th, 0.70) + 0.006, lastEc), 0.088);
+        // in a half-section, inserts wholly behind the plane are buried in rubber: hide them (k = 0, 6 show their section)
+        const hide = cutOn && Math.cos(th) < -0.05;
+        _m.compose(V3(Math.sin(th) * (tip - 0.19), 0, Math.cos(th) * (tip - 0.19)), _q.setFromAxisAngle(V3(0, 1, 0), th), hide ? V3(0, 0, 0) : V3(1, 1, 1));
         inserts.setMatrixAt(k, _m);
       }
       inserts.instanceMatrix.needsUpdate = true; inserts.computeBoundingSphere();
-      piston.position.y = dy;
     }
+    inserts.userData.onCut = updateInserts;
     function showProps() {
       props.pipe.visible = target === 'pipe' && propY == null; props.tj.visible = target === 'pipe' && propY != null;
       props.hex.visible = target === 'hex'; props.square.visible = target === 'square';
@@ -1275,12 +1293,334 @@ vec3 wTri(vec3 p, vec3 n, out float side) {
     return g;
   }
 
+
+  // ================================================================== shared small parts
+  // lever-operated 4-way manipulator valve (body + handle), handle pivot at +y, lever toward +z; returns {group, set(u)}
+  function fourWay(P) {
+    const g = new THREE.Group(), B = bin();
+    B.add('grey', cbox(0.13, 0.13, 0.11, 0.012));
+    for (const s of [1, -1]) B.add('nut', place(toX(hexPlug(0.022, 0.03)), [s * 0.08, 0, 0], [0, s > 0 ? 0 : PI, 0]));
+    B.add('machined', place(cyl(0.022, 0.03, 16), [0, 0.08, 0]));
+    B.build(g, P, 'fourway');
+    const h = new THREE.Group(); h.position.y = 0.095; g.add(h);
+    const HB = bin(); HB.add('machined', cylBetween([0, 0, 0], [0, 0.03, 0.2], 0.011, 10)); HB.add('black', place(cyl(0.018, 0.07, 14), [0, 0.035, 0.235], [PI / 2 - 0.15, 0, 0]));
+    HB.build(h, P, 'handle');
+    // u: 0 = CLOSE (lever right), 0.5 = BLOCK (centre), 1 = OPEN (lever left)
+    return { group: g, set: u => { h.rotation.y = lerp(-0.6, 0.6, clamp(u)); } };
+  }
+  // accumulator bottle shell profile (OD 0.24, overall 1.30, hemispherical-ish heads, bottom fluid port, top gas valve)
+  function bottleProfile(R = 0.12, Hh = 1.3, t = 0.012) {
+    const o = [], n = 8;
+    for (let i = 0; i <= n; i++) { const a = -PI / 2 + i / n * PI / 2; o.push([0.03 + (R - 0.03) * Math.cos(a), 0.06 + 0.1 * (1 + Math.sin(a)) - 0.1 + 0.04, 1]); }
+    for (let i = 0; i <= n; i++) { const a = i / n * PI / 2; o.push([0.022 + (R - 0.022) * Math.cos(a), Hh - 0.12 + 0.1 * Math.sin(a), 1]); }
+    return o;
+  }
+
+  // ================================================================== ACCUMULATOR (KOOMEY) UNIT, 3,000 psi land closing unit
+  // accumulatorUnit()  y = 0 at the ground, front (+z) = control manifold side. Skid 5.2 x 1.9 m, 24 x 11-gal bottles
+  // (two racks of 3 x 4 at the ends), reservoir in the middle, electric triplex + 2 air pumps in front, 6 manipulator
+  // valves, gauge board with ACCUMULATOR / MANIFOLD / ANNULAR gauges, regulators, nameplate easter egg.
+  // api: setGauge(i, v01)              i 0 acc (0-6000), 1 manifold (0-6000), 2 annular (0-3000)
+  //      setGaugeMove(i, from, to, u)  needle travel with overshoot (values 0..1 of full scale)
+  //      setPsi(i, psi)                convenience: value in psi
+  //      setValve(i, u)                i 0..5 = annular, upper pipe, blind shear, lower pipe, choke HCR, kill HCR
+  //                                    (u 0 close, 0.5 block, 1 open)
+  //      setCharge(u)                  cut bottle: 0 = 1,000 psi precharge (bladder full) .. 1 = 3,000 psi (N2 at 1/3)
+  //      setBottleCut(u)               half-section of the front-left bottle
+  //      setPumpLamp(on01), setMotor(phase)  electric pump running lamp / coupling rotation (radians)
+  // anchors: nameplate, gauges, gauge0..2, bottleCut, manifold, valve0..5, electricPump, airPumps, hoseOut, n2, fluid
+  function accumulatorUnit(o = {}) {
+    const g = asset('accumulatorUnit');
+    const P = palette({ paint: 0x2f5175, ...(o.colors || {}) }), B = bin(), bolts = boltSet();
+    const LX = 2.6, LZ = 0.95, SK = 0.22;
+    // ---- skid (W-beam perimeter, cross members, fork pockets, lifting lugs)
+    for (const s of [1, -1]) {
+      B.add('skid', place(cbox(2 * LX, SK, 0.14, 0.006), [0, SK / 2, s * (LZ - 0.07)]));
+      B.add('skid', place(cbox(0.14, SK, 2 * LZ - 0.28, 0.006), [s * (LX - 0.07), SK / 2, 0]));
+      B.add('skid', place(cbox(0.24, 0.12, 2 * LZ + 0.02, 0.008), [s * 0.9, 0.08, 0]));
+      for (const z of [1, -1]) B.add('yellow', place(padEye(0.12, 0.13, 0.03, 0.03), [s * (LX - 0.22), SK, z * (LZ - 0.07)], [0, 0, 0]));
+    }
+    for (const x of [-1.5, 0, 1.5]) B.add('skid', place(cbox(0.12, SK * 0.8, 2 * LZ - 0.28, 0.006), [x, SK * 0.4, 0]));
+    B.add('greyLt', place(cbox(2 * LX - 0.1, 0.012, 2 * LZ - 0.1, 0.004), [0, SK + 0.006, 0])); // deck plate
+    // ---- reservoir
+    const RX = 1.3, RZ0 = -0.80, RZ1 = 0.22, RY = 1.05;
+    B.add('paint', place(cbox(2 * RX, RY - SK, RZ1 - RZ0, 0.03), [0, (RY + SK) / 2, (RZ0 + RZ1) / 2]));
+    B.add('paint', place(cbox(0.6, 0.03, 0.4, 0.01), [-0.6, RY + 0.015, -0.35])); // inspection hatch
+    bolts.line(null, [-0.85, -0.6, -0.35].flatMap(x => [[x, RY + 0.03, -0.53], [x, RY + 0.03, -0.17]]), 0.5 * IN, 0.02, [0.008], 81);
+    B.add('grey', place(cyl(0.06, 0.06, 20), [0.9, RY + 0.03, -0.5])); B.add('black', place(cyl(0.07, 0.03, 20), [0.9, RY + 0.075, -0.5])); // filler + breather
+    // level sight glass on the front
+    B.add('stainless', place(cbox(0.05, 0.55, 0.03, 0.006), [1.05, 0.62, RZ1 + 0.02]));
+    const sg = new THREE.Mesh(cyl(0.012, 0.48, 12), mat(0xc79a3a, { kind: 'wet', metal: 0.0, rough: 0.25, noW: true })); sg.position.set(1.05, 0.58, RZ1 + 0.04); sg.scale.y = 0.75; sg.position.y = 0.38 + 0.18; g.add(sg);
+    // nameplate (easter egg, director §7)
+    const np = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.22), labelMat(nameplateTex([['WORKING PRESSURE', '3,000 PSI'], ['N2 PRECHARGE', '1,000 PSI'], ['BOTTLES', '24 x 11 GAL'], ['SER. NO.', 'NS-0505']], { title: 'namman.story · BOP CONTROL UNIT 3000 PSI', w: 1024, h: 380 })));
+    np.position.set(-0.55, 0.86, RZ1 + 0.003); g.add(np); g.anchor('nameplate', [-0.55, 0.86, RZ1 + 0.01]);
+    // ---- bottle racks + bottles
+    const cols = [1.66, 1.98, 2.30], rows = [-0.57, -0.19, 0.19, 0.57];
+    const bp = bottleProfile(); const shellG = lathe([[0, 0.04], ...bottleProfile().map(p => [p[0], p[1], 1]), [0, 1.28]], SEG(28));
+    let cutPos = null;
+    for (const s of [1, -1]) {
+      for (const x of cols) for (const z of rows) {
+        const isCut = s < 0 && x === cols[2] && z === rows[3];
+        const px = s * x, py = SK + 0.1;
+        if (isCut) { cutPos = [px, py, z]; continue; }
+        B.add('paint', place(shellG, [px, py, z]));
+        B.add('brass', place(cyl(0.02, 0.06, 10), [px, py + 1.3, z])); B.add('black', place(cyl(0.028, 0.04, 12), [px, py + 1.35, z]));
+      }
+      for (const x of cols) { // bottom headers (along z) + fluid ports
+        B.add('grey', cylBetween([s * x, SK + 0.06, rows[0] - 0.12], [s * x, SK + 0.06, rows[3] + 0.12], 0.03, 12));
+        for (const z of rows) B.add('grey', cylBetween([s * x, SK + 0.06, z], [s * x, SK + 0.14, z], 0.018, 8));
+      }
+      // rack frame: corner posts, lower + upper clamp bars, rack cross bars
+      const x0 = s * (cols[0] - 0.2), x1 = s * (cols[2] + 0.2);
+      for (const xx of [x0, x1]) for (const z of [rows[0] - 0.2, rows[3] + 0.2]) B.add('skid', place(cbox(0.06, 1.25, 0.06, 0.005), [xx, SK + 0.62, z]));
+      for (const yy of [SK + 0.5, SK + 1.18]) for (const z of rows) B.add('skid', place(cbox(Math.abs(x1 - x0) + 0.06, 0.05, 0.04, 0.004), [(x0 + x1) / 2, yy, z - 0.14]));
+      for (const yy of [SK + 0.5, SK + 1.18]) for (const xx of [x0, x1]) B.add('skid', place(cbox(0.05, 0.05, rows[3] - rows[0] + 0.46, 0.004), [xx, yy, 0]));
+      // header to the manifold (along x under the reservoir front)
+      B.add('grey', pipe([[s * cols[0], SK + 0.06, rows[3] + 0.12], [s * cols[0], SK + 0.06, 0.62], [s * 1.1, SK + 0.06, 0.62], [s * 1.1, 1.1, 0.62]], 0.03, 0.1, 12));
+    }
+    // ---- control manifold on the reservoir front, 6 four-way valves, header, regulators
+    const VZ = 0.48, VY = 1.18, xs = [-0.95, -0.57, -0.19, 0.19, 0.57, 0.95];
+    B.add('grey', cylBetween([-1.15, VY - 0.12, VZ], [1.15, VY - 0.12, VZ], 0.035, 14));
+    B.add('skid', place(cbox(2.5, 0.06, 0.3, 0.006), [0, VY - 0.19, VZ - 0.05]));
+    for (const s of [1, -1]) B.add('skid', place(cbox(0.06, VY - 0.2 - RY + 0.4, 0.06, 0.004), [s * 1.2, (VY - 0.2 + RY - 0.4) / 2 + 0.2, VZ - 0.12]));
+    const valves = xs.map((x, i) => {
+      const v = fourWay(P); v.group.position.set(x, VY, VZ); g.add(v.group); g.parts['valve' + i] = v.group;
+      B.add('grey', cylBetween([x, VY - 0.12, VZ], [x, VY - 0.06, VZ], 0.02, 8));
+      // function tag + outlet lines going back to the hose connections
+      const tg = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.05), labelMat(nameplateTex([], { title: ['ANNULAR', 'UPPER PIPE', 'BLIND SHEAR', 'LOWER PIPE', 'CHOKE HCR', 'KILL HCR'][i], w: 512, h: 150 })));
+      tg.position.set(x, VY - 0.13, VZ + 0.155); g.add(tg);
+      for (const dz of [-0.03, 0.03]) B.add('stainless', pipe([[x + dz, VY, VZ - 0.06], [x + dz, VY, VZ - 0.2], [x + dz, VY + 0.12, -0.0], [x + dz * 3, RY + 0.09, -0.6], [x + dz * 3, RY + 0.09, -0.98]], 0.011, 0.06, 8));
+      g.anchor('valve' + i, [x, VY + 0.15, VZ + 0.2]);
+      return v;
+    });
+    // hydraulic outlet bulkhead at the back (hoses to the BOP leave here)
+    B.add('grey', place(cbox(2.2, 0.16, 0.06, 0.01), [0, RY + 0.09, -1.0]));
+    g.anchor('hoseOut', [0, RY + 0.09, -1.05]);
+    // gauge board (3 large gauges) + regulators
+    B.add('stainless', place(cbox(1.15, 0.5, 0.03, 0.008), [0, 1.62, 0.12]));
+    for (const s of [1, -1]) B.add('skid', place(cbox(0.05, 0.6, 0.05, 0.004), [s * 0.55, 1.35, 0.08]));
+    const gs = [];
+    const gt = [['ACCUMULATOR', 6000], ['MANIFOLD', 6000], ['ANNULAR', 3000]];
+    gt.forEach(([lab, max], i) => {
+      const gg = gauge(P, 0.13, dialTex({ max, major: 1000, minor: max > 3000 ? 200 : 100, label: lab, sub: 'PSI', red: max > 3000 ? [5000, 6000] : null }), { stem: 0 });
+      gg.group.position.set(-0.38 + i * 0.38, 1.65, 0.15); g.add(gg.group); gs.push(gg); g.anchor('gauge' + i, [-0.38 + i * 0.38, 1.65, 0.3]);
+    });
+    g.anchor('gauges', [0, 1.65, 0.35]);
+    for (const [x, lab] of [[-0.8, 'MANIFOLD REG'], [0.8, 'ANNULAR REG']]) {
+      B.add('grey', place(cyl(0.07, 0.14, 20), [x, VY + 0.25, VZ - 0.08])); B.add('grey', place(cyl(0.045, 0.06, 16), [x, VY + 0.35, VZ - 0.08]));
+      B.add('black', cylBetween([x - 0.09, VY + 0.4, VZ - 0.08], [x + 0.09, VY + 0.4, VZ - 0.08], 0.012, 8));
+      B.add('grey', cylBetween([x, VY + 0.18, VZ - 0.08], [x, VY - 0.08, VZ - 0.08], 0.018, 8));
+    }
+    // ---- electric triplex pump + motor (front right), air pumps (front left)
+    const EP = new THREE.Group(); EP.position.set(0.55, SK, 0.66); g.add(g.part('electricPump', EP));
+    const EB = bin();
+    const fins = []; for (let i = 0; i <= 14; i++) { const y = -0.2 + i * 0.03; fins.push([i % 2 ? 0.17 : 0.155, y]); }
+    EB.add('green', toX(lathe([[0, -0.24], [0.15, -0.24], ...fins.map(p => [p[0], p[1]]), [0.15, 0.24], [0.06, 0.26], [0, 0.26]], SEG(36))).translate(0, 0.21, 0));
+    EB.add('green', place(cbox(0.14, 0.1, 0.16, 0.01), [0, 0.42, 0])); // terminal box
+    EB.add('green', place(cbox(0.5, 0.04, 0.3, 0.006), [0, 0.02, 0])); // motor feet / base
+    EB.add('yellow', place(cbox(0.08, 0.36, 0.34, 0.01), [0.32, 0.2, 0])); // belt / coupling guard
+    EB.add('grey', place(cbox(0.3, 0.22, 0.28, 0.02), [0.55, 0.15, 0])); // triplex power end
+    for (const z of [-0.08, 0, 0.08]) EB.add('machined', place(toX(cyl(0.026, 0.12, 12)), [0.76, 0.17, z]));
+    EB.add('grey', place(cbox(0.1, 0.16, 0.3, 0.012), [0.86, 0.17, 0]));
+    EB.build(EP, P, 'ePump');
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), glowMat(0x22c55e)); lamp.position.set(0.0, 0.48, 0.09); EP.add(lamp);
+    const coupling = new THREE.Mesh(toX(cyl(0.05, 0.05, 12)), P.machined); coupling.position.set(0.27, 0.21, 0); EP.add(coupling);
+    const AP = new THREE.Group(); AP.position.set(-0.9, SK, 0.68); g.add(g.part('airPumps', AP));
+    const AB = bin();
+    for (const x of [-0.25, 0.1]) {
+      AB.add('grey', place(cbox(0.16, 0.18, 0.16, 0.015), [x, 0.09, 0]));
+      AB.add('machined', place(cyl(0.03, 0.12, 14), [x, 0.24, 0]));
+      AB.add('black', place(lathe([[0, 0], [0.09, 0], [0.095, 0.01], [0.095, 0.26], [0.09, 0.27], [0, 0.27]], SEG(28)), [x, 0.3, 0]));
+      AB.add('grey', place(cyl(0.1, 0.03, 28), [x, 0.3, 0])); AB.add('grey', place(cyl(0.1, 0.03, 28), [x, 0.57, 0]));
+      AB.add('hose', pipe([[x + 0.1, 0.45, 0], [x + 0.2, 0.45, 0], [x + 0.2, 0.62, -0.2]], 0.012, 0.05, 8));
+    }
+    AB.add('grey', place(cbox(0.09, 0.2, 0.09, 0.01), [0.32, 0.5, -0.1])); // air filter / regulator / lubricator
+    AB.add('stainless', place(cyl(0.035, 0.12, 14), [0.32, 0.33, -0.1]));
+    AB.build(AP, P, 'airPumps');
+    B.build(g, P, 'acc'); bolts.build(g, P);
+    // ---- cut bottle (own palette + clip plane): shell, hydraulic fluid (amber), bladder (rubber), N2 (blue-grey)
+    const CB = asset('bottleCut'); CB.position.set(...cutPos); g.add(g.part('bottleCut', CB));
+    const CP = palette({ paint: 0x2f5175 });
+    const fluidM = mat(0xc9861c, { kind: 'wet', metal: 0.0, rough: 0.3, blotch: 0.04, streak: 0, cap: 0xd99a2b }), n2M = mat(0x8aa0b8, { metal: 0.0, rough: 0.6, blotch: 0.04, streak: 0, cap: 0x9fb4c9 });
+    const R = 0.12, Hh = 1.3;
+    const prof = bottleProfile(R, Hh), inner = bottleProfile(R - 0.012, Hh).map(p => [p[0], p[1] + (p[1] < 0.6 ? 0.012 : -0.012), 1]);
+    const shellPts = [[0.012, 0.04], ...prof, [0.012, Hh - 0.02], [0.012, Hh - 0.02 - 0.012], ...inner.slice().reverse(), [0.012, 0.052], [0.012, 0.04]];
+    const CBB = bin();
+    CBB.add('paint', lathe(shellPts, SEG(40)));
+    CBB.add('brass', place(cyl(0.02, 0.06, 10), [0, Hh, 0])); CBB.add('black', place(cyl(0.028, 0.04, 12), [0, Hh + 0.05, 0]));
+    CBB.build(CB, CP, 'bottleShell');
+    const fluid = new THREE.Mesh(lathe([[0, 0.058], ...inner.map(p => [p[0] - 0.002, p[1], 1]), [0, Hh - 0.035]], SEG(40)), fluidM); CB.add(fluid);
+    // bladder: hangs from the top, its shape squeezes with the charge level
+    const bl = new THREE.Group(); bl.position.y = Hh - 0.06; CB.add(bl);
+    const bprof = []; for (let i = 0; i <= 18; i++) { const t = i / 18; const y = -t; const r = (R - 0.02) * Math.sin(Math.min(1, t * 6) * PI / 2) * (t > 0.85 ? Math.cos((t - 0.85) / 0.15 * PI / 2) : 1); bprof.push([Math.max(0.0, r), y * (Hh - 0.13)]); }
+    const blOuter = bprof.map(p => [p[0], p[1], 1]), blInner = bprof.map(p => [Math.max(0, p[0] - 0.005), p[1] + 0.005, 1]);
+    const bladder = new THREE.Mesh(lathe([[0.01, 0], ...blOuter.slice(1), ...blInner.slice(1).reverse(), [0.01, 0]], SEG(40)), CP.rubber); bl.add(bladder);
+    const n2 = new THREE.Mesh(lathe([[0, -0.004], ...blInner.slice(1).map(p => [Math.max(0, p[0] - 0.001), p[1], 1]), [0, blInner[blInner.length - 1][1]]], SEG(40)), n2M); bl.add(n2);
+    CB.anchor('n2', [0, Hh * 0.6, 0.0]); CB.anchor('fluid', [0, 0.2, 0]);
+    g.anchors.n2 = CB.anchors.n2; g.anchors.fluid = CB.anchors.fluid; g.anchor('bottleCut', [cutPos[0], cutPos[1] + 0.7, cutPos[2] + 0.14]);
+    const cutMats = collectMats(CB);
+    const ccut = cutter(CB, cutMats, { extent: 0.14 });
+    g.api.setBottleCut = u => ccut.set(u);
+    g.api.refreshCut = () => ccut.refresh();
+    g.api.setCharge = u => { u = clamp(u); const v = lerp(1, 1 / 3, u); // N2 volume fraction (Boyle: 1000 -> 3000 psi)
+      const sy = lerp(1, 0.52, u), sr = Math.sqrt(v / sy); bl.scale.set(sr, sy, sr); };
+    g.api.setGauge = (i, v) => gs[i].setValue(v);
+    g.api.setGaugeMove = (i, a, b, u) => gs[i].setValue(lerp(a, b, overshoot(u)));
+    g.api.setPsi = (i, psi) => gs[i].setValue(psi / gt[i][1]);
+    g.api.setValve = (i, u) => valves[i].set(u);
+    g.api.setPumpLamp = v => { lamp.material.emissiveIntensity = 2.5 * clamp(v); };
+    g.api.setMotor = ph => { coupling.rotation.x = ph; };
+    g.api.setCharge(1); g.api.setPsi(0, 3000); g.api.setPsi(1, 1500); g.api.setPsi(2, 1000); valves.forEach(v => v.set(0.5)); g.api.setPumpLamp(0);
+    g.anchor('manifold', [0, VY, VZ + 0.3]); g.anchor('electricPump', [0.8, 0.6, 0.8]); g.anchor('airPumps', [-0.9, 0.7, 0.8]);
+    g.traverse(m => { if (m.isMesh) m.userData.sys = 'wc'; });
+    return g;
+  }
+
+  // ================================================================== CONTROL PANELS (driller's BOP remote, remote choke)
+  // console shell on a pedestal, face tilted back 12 deg, face texture drawn in code; returns { g, face (Group on the face
+  // plane: x right, y up, +z out), B, P }
+  function consoleShell(name, W, Hc, D, colors) {
+    const g = asset(name), P = palette({ paint: 0xb7bcc2, ...(colors || {}) }), B = bin();
+    B.add('stainless', place(cbox(W, Hc, D, 0.02, 2), [0, 1.0 + Hc / 2, 0]));
+    B.add('stainless', place(cbox(W + 0.04, 0.03, D + 0.06, 0.008), [0, 1.0 + Hc + 0.015, 0.015])); // rain hood
+    B.add('grey', place(cbox(0.14, 1.0, 0.14, 0.01), [0, 0.5, -0.02])); // pedestal
+    B.add('grey', place(cbox(0.55, 0.02, 0.45, 0.004), [0, 0.01, 0]));
+    bolts.line && null;
+    // purge / pressurisation unit + air supply + hose bundle entering from below
+    B.add('stainless', place(cbox(0.12, 0.16, 0.1, 0.01), [W / 2 + 0.07, 1.0 + Hc * 0.75, -D * 0.2]));
+    B.add('gun', place(cyl(0.028, 0.04, 12), [W / 2 + 0.07, 1.0 + Hc * 0.75 + 0.1, -D * 0.2]));
+    B.add('hose', pipe([[0.04, 1.0, -0.05], [0.04, 0.75, -0.08], [0.1, 0.25, -0.3], [0.1, 0.02, -0.9]], 0.03, 0.15, 10));
+    const face = new THREE.Group(); face.position.set(0, 1.0 + Hc / 2, D / 2 + 0.001); face.rotation.x = -0.0; g.add(face);
+    return { g, face, B, P };
+  }
+  function pushButton(P, color, r = 0.022, guard = true) { // mushroom button with chrome bezel + collar guard; press along -z
+    const grp = new THREE.Group(), B = bin();
+    B.add('chrome', toZ(lathe([[r * 1.05, 0], [r * 1.5, 0], [r * 1.55, 0.006], [r * 1.35, 0.012], [r * 1.05, 0.012], [r * 1.05, 0]], SEG(24))));
+    if (guard) B.add('black', toZ(lathe([[r * 1.12, 0.012], [r * 1.32, 0.012], [r * 1.32, 0.03], [r * 1.22, 0.032], [r * 1.12, 0.03], [r * 1.12, 0.012]], SEG(24))));
+    B.build(grp, P, 'btn');
+    const cap = new THREE.Mesh(toZ(lathe([[0, 0], [r, 0], [r, 0.012], [r * 0.85, 0.02], [0, 0.022]], SEG(24))), glowMat(color));
+    cap.material.roughness = 0.35; grp.add(cap); cap.castShadow = true;
+    return { group: grp, cap, press: u => { cap.position.z = -0.009 * clamp(u); } };
+  }
+  function lamp(P, color, r = 0.012) {
+    const grp = new THREE.Group(), B = bin();
+    B.add('chrome', toZ(lathe([[r, 0], [r * 1.6, 0], [r * 1.6, 0.008], [r * 1.1, 0.012], [r, 0.012]], SEG(20)))); B.build(grp, P, 'lampBezel');
+    const lens = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 10, 0, TAU, 0, PI / 2).rotateX(PI / 2), glowMat(color)); lens.scale.z = 0.7; lens.position.z = 0.006;
+    lens.material.color.multiplyScalar(0.55); grp.add(lens);
+    return { group: grp, set: v => { lens.material.emissiveIntensity = 3.2 * clamp(v); } };
+  }
+  // driller's BOP remote panel. ids: annular, upperPipe, blindShear, lowerPipe, chokeHCR, killHCR (+ .open/.close), master
+  // api: setPress(id, u) (e.g. 'blindShear.close', 'master'), setLamp(id, v01) (e.g. 'annular.close'),
+  //      setGuard(u) (BSR flip cover lifts), setGauge(i, v01) (0 accum 0-6000, 1 manifold 0-6000, 2 annular 0-3000, 3 rig air 0-200)
+  // anchors: master, <id>.open/.close for every button, gauges, guard
+  function drillerPanel(o = {}) {
+    const W = 0.95, Hc = 0.78, D = 0.26;
+    const { g, face, B, P } = consoleShell('drillerPanel', W, Hc, D, o.colors);
+    const fns = [['annular', 'ANNULAR'], ['upperPipe', 'UPPER PIPE RAM'], ['blindShear', 'BLIND SHEAR RAM'], ['lowerPipe', 'LOWER PIPE RAM'], ['chokeHCR', 'CHOKE HCR'], ['killHCR', 'KILL HCR']];
+    // face texture: mimic diagram of the stack (lines), labels, OPEN/CLOSE legends
+    const cw = 1024, chh = Math.round(1024 * (Hc - 0.04) / (W - 0.04)), c = canvas(cw, chh), x = c.getContext('2d');
+    x.fillStyle = '#2a3038'; x.fillRect(0, 0, cw, chh);
+    x.fillStyle = '#e8e4da'; x.font = `700 40px ${FONT}`; x.textAlign = 'center'; x.fillText("DRILLER'S BOP CONTROL PANEL", cw / 2, 52);
+    x.fillRect(40, 70, cw - 80, 3);
+    const rowY = i => 150 + i * 90 * (chh - 200) / 560;
+    x.strokeStyle = '#a855f7'; x.lineWidth = 6; x.beginPath(); x.moveTo(120, rowY(0) - 30); x.lineTo(120, rowY(5) + 25); x.stroke(); // mimic: well bore line
+    x.lineWidth = 4;
+    fns.forEach(([id, lab], i) => {
+      const y = rowY(i);
+      x.strokeStyle = '#cbd5e1'; x.beginPath(); if (i < 4) { x.rect(84, y - 18, 72, 36); } else { x.moveTo(120, y); x.lineTo(180, y); } x.stroke();
+      x.fillStyle = '#f1efe8'; x.font = `600 30px ${FONT}`; x.textAlign = 'left'; x.fillText(lab, 200, y + 10);
+      x.font = `600 22px ${FONT}`; x.textAlign = 'center'; x.fillStyle = '#86efac'; x.fillText('OPEN', 640, y + 48); x.fillStyle = '#fca5a5'; x.fillText('CLOSE', 820, y + 48);
+    });
+    x.fillStyle = '#facc15'; x.font = `700 24px ${FONT}`; x.textAlign = 'center'; x.fillText('MASTER · PUSH & HOLD', 200, chh - 40);
+    grime(x, cw, chh, 17, 0.08);
+    const fm = labelMat(ctex(c), { metal: 0.1, rough: 0.6 });
+    const fp = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.04, Hc - 0.04), fm); face.add(fp);
+    const fx = px => (px / cw - 0.5) * (W - 0.04), fy = py => (0.5 - py / chh) * (Hc - 0.04);
+    const btn = {}, lamps = {};
+    fns.forEach(([id], i) => {
+      const y = fy(rowY(i));
+      for (const [k, col, px] of [['open', 0x16a34a, 640], ['close', 0xdc2626, 820]]) {
+        const b = pushButton(P, col, 0.019); b.group.position.set(fx(px), y + 0.005, 0); face.add(b.group); btn[`${id}.${k}`] = b;
+        const l = lamp(P, k === 'open' ? 0x22c55e : 0xef4444, 0.009); l.group.position.set(fx(px) + 0.055, y + 0.005, 0); face.add(l.group); lamps[`${id}.${k}`] = l;
+        g.anchor(`${id}.${k}`, [fx(px), 1.0 + Hc / 2 + y, D / 2 + 0.05]);
+      }
+    });
+    // BSR close: hinged clear-red flip guard
+    const guard = new THREE.Group(); const bsr = btn['blindShear.close'].group.position; guard.position.set(bsr.x, bsr.y + 0.04, 0.0); face.add(guard);
+    const gm = makeStd(0xcc2222, 'paint', { transparent: true, opacity: 0.55, depthWrite: false }); gm.roughness = 0.2; gm.metalness = 0;
+    const gbox = new THREE.Mesh(cbox(0.085, 0.08, 0.045, 0.006), gm); gbox.position.set(0, -0.04, 0.026); guard.add(gbox);
+    face.add(place(new THREE.Mesh(toX(cyl(0.006, 0.09, 8)), P.chrome), [0, 0, 0])); 
+    const hinge = new THREE.Mesh(toX(cyl(0.006, 0.09, 8)), P.chrome); hinge.position.copy(guard.position); face.add(hinge);
+    g.anchor('guard', [bsr.x, 1.0 + Hc / 2 + bsr.y, D / 2 + 0.06]);
+    // master button
+    const m = pushButton(P, 0x1d4ed8, 0.03); m.group.position.set(fx(200), fy(chh - 90), 0); face.add(m.group); btn.master = m;
+    g.anchor('master', [fx(200), 1.0 + Hc / 2 + fy(chh - 90), D / 2 + 0.06]);
+    // gauges (4) along the bottom right
+    const gs = [['ACCUM', 6000], ['MANIFOLD', 6000], ['ANNULAR', 3000], ['RIG AIR', 200]].map(([lab, max], i) => {
+      const gg = gauge(P, 0.045, dialTex({ max, major: max > 1000 ? 1000 : 50, minor: max > 1000 ? 500 : 10, label: lab, sub: 'PSI' }), { stem: 0 });
+      gg.group.position.set(fx(440 + i * 150), fy(chh - 70), 0.01); face.add(gg.group); return gg;
+    });
+    g.anchor('gauges', [fx(660), 1.0 + Hc / 2 + fy(chh - 70), D / 2 + 0.06]);
+    B.build(g, P, 'panel');
+    g.api.setPress = (id, u) => { if (btn[id]) btn[id].press(u); };
+    g.api.setLamp = (id, v) => { if (lamps[id]) lamps[id].set(v); };
+    g.api.setGuard = u => { guard.rotation.x = -easeIO(u) * 1.9; };
+    g.api.setGauge = (i, v) => gs[i].setValue(v);
+    g.api.setGaugeMove = (i, a, b, u) => gs[i].setValue(lerp(a, b, overshoot(u)));
+    // default state: everything open (green lamps on), as while drilling
+    for (const [id] of fns) { g.api.setLamp(id + '.open', id === 'chokeHCR' || id === 'killHCR' ? 0 : 1); g.api.setLamp(id + '.close', id === 'chokeHCR' || id === 'killHCR' ? 1 : 0); }
+    g.api.setGauge(0, 0.5); g.api.setGauge(1, 0.25); g.api.setGauge(2, 0.33); g.api.setGauge(3, 0.6);
+    g.traverse(mm => { if (mm.isMesh) mm.userData.sys = 'wc'; });
+    return g;
+  }
+  // remote choke panel: DP + casing gauges (0-10,000), choke position indicator, SPM / stroke counter LCD, choke lever.
+  // api: setDP(v01), setCasing(v01), setChokePos(u) (0 closed .. 1 open), setLever(u) (0 close, 0.5 hold, 1 open),
+  //      setCounter(spm, strokes), setPumpLamp(v)
+  function chokePanel(o = {}) {
+    const W = 0.9, Hc = 0.72, D = 0.3;
+    const { g, face, B, P } = consoleShell('chokePanel', W, Hc, D, o.colors);
+    const c = canvas(1024, 820), x = c.getContext('2d');
+    x.fillStyle = '#2a3038'; x.fillRect(0, 0, 1024, 820);
+    x.fillStyle = '#e8e4da'; x.font = `700 40px ${FONT}`; x.textAlign = 'center'; x.fillText('REMOTE CHOKE CONTROL', 512, 54); x.fillRect(40, 72, 944, 3);
+    x.font = `600 26px ${FONT}`; x.fillText('DRILL PIPE', 260, 470); x.fillText('CASING', 764, 470); x.fillText('CHOKE POSITION', 260, 780); x.fillText('PUMP', 764, 780);
+    x.fillText('CLOSE', 610, 690); x.fillText('OPEN', 920, 690);
+    grime(x, 1024, 820, 23, 0.08);
+    const fp = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.04, Hc - 0.04), labelMat(ctex(c), { metal: 0.1, rough: 0.6 })); face.add(fp);
+    const fx = px => (px / 1024 - 0.5) * (W - 0.04), fy = py => (0.5 - py / 820) * (Hc - 0.04);
+    const dp = gauge(P, 0.11, dialTex({ max: 10000, major: 1000, minor: 250, label: 'DRILL PIPE', sub: 'PSI' }), { stem: 0 }); dp.group.position.set(fx(260), fy(270), 0.012); face.add(dp.group);
+    const cs = gauge(P, 0.11, dialTex({ max: 10000, major: 1000, minor: 250, label: 'CASING', sub: 'PSI' }), { stem: 0 }); cs.group.position.set(fx(764), fy(270), 0.012); face.add(cs.group);
+    const cp = gauge(P, 0.06, dialTex({ max: 100, major: 25, minor: 5, label: 'CHOKE', sub: '% OPEN' }), { stem: 0 }); cp.group.position.set(fx(260), fy(640), 0.012); face.add(cp.group);
+    // LCD stroke counter
+    const lc = canvas(512, 192), lx = lc.getContext('2d'), lt = ctex(lc);
+    const lcd = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.07), new THREE.MeshBasicMaterial({ map: lt, toneMapped: false })); lcd.position.set(fx(764), fy(600), 0.006); face.add(lcd);
+    B.add('black', place(cbox(0.22, 0.095, 0.02, 0.004), [fx(764), 1.0 + Hc / 2 + fy(600), D / 2 - 0.004]));
+    const drawLCD = (spm, stk) => { lx.fillStyle = '#9db08a'; lx.fillRect(0, 0, 512, 192); lx.fillStyle = '#1d2a1a'; lx.font = `700 70px ${MONO}`; lx.textAlign = 'left';
+      lx.fillText(`SPM ${String(Math.round(spm)).padStart(3, ' ')}`, 24, 80); lx.fillText(`STK ${String(Math.round(stk)).padStart(5, '0')}`, 24, 168); lt.needsUpdate = true; };
+    // choke control lever (3-position, spring return to HOLD)
+    const lev = new THREE.Group(); lev.position.set(fx(764), fy(700), 0.01); face.add(lev);
+    face.add(place(new THREE.Mesh(toZ(cyl(0.03, 0.03, 20)), P.chrome), [fx(764), fy(700), 0.015]));
+    const LB = bin(); LB.add('chrome', cylBetween([0, 0, 0.02], [0, 0.11, 0.05], 0.007, 10)); LB.add('black', place(new THREE.SphereGeometry(0.022, 16, 10), [0, 0.115, 0.052])); LB.build(lev, P, 'lever');
+    const pl = lamp(P, 0x22c55e, 0.01); pl.group.position.set(fx(900), fy(600), 0); face.add(pl.group);
+    const rb = pushButton(P, 0xe5e7eb, 0.015); rb.group.position.set(fx(640), fy(600), 0); face.add(rb.group);
+    B.build(g, P, 'panel');
+    g.api.setDP = v => dp.setValue(v); g.api.setCasing = v => cs.setValue(v); g.api.setChokePos = u => cp.setValue(clamp(u));
+    g.api.setLever = u => { lev.rotation.z = lerp(0.5, -0.5, clamp(u)); };
+    g.api.setCounter = (spm, stk) => drawLCD(spm, stk); g.api.setPumpLamp = v => pl.set(v);
+    g.api.setGaugeMove = (which, a, b, u) => (which === 'dp' ? dp : cs).setValue(lerp(a, b, overshoot(u)));
+    g.api.setDP(0); g.api.setCasing(0); g.api.setChokePos(0.0); g.api.setLever(0.5); drawLCD(0, 0); pl.set(0);
+    g.anchor('dp', [fx(260), 1.0 + Hc / 2 + fy(270), D / 2 + 0.1]); g.anchor('casing', [fx(764), 1.0 + Hc / 2 + fy(270), D / 2 + 0.1]);
+    g.anchor('lever', [fx(764), 1.0 + Hc / 2 + fy(700), D / 2 + 0.1]); g.anchor('counter', [fx(764), 1.0 + Hc / 2 + fy(600), D / 2 + 0.05]);
+    g.traverse(mm => { if (mm.isMesh) mm.userData.sys = 'wc'; });
+    return g;
+  }
+
   // @@MORE_BUILDERS@@
 
   // ================================================================== exports
   return {
     // BOP stack and its components
     bopStack, annularPreventer, ramPreventer, drillingSpool, casingHead, bellNipple, gateValve,
+    accumulatorUnit, drillerPanel, chokePanel,
     // helpers for the lead
     triCount, palette, easing: { easeIO, easeOut, easeIn, overshoot, ramTravel, sstep }, noiseTexture: NOISE,
     enableClipping: renderer => { renderer.localClippingEnabled = true; },

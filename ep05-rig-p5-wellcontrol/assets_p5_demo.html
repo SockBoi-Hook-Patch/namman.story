@@ -65,7 +65,7 @@ const tgt = new THREE.Vector3();
 function renderView(name, i) {
   const c = CFG[name], v = c.views[i], a = get(name);
   for (const k of Object.keys(built)) built[k].visible = k === name;
-  floor.position.y = c.floor ?? 0;
+  floor.position.y = (c.floor ?? 0) - 0.003;
   if (v.p) v.p(a);
   if (a.api && a.api.refreshCut) a.api.refreshCut();
   camera.fov = v.fov || 35; camera.position.set(...v.cam); tgt.set(...v.look); camera.lookAt(tgt); camera.updateProjectionMatrix();

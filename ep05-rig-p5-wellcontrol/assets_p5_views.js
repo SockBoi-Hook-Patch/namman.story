@@ -15,6 +15,8 @@ CFG.annular = {
   build: P => P.annularPreventer(), floor: 0,
   views: [
     { cam: [2.3, 1.9, 3.0], look: [0, 0.62, 0], fov: 36, note: 'exterior', p: a => { a.api.setCut(0); a.api.setTarget('pipe'); a.api.setClose(0); } },
+    { cam: [0.0, 0.7, 4.6], look: [0, 0.66, 0], fov: 33, note: 'elevation open', p: a => { a.api.setCut(1); a.api.setTarget('pipe'); a.api.setClose(0); } },
+    { cam: [0.0, 0.7, 4.6], look: [0, 0.66, 0], fov: 33, note: 'elevation closed', p: a => { a.api.setCut(1); a.api.setTarget('pipe'); a.api.setClose(1); } },
     { cam: [0.9, 1.15, 2.6], look: [0, 0.68, 0], fov: 34, note: 'section open', p: a => { a.api.setCut(1); a.api.setTarget('pipe'); a.api.setClose(0); } },
     { cam: [0.9, 1.15, 2.6], look: [0, 0.68, 0], fov: 34, note: 'closed on 5in pipe', p: a => { a.api.setCut(1); a.api.setTarget('pipe'); a.api.setClose(1); } },
     { cam: [0.7, 1.6, 2.0], look: [0, 0.72, 0], fov: 34, note: 'closed on hex', p: a => { a.api.setCut(1); a.api.setTarget('hex'); a.api.setClose(1); } },
@@ -30,5 +32,27 @@ CFG.doubleRam = {
     { cam: [0.6, 1.7, 2.0], look: [0, 1.12, 0], fov: 38, note: 'VBR closed + locked', p: a => { a.api.setCut(1); a.api.setClose(1, 1); a.api.setLock(1, 1); a.api.setShear(0); } },
     { cam: [0.7, 0.75, 1.5], look: [0, 0.6, 0], fov: 38, note: 'BSR crushing', p: a => { a.api.setCut(1); a.api.setClose(1, 0); a.api.setShear(0.5); } },
     { cam: [0.7, 0.75, 1.5], look: [0, 0.6, 0], fov: 38, note: 'BSR cut + sealed', p: a => { a.api.setCut(1); a.api.setShear(1); } },
+  ],
+};
+CFG.accumulator = {
+  build: P => P.accumulatorUnit(), floor: 0,
+  views: [
+    { cam: [4.2, 2.9, 6.2], look: [0, 0.9, 0], fov: 38, note: 'unit', p: a => { a.api.setBottleCut(0); } },
+    { cam: [1.2, 1.9, 2.4], look: [0, 1.4, 0.3], fov: 36, note: 'manifold + gauges', p: a => { a.api.setBottleCut(0); a.api.setValve(2, 0); a.api.setPumpLamp(1); } },
+    { cam: [-1.6, 1.2, 2.3], look: [-2.3, 0.95, 0.57], fov: 34, note: 'bottle cut, precharge', p: a => { a.api.setBottleCut(1); a.api.setCharge(0); a.api.setPsi(0, 1000); } },
+    { cam: [-1.6, 1.2, 2.3], look: [-2.3, 0.95, 0.57], fov: 34, note: 'bottle cut, 3000 psi', p: a => { a.api.setBottleCut(1); a.api.setCharge(1); a.api.setPsi(0, 3000); } },
+  ],
+};
+CFG.drillerPanel = {
+  build: P => P.drillerPanel(), floor: 0,
+  views: [
+    { cam: [0.9, 1.7, 1.6], look: [0, 1.38, 0], fov: 36, note: 'panel', p: a => { a.api.setGuard(0); } },
+    { cam: [0.25, 1.45, 0.9], look: [0.05, 1.33, 0.1], fov: 34, note: 'BSR guard open, master held', p: a => { a.api.setGuard(1); a.api.setPress('master', 1); a.api.setPress('blindShear.close', 1); a.api.setLamp('blindShear.close', 1); a.api.setLamp('blindShear.open', 0); } },
+  ],
+};
+CFG.chokePanel = {
+  build: P => P.chokePanel(), floor: 0,
+  views: [
+    { cam: [0.8, 1.7, 1.6], look: [0, 1.36, 0], fov: 36, note: 'panel', p: a => { a.api.setDP(0.32); a.api.setCasing(0.45); a.api.setChokePos(0.35); a.api.setCounter(30, 1250); a.api.setLever(1); a.api.setPumpLamp(1); } },
   ],
 };

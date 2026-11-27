@@ -1,30 +1,58 @@
-/* music.js — original synthesized score + SFX for namman.story EP05 "Drilling Rig 101 — Part 3/5: Rotating System", 153 s.
+/* music.js — original synthesized score + SFX for namman.story EP05 "Drilling Rig 101 — Part 5/5: Well Control System", 183.6 s.
  * Classic browser script. Defines window.Score.renderWav(duration, cues) -> Promise<Uint8Array>
  * (16-bit PCM WAV, 48 kHz, stereo, exactly `duration` seconds), rendered with OfflineAudioContext.
- * Same synth engine / SFX / mix chain as EP01–EP05 Part 2 for a consistent channel sound; new arrangement.
+ * Same synth engine / SFX / mix chain as EP01–EP05 Part 4 for a consistent channel sound; new arrangement.
+ * Fully deterministic: one seeded PRNG (mulberry32), no Math.random / Date; same (duration, cues) -> same bytes.
  *
- * "DRILLING RIG 101" series theme (reused across Parts 1–5): confident, industrial, educational. E major.
- * Tempo 120 BPM grid felt in HALF-TIME (~60 BPM pulse; beat 0.5 s, bar 2 s). Short 1-s bars realign so
- * 7, 17, 25, 33, 41, 49, 53, 57, 64, 70, 77, 82, 87, 91, 96, 108, 119, 127, 135, 143, 150 land on downbeats. Melodic
- * hooks stay sparse (accents / gaps); under speech the bed is pads, low (<1.5 kHz) ostinati and >7 kHz ticks.
- * Part 3 colour: a 'rotation' figure (16th arpeggio on a 6-step cycle whose pan circles) runs through the spinning parts.
- * Sections: 0–7 title (OPEN signature at 0.8; rig pulse wakes at 4) · 7–17 what the rotating system does (half-time
- *   groove; rotation figure enters at 8) · 17–33 TOP DRIVE: big arrival, heroic E–C–D + motor hum (17), electric
- *   voltBar drive (25) · 33–49 KELLY + rotary table: vintage square-wave pad with tape wobble, oom-pah bass,
- *   chain-drive chug · 49–57 Kelly (retro, 49) vs Top Drive (electric, 53) · 57–96 DOWN THE DRILL STRING: one
- *   continuous descent (pad darkens, falling arpeggios, low drone) with a lift + one bell of a descending line on each
- *   component: Drill Pipe 57, HWDP 64, Drill Collar 70, Stabilizer 77, Jar 82 (tension -> jar hit 84), MWD 87
- *   (digital mud-pulse colour), Mud Motor 91 (churning rotor) · 96–108 DRILL BITS: crunchy — PDC shearing grind
- *   96–102, Tricone crushing triplet toms 102–108 · 108–119 rig-floor tools: mechanical gear groove, spin-in 112,
- *   ratchet tightening 113.3–115, made-up stab 115 · 119–127 drilling parameters: focused counting pulse
- *   · 127–135 recap · 135–143 call to action, warm (gap at 138.6 for the success SFX) · 143–150 teaser
- *   (Circulating System): flowing, liquid — rolling arps, bubbles, swells, rising bell line · 150 resolved signature
- *   on E, tail; master fade -> silent by END-0.5.
- * SFX: all EP01–EP05 Part 2 SFX incl. 'engine', 'zap', 'winch' (cue {dir:'down'} falls) and 'chain'. New in Part 3:
- *   'spin' (rotating machine whirr, ~2 s: spins up by default; cue {dir:'down'} spins down), 'torque' (ratcheting
- *   wrench / iron-roughneck tightening burst ending in a seating clunk, ~0.8 s).
+ * PART 5 MOOD: "a heavy steel door closing" — tense but controlled, never disaster drama. Purple Well Control world =
+ *   E minor colours (Em(add9) · C · Am · B7sus · G · D) at 72 BPM (beat 0.833 s, bar 3.33 s) over a weighty low
+ *   'thump' pulse (sub sine + 150 Hz body). The P4 teaser figure B–E–F#–G (minor) is the Well Control motif; it
+ *   resolves to major (G#) on the title and at the finale.
+ * Sections: 0–6.2 title (P4 teaser figure resolved in E major) · 6.2–16.6 barriers, pulse-less tension · 16.6 pulse
+ *   enters (72 BPM) · 20.2–36.8 the lift down the stack (descending low steps) · 36.8–63.3 mechanisms (machine
+ *   ostinato) · 63.7–77.6 awe: strings swell, low end thickens, sub thump 68.3, DRY accent on the shear 73.6
+ *   · 77.6–91.9 the command (low motif) and the bottles: QUIET TENSION (thin pulse, gauge ticks, tremolo pad)
+ *   · 91.9 power-off: the bed winds down like a dying motor -> near-silence 92.0–94.95 (sub drone only)
+ *   · 95.0 the pulse returns, warm (Cmaj7) · 98.2–139.6 flowing triplet arpeggio that travels L->R with the gas path,
+ *   warm swell at the flare 123.4 · 139.6–166.1 light and tidy; ticking motif under testing 159.2–166.1
+ *   · 166.1–172.4 SERIES FINALE in E major: five rising notes B4 E5 F#5 G#5 B5 (the series signature + 5th) land on
+ *   the five systems, each wrapped in a quote of that Part's motif: 167.4 Power (P1 16th 'current' line),
+ *   168.1 Hoisting (P2 climbing travel arpeggio), 168.9 Rotating (P3 circling rotation figure), 169.6 Circulating
+ *   (P4 'one drop' plink + journey wave), 170.9 Well Control (P5 thump + full E-major stab) · 172.4–177.4 CTA, light
+ *   · 177.4–183.6 teaser (Casing & Cementing, grey): thin layered pads; fade from 182.0, silent by END-0.5.
+ * VOICE SPACE: VO (script.json, 28 lines, mixed later by tools/mix_vo.py) runs almost wall to wall. Under VO the
+ *   melodic bed stays below ~1.3 kHz, ticks sit above 8 kHz, bells only in the 0.3 s line gaps, and a broad
+ *   peaking cut (-4.5 dB @ 2.4 kHz, Q 0.6) on the music bus is automated on inside every VO window (VO table below).
+ * MASTER: loudness-normalised in JS to -20 LUFS integrated (BS.1770 K-weighting + gating), capped so the 4x-oversampled
+ *   true peak stays <= -1.5 dBTP. 20 ms end fade.
+ *
+ * ---------------- CUES ----------------
+ * cues = [{ t: seconds, sfx: name, ...params }]. Unknown names, non-numeric t, or t outside [0, duration) are ignored
+ * silently. Every cue also ducks the music briefly (per-name depth). Common optional params for ANY cue:
+ *   vol  (number, default 1, clamped 0..2)  — level multiplier for that one cue ('soft clunk' -> vol: 0.5)
+ *   pan  (number -1..1)                      — extra stereo placement for that one cue
+ * SUPPORTED SFX NAMES (≈ length):
+ *   Series set (EP01–P4):
+ *   whoosh (0.8 s) · alarm (1.5) · clunk (0.6) · impact (2.0) · hiss (1.2) · fire (2.0) · pump (1.5, 3 strokes)
+ *   success (1.0) · blip (0.15) · bubble (0.8) · engine (3.3) · zap (1.0)
+ *   winch (3.0; {dir:'down'} = falling/braking) · chain (0.6) · spin (2.0; {dir:'down'} = spin-down)
+ *   torque (0.8) · flow (1.5; {dir:'down'} sweeps down) · pulse (0.5) · vibe (2.0) · swirl (2.0)
+ *   NEW in Part 5:
+ *   hydraulic {dur=0.9}   ram close: fluid rush + high-pressure hiss + ram groan for `dur` s, then a heavy steel clunk
+ *                         at the mechanical stop (t+dur) and a short bleed. Place t = start of ram travel.
+ *   rubber    {dur=1.2}   annular squeeze: stick-slip rubber creak that tightens (rate/pitch rise) + low squish.
+ *   shear     {pre=0.35}  blind-shear cut: strain groan + hiss for `pre` s, then crunch/tear, deep impact and a long
+ *                         metallic ring (~2.6 s). The cut lands at t+pre.
+ *   powerdown {pre=0.4, dur=2.2}  rig power off: generator hum audible `pre` s BEFORE t, breaker clack + hum cut at t,
+ *                         then the generator/motor winds down (pitch + whine fall) over `dur` s.
+ *   ratchet   {dur=1.2, rate=9}   handwheel / ratchet wrench: pawl clicks at `rate`/s, grouped (hand re-grips).
+ *   tick      {n=1, rate=2}       gauge / timer / chart-recorder tick; n ticks at `rate`/s (tick-tock alternation).
+ *   valve     {open=false}        gate valve thunk (muffled heavy seat); open:true adds a short fluid whoomph after.
+ *   gas       {dur=2.5, vent=true} gas bubbling up through mud; vent:true crossfades into a turbulent vent roar.
+ *   flare     {dur=3.0}           soft, steady flare roar (low, warm, gentle flicker; softer than 'fire').
+ * --------------------------------------
  * "namman.story" SIGNATURE MOTIF (series-wide, scale degrees 5-1-2-3, rhythm 8th-8th-8th-long):
- *   B4 E5 F#5 G#5 (71 76 78 80) — open over Amaj7 at 0.8 s; resolved over E at 150.0 s.
+ *   B4 E5 F#5 G#5 (71 76 78 80) — resolved (from the P4 minor teaser) at 0.05 s; extended to 5 notes at the recap.
  */
 (function () {
   'use strict';
@@ -58,7 +86,7 @@
   };
   // Series signature motif ("nam-man-sto-ry"): degrees 5-1-2-3 of E major.
   var SIG_MAJ = [71, 76, 78, 80];
-  var DURATION = 170;
+  var DURATION = 183.6;
 
   function renderWav(duration, cues) {
     duration = +duration > 0 ? +duration : DURATION;
@@ -100,13 +128,16 @@
     var pk = filt('peaking', 2500, 0.8); pk.gain.value = 3;
     master.connect(hp); hp.connect(ls); ls.connect(pk); pk.connect(comp); comp.connect(ctx.destination);
     master.gain.setValueAtTime(1, 0);
-    master.gain.setValueAtTime(1, Math.max(0, END - 2.5));
+    master.gain.setValueAtTime(1, Math.max(0, END - 1.6)); // fade from 182.0 (teaser)
     master.gain.linearRampToValueAtTime(0, Math.max(0.01, END - 0.5)); // last 0.5 s silent
 
     var musicBus = ctx.createGain();
     var section = ctx.createGain();
     var duck = ctx.createGain();
-    musicBus.connect(section); section.connect(duck); duck.connect(master);
+    // voEq: broad 1–4 kHz cut on the music, automated on inside the VO windows (see VO table in the score)
+    var voEq = filt('peaking', 2400, 0.6); voEq.gain.value = 0;
+    musicBus.connect(section); section.connect(duck); duck.connect(voEq); voEq.connect(master);
+    var quietBus = ctx.createGain(); quietBus.connect(duck); // bypasses the section arc (power-off silence)
     var musicVerbIn = ctx.createGain();
     var musicVerb = ctx.createConvolver(); musicVerb.buffer = IR;
     musicVerbIn.connect(musicVerb); musicVerb.connect(section);
@@ -117,22 +148,26 @@
     sfxVerbIn.connect(sfxVerb); sfxVerb.connect(master);
 
     // section loudness arc (music only)
-    var arc = [[0, 0.96], [8, 1.0], [15.7, 1.0], [22.4, 1.0], [22.5, 1.12], [24, 1.06], [45.3, 1.02], [53.5, 1.06], [77.2, 1.08], [84, 1.06], [90.7, 1.02], [98.5, 0.95], [106.2, 0.97], [106.5, 1.03], [130, 1.07], [137.7, 1.0], [145.7, 1.08], [153.4, 1.08], [153.45, 1.18], [155, 1.1], [161, 1.05], [END, 1.1]];
+    // storyboard 'music level' 2..5 -> gain; 91.9–94.95 power-off near-silence (only quietBus sounds)
+    var arc = [[0, 0.82], [13.2, 0.85], [16.6, 0.92], [63.7, 0.95], [70.6, 1.05], [77.6, 0.92], [84.6, 0.86], [91.88, 0.86], [92.05, 0.0],
+      [94.9, 0.0], [95.0, 1.0], [98.2, 0.92], [119.2, 1.0], [126.4, 0.92], [139.6, 0.84], [166.0, 0.86], [166.1, 1.12], [172.2, 1.1],
+      [172.6, 0.86], [177.4, 0.8], [END, 0.75]];
     section.gain.setValueAtTime(arc[0][1], 0);
     for (var ai = 1; ai < arc.length; ai++) section.gain.linearRampToValueAtTime(arc[ai][1], arc[ai][0]);
 
     // ---------- helpers ----------
     function outTo(node, o) {
       o = o || {};
-      var bus = o.sfx ? sfxBus : musicBus;
-      var vin = o.sfx ? sfxVerbIn : musicVerbIn;
+      var bus = o.sfx ? (sfxOut || sfxBus) : (o.bus || musicBus);
+      var vin = o.sfx ? (sfxVerbOut || sfxVerbIn) : (o.bus ? null : musicVerbIn);
       var n = node;
       if (o.pan) { var p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, o.pan)); node.connect(p); n = p; }
       n.connect(bus);
       var wet = o.wet == null ? 0.2 : o.wet;
-      if (wet > 0) { var g = ctx.createGain(); g.gain.value = wet; n.connect(g); g.connect(vin); }
+      if (wet > 0 && vin) { var g = ctx.createGain(); g.gain.value = wet; n.connect(g); g.connect(vin); }
       return n;
     }
+    var sfxOut = null, sfxVerbOut = null; // per-cue vol/pan stage (set while a cue renders)
     function osc(type, f, t0, t1) {
       var o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
       o.start(t0); o.stop(t1); return o;
@@ -357,7 +392,7 @@
         }
       }
       lp.connect(g);
-      outTo(g, { wet: 0.4 });
+      outTo(g, { wet: 0.4, bus: o.bus });
     }
 
     // extra light percussion for the dry 'land' groove (soft-attack shaker)
@@ -801,182 +836,309 @@
       for (q = 0; q < Math.round(L / 0.5); q++) tick(t0 + q * 0.5 + 0.25, 0.014, q % 2 ? 0.4 : -0.4);
     }
 
+    // ---------- EP05 Part 5 'Well Control' voices ----------
+    var BEAT = 60 / 72, BAR = 4 * BEAT; // 72 BPM: slower and heavier than Part 4's pump groove
+    CP.Em    = { b: 40, pad: [52, 55, 59, 64], arp: [64, 67, 71, 76] };
+    CP.G     = { b: 43, pad: [55, 59, 62, 67], arp: [62, 67, 71, 74] };
+    CP.Cmaj7 = { b: 36, pad: [52, 55, 59, 64], arp: [60, 64, 67, 71] };
+    CP.Dadd9 = { b: 38, pad: [54, 57, 62, 64], arp: [62, 64, 66, 69] };
+    var WC = [59, 64, 66, 67];      // Well Control motif (P4 teaser figure, minor), low octave
+    var WC_MAJ = [59, 64, 66, 68];  // ... resolved
+    // bars of exactly 4 beats from t0; the last bar ends at tEnd when given
+    function grid(t0, names, tEnd) {
+      var out = [];
+      for (var i = 0; i < names.length; i++) out.push([names[i], t0 + i * BAR]);
+      out[out.length - 1][2] = tEnd != null ? tEnd : t0 + names.length * BAR;
+      return out;
+    }
+    // the weighty low pulse: sub sine (felt), 150 Hz body (heard on phones), soft lowpassed knock
+    function thump(t, v, o) {
+      o = o || {};
+      if (!ok(t) || v <= 0) return;
+      var dec = o.dec || 0.55;
+      var oc = osc('sine', 64, t, t + dec + 0.02);
+      oc.frequency.setValueAtTime(o.f0 || 66, t); oc.frequency.exponentialRampToValueAtTime(o.f1 || 36, t + 0.22);
+      var g = gain(0); decayEnv(g, t, v, dec, 0.004); oc.connect(g);
+      var b = osc('triangle', 150, t, t + 0.22);
+      b.frequency.setValueAtTime(165, t); b.frequency.exponentialRampToValueAtTime(70, t + 0.16);
+      var bg = gain(0); decayEnv(bg, t, v * 0.32, 0.18, 0.003); b.connect(bg); bg.connect(g);
+      var n = noise(t, 0.08), lp = filt('lowpass', 260, 1), ng = gain(0);
+      decayEnv(ng, t, v * 0.4, 0.07, 0.002); n.connect(lp); lp.connect(ng); ng.connect(g);
+      outTo(g, { wet: o.wet == null ? 0.12 : o.wet, bus: o.bus });
+    }
+    // the 'steel door' bar: dark wide pad, held bass, thump on every beat (1 strong, 3 medium), ticks > 8 kHz
+    function steelBar(c, t0, L, lv, o) {
+      o = o || {};
+      var cut = o.cut || 700;
+      pad(t0, t0 + L, c.pad, { vol: (o.pv || 0.046) + 0.008 * lv, att: o.att || 0.35, rel: o.rel || 0.5, cut0: cut + 150 * lv, cut1: cut + 280 * lv, wet: 0.6, width: 1, det: o.det || 13, lfo: o.lfo || 0.2 });
+      bass(t0, L - 0.12, c.b, { vol: 0.095 + 0.025 * lv, att: 0.12, rel: 0.4, cut: 420 });
+      var nb = Math.max(1, Math.round(L / BEAT - 0.25));
+      for (var k = 0; k < nb; k++) {
+        var tb = t0 + k * BEAT;
+        if (!(o.sparse && k % 2)) thump(tb, (k === 0 ? 0.36 : (k === 2 ? 0.25 : 0.17)) * lv * (o.tv || 1));
+        if (o.eighths) thump(tb + BEAT / 2, 0.08 * lv, { dec: 0.3 });
+        if (!o.noTick) tick(tb + BEAT / 2, 0.008 + 0.004 * lv, k % 2 ? 0.4 : -0.4);
+        if (o.ticks16) for (var s16 = 1; s16 < 4; s16 += 2) hat(tb + s16 * BEAT / 4, 0.005 + 0.004 * lv, { f: 9500, dec: 0.015, pan: s16 === 1 ? -0.5 : 0.5 });
+      }
+    }
+    // the lift down the stack: one low step per beat, descending through the chord (floors going by)
+    function stepDown(t0, L, c, lv) {
+      for (var k = 0; k < Math.round(L / BEAT - 0.25); k++) {
+        pluck(t0 + k * BEAT + 0.02, c.arp[3 - (k % 4)] - 12, { vol: 0.036 * lv, dur: 0.45, cut: 900, q: 1.6, pan: 0.3 - 0.2 * (k % 4), wet: 0.45 });
+      }
+    }
+    // mechanisms: low machine ostinato on 72-BPM 8ths (below ~1 kHz)
+    function mechOst(t0, L, c, lv) {
+      var st = BEAT / 2, n = Math.round(L / st - 0.25);
+      for (var k = 0; k < n; k++) {
+        var idx = OST[k % 8];
+        pluck(t0 + k * st, c.arp[idx] - 12, { vol: (k % 2 ? 0.022 : 0.03) * lv, dur: 0.22, cut: 1000, q: 2, pan: (idx - 1.5) * 0.3, wet: 0.3 });
+      }
+    }
+    // Well Control motif in the low register (8th 8th 8th long), soft plucks + sub — reads under the voice
+    function wcMotif(t, vol, notes, o) {
+      o = o || {};
+      var N = notes || WC, st = o.st || BEAT / 4;
+      for (var i = 0; i < 4; i++) {
+        pluck(t + i * st, N[i], { vol: vol * (i === 3 ? 1.1 : 0.9), dur: i === 3 ? 1.2 : 0.3, cut: o.cut || 1200, q: 1.4, pan: (i - 1.5) * 0.2, wet: 0.45 });
+      }
+      bass(t + 3 * st, 1.0, N[0] - 12, { vol: vol * 2.2, att: 0.05, rel: 0.5 });
+    }
+    // gas path: rolling triplet wave (P4 'journey' DNA at 72 BPM) whose pan travels L -> R (the choke side is camera-right)
+    function gasLine(t0, L, c, lv, cut, oct) {
+      var st = BEAT / 3, n = Math.floor(L / st + 1e-6);
+      for (var q = 0; q < n; q++) {
+        pluck(t0 + q * st, c.arp[JR[q % 6]] + (oct || 0) - 12, { vol: (q % 3 === 0 ? 0.026 : 0.017) * lv, dur: 0.24, cut: cut || 1100, q: 1.8, pan: -0.55 + 1.15 * (q / Math.max(1, n - 1)), wet: 0.45 });
+      }
+    }
+    // dying-motor pad: holds, then its pitch and filter collapse (the bed 'loses power' at tOff)
+    function windDown(tOn, tOff, notes, vol) {
+      if (!ok(tOn)) return;
+      var stop = tOff + 0.75, lp = filt('lowpass', 900, 1.1), g = gain(0);
+      lp.frequency.setValueAtTime(900, tOn); lp.frequency.setValueAtTime(900, tOff); lp.frequency.exponentialRampToValueAtTime(120, tOff + 0.6);
+      g.gain.setValueAtTime(0, tOn); g.gain.linearRampToValueAtTime(vol, tOn + 1.2);
+      g.gain.setValueAtTime(vol, tOff); g.gain.linearRampToValueAtTime(vol * 0.6, tOff + 0.12); g.gain.exponentialRampToValueAtTime(0.0003, tOff + 0.7);
+      for (var i = 0; i < notes.length; i++) for (var k = -1; k <= 1; k += 2) {
+        var oc = osc('sawtooth', mtof(notes[i]), tOn, stop); oc.detune.value = k * 10;
+        oc.frequency.setValueAtTime(mtof(notes[i]), tOff); oc.frequency.exponentialRampToValueAtTime(mtof(notes[i]) * 0.5, tOff + 0.6);
+        var p = ctx.createStereoPanner(); p.pan.value = k * 0.6; oc.connect(p); p.connect(lp);
+      }
+      lp.connect(g); outTo(g, { wet: 0.35 });
+    }
+
+    // ---------- VO windows (docs/script.json) — music leaves the 1–4 kHz band while the voice speaks ----------
+    var VO = [[0.6, 5.9], [6.2, 12.9], [13.2, 19.9], [20.2, 25.3], [25.6, 31.4], [31.7, 36.5], [36.8, 43.3], [43.6, 49.8],
+      [50.1, 56.0], [56.3, 63.4], [63.7, 70.3], [70.6, 77.3], [77.6, 84.3], [84.6, 91.1], [91.4, 97.9], [98.2, 104.1],
+      [104.4, 111.5], [111.8, 118.9], [119.2, 126.1], [126.4, 133.1], [133.4, 139.3], [139.6, 144.9], [145.2, 151.8],
+      [152.1, 158.9], [159.2, 165.8], [165.3, 172.1], [172.4, 176.9], [177.4, 182.9]];
+    (function () {
+      var R = 50, n = Math.max(2, Math.ceil(END * R) + 1), cv = new Float32Array(n), DIP = -4.5, RMP = 0.12;
+      for (var j = 0; j < n; j++) {
+        var tt = j / R, w = 0;
+        for (var v = 0; v < VO.length; v++) {
+          var a = VO[v][0], b = VO[v][1], x = 0;
+          if (tt >= a && tt <= b) x = 1;
+          else if (tt < a && tt > a - RMP) x = 1 - (a - tt) / RMP;
+          else if (tt > b && tt < b + RMP) x = 1 - (tt - b) / RMP;
+          if (x > w) w = x;
+        }
+        cv[j] = DIP * w;
+      }
+      voEq.gain.setValueCurveAtTime(cv, 0, END);
+    })();
+
     // ============ SCORE ============
-    // ---- 1 TITLE 0–8: signature in the opening VO gap (0–0.6), E(add9) swell, a drop forms in the tank ----
-    pad(0, 1.6, CH.Eadd9.pad, { vol: 0.1, att: 0.5, rel: 0.5, cut0: 600, cut1: 1800, wet: 0.65, width: 0.85 });
-    pad(0.3, 4.2, [76, 80, 83], { type: 'triangle', vol: 0.022, att: 1.8, rel: 0.8, cut0: 2200, cut1: 4500, wet: 0.8, width: 0.9 });
-    sig(0.04, 0.075, { last: 2.6, st: 0.17 });
-    pad(1.6, 4.0, CH.Amaj7.pad, { vol: 0.08, att: 0.3, rel: 0.4, cut0: 900, cut1: 1300, wet: 0.6, width: 0.9 });
-    bass(1.6, 2.3, 45, { vol: 0.12, att: 0.4, rel: 0.4 });
-    for (s = 0; s < 6; s++) bubble(2.2 + s * 0.5 + rnd() * 0.12, 260 + rnd() * 240, 0.018, { dur: 0.09, pan: rnd() * 1.2 - 0.6, wet: 0.6 });
-    seq([['Csm7', 4], ['Bsus4', 6, 7.8]], function (c, t0, L, i) {
-      pad(t0, t0 + L, c.pad, { vol: 0.05, att: i ? 0.15 : 0.5, rel: 0.3, cut0: 800, cut1: 1000, wet: 0.55, width: 0.9 });
-      bass(t0, L - 0.1, c.b, { vol: 0.12, att: 0.2, rel: 0.3 });
-      kick(t0, 0.3 + 0.08 * i); kick(t0 + 1.0, 0.2 + 0.06 * i);
-      journey(t0, L, c, 0.4 + 0.25 * i, 900);
-      for (var q = 0; q < 4; q++) tick(t0 + q * 0.5 + 0.25, 0.01 + 0.004 * i);
+    // ---- 1 TITLE 0–6.2: the P4 teaser figure (B E F# G, minor) answered in MAJOR — "finally, the last system" ----
+    pad(0, 1.8, CH.Eadd9.pad, { vol: 0.1, att: 0.45, rel: 0.6, cut0: 600, cut1: 1700, wet: 0.65, width: 0.9 });
+    pad(0.3, 5.6, [76, 80, 83], { type: 'triangle', vol: 0.018, att: 1.6, rel: 0.8, cut0: 2000, cut1: 3200, wet: 0.8, width: 0.9 });
+    sig(0.05, 0.075, { last: 2.6, st: 0.17 }); // B E F# G#: resolved (P4 ended on G natural)
+    thump(0.4, 0.42, { dec: 0.9 }); boom(0.4, 0.04, { dur: 1.6 });
+    seq([['Amaj7', 1.8], ['E', 3.4], ['Cmaj7', 4.6, 6.2]], function (c, t0, L, i) {
+      pad(t0, t0 + L, c.pad, { vol: 0.07 - 0.01 * i, att: 0.35, rel: 0.5, cut0: 1000 - 120 * i, cut1: 1100 - 150 * i, wet: 0.6, width: 0.95 });
+      bass(t0, L - 0.1, c.b, { vol: 0.11, att: 0.25, rel: 0.4 });
     });
-    riser(6.8, 7.8, 0.05, 400, 3500);
-    dropHook(7.84, 0.028); // gap 7.8–8.4: the drop appears
+    bell(5.92, 71, 0.022, { dur: 1.6, wet: 0.75 }); // gap 5.9–6.2
 
-    // ---- 2 THE LOOP 8–15.7: half-time groove + journey motif (the loop map draws itself) ----
-    kick(8.4, 0.45); crash(8.4, 0.03, { dec: 2.0 });
-    seq([['E', 8.4], ['BD', 10.4], ['Csm7', 12.4], ['A', 14.4, 15.7]], function (c, t0, L, i) {
-      pad(t0, t0 + L, c.pad, { vol: 0.046, att: 0.15, rel: 0.3, cut0: 850 + 80 * i, cut1: 1000 + 80 * i, wet: 0.55, width: 0.95 });
-      groove(t0, c, i, { lv: 0.5 + 0.06 * i, br: 0.2, noKick1: i === 0 });
-      journey(t0, L, c, 0.55 + 0.08 * i, 1000, 0, i % 2 ? -1 : 1);
+    // ---- 2 BARRIERS 6.2–16.6: no pulse yet — purple minor world, low drone, held breath ----
+    seq([['Emadd9', 6.2], ['C', 9.55], ['Am', 12.9], ['B7sus', 14.75, 16.6]], function (c, t0, L, i) {
+      pad(t0, t0 + L, c.pad, { vol: 0.05, att: i ? 0.4 : 0.8, rel: 0.5, cut0: 620 + 40 * i, cut1: 720 + 40 * i, wet: 0.65, width: 1, det: 15, lfo: 0.25 });
+      bass(t0, L - 0.1, c.b, { vol: 0.1, att: 0.3, rel: 0.4 });
+      for (var q = 0; q < Math.floor(L / BEAT); q++) tick(t0 + q * BEAT + BEAT / 2, 0.007, q % 2 ? 0.4 : -0.4);
     });
-    flow(8.6, 15.3, 0.02, -0.6, 0.6);
-    riser(14.6, 15.6, 0.045, 400, 3500);
-    dropHook(15.45, 0.022, { tr: -5 }); // gap 15.4–16.0
+    drone(6.4, 16.4, [28, 35], 0.014, { cut: 260, att: 2.0, rel: 0.6, trem: 0.3 });
+    pad(7.0, 12.6, [79, 83], { type: 'triangle', vol: 0.008, att: 2.5, rel: 0.4, cut0: 1500, cut1: 2000, wet: 0.85, width: 1, lfo: 5 }); // high, thin, tense (soft under VO)
+    bell(12.95, 67, 0.02, { dur: 1.4, wet: 0.75 }); // gap 12.9–13.2
+    thump(13.2, 0.3, { dec: 0.8 }); // the stack appears
+    riser(15.4, 16.55, 0.03, 300, 2200);
 
-    // ---- 3 TANKS + CHARGE PUMP 15.7–22.5: pump pulse wakes softly, centrifugal charge-pump whirr, agitator bubbles ----
-    kick(15.7, 0.4);
-    seq([['E', 15.7], ['Csm7', 18.3], ['A', 20.7, 22.5]], function (c, t0, L, i) {
-      pumpSeg(c, t0, L, 0.35 + 0.15 * i, 0.6 - 0.2 * i, { noSnare: true, kv: 0.55 + 0.15 * i, att: i ? 0.12 : 0.4 });
+    // ---- 3 PULSE ENTERS 16.6 (trench lands) · 4 THE LIFT 20.2–36.8 · 5 MECHANISMS 36.8–63.3 ----
+    thump(16.6, 0.5, { dec: 0.8 }); crash(16.6, 0.02, { dec: 1.8 });
+    seq(grid(16.6, ['Em', 'C', 'Am', 'B7sus', 'Em', 'Cmaj7', 'D', 'B7sus', 'Em', 'C', 'G', 'D', 'Am', 'B7sus']), function (c, t0, L, i) {
+      var lv = i < 1 ? 0.6 : (t0 < 36.6 ? 0.72 : 0.8 + 0.01 * (i - 6));
+      steelBar(c, t0, L, lv, { pv: 0.044 });
+      if (t0 >= 19.9 && t0 < 36.6) stepDown(t0, L, c, 0.9);   // floors going by
+      if (t0 >= 36.6) mechOst(t0, L, c, 0.75 + 0.03 * (i - 6)); // mechanisms
     });
-    motorHum(16.0, 22.2, 0.012, 8);
-    for (s = 0; s < 8; s++) bubble(16.2 + s * 0.7 + rnd() * 0.2, 240 + rnd() * 220, 0.018, { dur: 0.09, pan: rnd() * 1.2 - 0.6, wet: 0.5 });
-    rollTo(22.5, 6, 0.02, 0.01);
-    riser(21.3, 22.5, 0.06, 400, 4500);
+    drone(20.4, 36.4, [28], 0.01, { cut: 220, att: 2.0, rel: 0.8, trem: 0.25 });
+    // line-gap accents (VO gaps): tiny low bells / motif tails
+    bell(25.35, 71, 0.016, { dur: 1.2, pan: 0.3 }); bell(31.45, 69, 0.016, { dur: 1.2, pan: -0.3 });
+    bell(36.52, 67, 0.018, { dur: 1.4 }); thump(36.8, 0.3);
+    bell(43.33, 71, 0.015, { dur: 1.1, pan: 0.3 }); bell(49.82, 74, 0.015, { dur: 1.1, pan: -0.3 }); bell(56.02, 71, 0.016, { dur: 1.2 });
+    wcMotif(38.2, 0.03); wcMotif(51.5, 0.03);
+    riser(62.2, 63.65, 0.035, 250, 2400); tom(63.25, 70, 0.1, { dec: 0.45 });
 
-    // ---- 4 THE MUD PUMP 22.5–45.3: heart of the system — triplex groove locked to 100 strokes/min ----
-    kick(22.5, 0.52); crash(22.5, 0.07, { dec: 2.6 }); tom(22.5, 55, 0.16, { dec: 0.9 }); boom(22.5, 0.05, { dur: 1.2 });
-    stab(22.5, CH.E.pad.concat([71]), 0.1, { rel: 1.6, cut0: 3400, cut1: 700, wet: 0.6 });
-    for (s = 0; s < 3; s++) bell(22.5 + s * 0.1, [71, 76, 80][s], 0.026, { dur: 1.6, pan: (s - 1) * 0.45, wet: 0.65 }); // three pistons
-    bass(22.5, 1.8, 28, { vol: 0.07 });
-    // 4a triplex (E–C–D heroic) · 4b liner seesaw · 4c dampener: groove smooths out
-    seq([['E', 22.5], ['C', 24.9], ['D', 27.3], ['A', 29.7], ['Bsus4', 32.1], ['A', 34.5], ['B', 36.9], ['Csm7', 37.5], ['A', 39.9], ['Fsm7', 42.3], ['Bsus4', 44.7, 45.3]], function (c, t0, L, i) {
-      var sm = t0 >= 37.5 ? Math.min(1, (t0 - 37.5) / 7.2 + 0.25) : 0;
-      pumpSeg(c, t0, L, t0 < 29.7 ? 0.85 : (t0 < 37.5 ? (i % 2 ? 0.95 : 0.75) : 0.8), sm, { noKick: t0 === 22.5 });
+    // ---- 6 AWE 63.7–77.6: 10,000 psi ≈ 660 t, then the blind-shear cut — strings swell, low end thickens ----
+    var AWE = [['Am', 63.7], ['C', 63.7 + BAR], ['B7sus', 63.7 + 2 * BAR], ['Em', 73.6], ['B7sus', 73.6 + BAR, 77.6]];
+    seq(AWE, function (c, t0, L, i) {
+      var lv = 0.85 + 0.07 * i;
+      steelBar(c, t0, L, lv, { pv: 0.046, cut: 650, eighths: i >= 1, ticks16: i >= 2, tv: 1.05 });
     });
-    motorHum(22.8, 37.2, 0.013, 5 / 3); // crankshaft turning (1.67 rev/s)
-    bells(24.9, [[0, 72], [2.4, 74]], 0.018, { dur: 1.8 });
-    // gap 29.6–30.0: liner seesaw — small liner high (pressure), big liner low (flow)
-    bell(29.62, 83, 0.03, { dur: 1.0, pan: 0.4 }); bell(29.8, 71, 0.03, { dur: 1.4, pan: -0.4 }); crash(29.7, 0.025);
-    rollTo(37.5, 4, 0.02, 0.01);
-    // gap 37.2–37.8: dampener — soft N2 swell
-    chime(37.5, CH.Csm7, 0.022); crash(37.5, 0.03, { dec: 2.0 });
-    pad(37.3, 44.9, [64, 68, 71], { type: 'triangle', vol: 0.012, att: 3, rel: 0.6, cut0: 1500, cut1: 2600, wet: 0.8, width: 1 });
-    riser(44.2, 45.3, 0.045, 400, 3200);
+    pad(63.8, 73.4, [57, 64, 69, 72], { vol: 0.045, att: 4.5, rel: 0.6, cut0: 500, cut1: 1500, det: 8, wet: 0.75, width: 1, lfo: 0.15 }); // strings swell
+    drone(65.5, 73.5, [28, 35, 40], 0.02, { cut: 200, cut1: 320, att: 3.0, rel: 0.3, trem: 0.4 });           // low end thickens
+    thump(68.3, 0.62, { dec: 1.2, f0: 58, f1: 28 }); boom(68.3, 0.06, { dur: 2.0, f0: 60, f1: 24 });          // 660 t sub-thump
+    bell(70.32, 69, 0.018, { dur: 1.2 });                                                                       // gap 70.3–70.6
+    // 73.6 the DRY metallic accent: everything stops for one beat, dry stab + kick, no reverb
+    kick(73.6, 0.55, { dec: 0.3, wet: 0 }); stab(73.6, [52, 59, 64, 67], 0.07, { rel: 0.35, cut0: 2400, cut1: 400, wet: 0 });
+    drone(74.0, 77.4, [28, 35], 0.014, { cut: 240, att: 0.8, rel: 0.4, trem: 0.5 });
+    bell(77.32, 71, 0.018, { dur: 1.2 });                                                                       // gap 77.3–77.6
 
-    // ---- 5 PUMP OUTPUT CALC 45.3–53.5: focused counting on the stroke grid; the 'bucket' pad fills ----
-    chime(45.3, CH.E, 0.022); kick(45.3, 0.45); // gap 45.2–45.8
-    seq([['E', 45.3], ['Csm7', 47.7], ['A', 50.1], ['B', 52.5, 53.5]], function (c, t0, L, i) {
-      pumpSeg(c, t0, L, 0.6, 0.6, { noSnare: true, noHiss: true, count: true, kv: 0.7 });
+    // ---- 7 THE COMMAND 77.6–84.6 · 8 THE BOTTLES 84.6–91.9: quiet tension ----
+    seq(grid(77.6, ['Em', 'C'], 84.6), function (c, t0, L, i) { steelBar(c, t0, L, 0.7, { pv: 0.04, cut: 680 }); });
+    wcMotif(78.3, 0.034); // the command travels (with the 'pulse' SFX)
+    wcMotif(81.6, 0.026, [59, 64, 66, 71]);
+    bell(84.32, 67, 0.016, { dur: 1.2 });
+    seq([['Am', 84.6], ['B7sus', 84.6 + BAR, 91.9]], function (c, t0, L, i) {
+      // thin pulse (1 and 3 only), gauge ticks on 8ths, held tremolo tension above
+      steelBar(c, t0, L, 0.55 + 0.1 * i, { pv: 0.032, cut: 600, sparse: true, noTick: true });
+      for (var q = 0; q < Math.round(L / (BEAT / 2)); q++) tick(t0 + q * BEAT / 2, q % 2 ? 0.007 : 0.011, q % 2 ? 0.45 : -0.45);
     });
-    pad(45.8, 53.0, [76, 80, 83], { type: 'triangle', vol: 0.013, att: 4, rel: 0.5, cut0: 1200, cut1: 3500, wet: 0.8, width: 1 });
-    rollTo(53.5, 6, 0.02, 0.011);
-    riser(52.3, 53.5, 0.06, 400, 4500);
+    windDown(84.8, 91.9, [52, 59, 64, 66], 0.016); // the rig's electric bed: collapses with the power at 91.9
+    pad(85.5, 91.5, [71, 72], { type: 'triangle', vol: 0.007, att: 3, rel: 0.3, cut0: 1300, cut1: 1300, wet: 0.8, width: 1, lfo: 7 });
+    drone(85.0, 91.6, [28, 35], 0.012, { cut: 240, att: 2.5, rel: 0.25, trem: 0.6 });
 
-    // ---- 6 UP THE RIG 53.5–77: ascent — standpipe climb, kelly hose, gooseneck + washpipe at the top ----
-    for (s = 0; s < 4; s++) bell(53.25 + s * 0.08, [76, 80, 83, 88][s], 0.024, { dur: 1.6, pan: (s - 1.5) * 0.3, wet: 0.7 }); // gap 53.2–53.8
-    kick(53.5, 0.5); crash(53.5, 0.05, { dec: 2.2 });
-    seq([['E', 53.5], ['Fsm7', 55.5], ['EG', 57.5], ['A', 59.5], ['Csm7', 61.5], ['A', 63.5], ['Bsus4', 65.5], ['B', 67.5],
-      ['E', 69.5], ['C', 71.5], ['D', 73.5], ['Bsus4', 75.5, 77]], function (c, t0, L, i) {
-      var h = (t0 - 53.5) / 23.5;
-      climbBar(c, t0, L, 0.6 + 0.3 * h, h);
-      if (t0 >= 69.5) rotLine(t0, L, c, 0.35, 1000, 12); // washpipe: stationary above, rotating below
+    // ---- 9 POWER OFF 91.9: near-silence 92.0–94.95 — only a sub drone and air (bypasses the section arc) ----
+    drone(92.0, 94.7, [28], 0.012, { cut: 150, att: 0.6, rel: 0.4, trem: 0.15, bus: quietBus });
+    // ---- 95.0 the pulse returns, warm: the BOP closed without rig power ----
+    thump(95.0, 0.5, { dec: 1.0 }); crash(95.0, 0.018, { dec: 2.2 });
+    steelBar(CP.Cmaj7, 95.0, 98.2 - 95.0, 0.7, { pv: 0.05, cut: 900, att: 0.5 });
+    pad(95.2, 97.8, [67, 71, 76], { type: 'triangle', vol: 0.012, att: 1.2, rel: 0.6, cut0: 1500, cut1: 2200, wet: 0.85, width: 1 });
+    bell(97.95, 76, 0.02, { dur: 1.6, wet: 0.75 }); // gap 97.9–98.2
+
+    // ---- 10 THE WAY OUT 98.2–139.6: flowing arpeggio follows the gas: valves, choke, MGS, flare, mud seal, trip tank ----
+    seq(grid(98.2, ['Em', 'C', 'G', 'D', 'Em', 'Am', 'C', 'G', 'D', 'Em', 'C', 'Dadd9'], 138.2), function (c, t0, L, i) {
+      var lv = t0 >= 118 && t0 < 128 ? 0.85 : 0.72;
+      steelBar(c, t0, L, lv, { pv: 0.042, cut: 760, tv: 0.85 });
+      gasLine(t0, L, c, 0.6 + (t0 >= 118 && t0 < 128 ? 0.2 : 0.08), 1050);
     });
-    wind(54, 76.5, 0.009);
-    flow(54.5, 60.8, 0.018, -0.5, 0.5); flow(62, 68.8, 0.018, 0.5, -0.5);
-    rollTo(61.5, 4, 0.02, 0.01); lift(61.5, CH.Csm7, 2);       // gap 61.2–61.8: kelly hose
-    rollTo(69.5, 6, 0.02, 0.011); riser(68.3, 69.5, 0.05, 500, 4000); lift(69.5, CH.E, 3); // gap 69.2–69.8: top
-    stab(69.5, CH.E.pad.concat([71]), 0.06, { rel: 1.2, cut0: 3000, cut1: 700 });
+    steelBar(CX('B7sus'), 138.2, 139.6 - 138.2, 0.6, { pv: 0.04 });
+    for (var g5 = 0; g5 < 3; g5++) bell(104.12 + g5 * 0.08, [71, 74, 79][g5], 0.014, { dur: 1.0, pan: (g5 - 1) * 0.4 }); // gap 104.1–104.4
+    bell(111.52, 74, 0.016, { dur: 1.2, pan: 0.4 }); bell(118.92, 71, 0.016, { dur: 1.2, pan: 0.5 });
+    // flare: warm swell (major-leaning) under the controlled flame
+    pad(122.8, 127.6, [55, 59, 62, 67], { type: 'triangle', vol: 0.03, att: 1.6, rel: 1.0, cut0: 800, cut1: 1300, wet: 0.8, width: 1 });
+    bass(123.4, 3.6, 43, { vol: 0.08, att: 0.6, rel: 0.8 });
+    bell(126.12, 74, 0.016, { dur: 1.2 }); bell(133.12, 79, 0.015, { dur: 1.2, pan: -0.3 });
+    // 5 psi mud seal: small clever surprise — a light triad 'plink' in the gap before the trip tank
+    for (g5 = 0; g5 < 3; g5++) bubble(133.15 + g5 * 0.07, 500 + g5 * 160, 0.018, { dur: 0.07, pan: (g5 - 1) * 0.4 });
+    bell(139.32, 76, 0.016, { dur: 1.2 });
 
-    // ---- 7 DOWN THE HOLE 77–90.7: the dive, jet burst at the nozzles (gap 83.4–84.0), churning annulus return ----
-    for (s = 0; s < 4; s++) bell(76.64 + s * 0.1, [88, 83, 80, 76][s], 0.024, { dur: 1.3, pan: (1.5 - s) * 0.3, wet: 0.7 }); // gap 76.6–77.2
-    riser(76.2, 77.2, 0.04, 3600, 600);
-    kick(77.2, 0.5); crash(77.2, 0.045, { dec: 2.0 }); boom(77.2, 0.05, { dur: 1.2 });
-    seq([['E', 77.2], ['Csm7', 79.2], ['A', 81.2], ['Bsus4', 82.3, 83.45]], function (c, t0, L, i) {
-      descBar(c, t0, L, 0.75, 0.3 + 0.25 * i);
-      fallLine(t0, L, c, 0.8, 1150 - 100 * i);
+    // ---- 11 THOROUGHNESS 139.6–166.1: light and tidy · ticking motif under testing 159.2–166.1 ----
+    seq(grid(139.6, ['C', 'G', 'Am', 'Em', 'C', 'D'], 159.6), function (c, t0, L, i) {
+      steelBar(c, t0, L, 0.55, { pv: 0.038, cut: 800, tv: 0.75 });
+      mechOst(t0, L, c, 0.5);
     });
-    drone(77.4, 83.2, [28, 35], 0.016, { cut: 320, cut1: 220, att: 1.0, rel: 0.4, trem: 0.3 });
-    riser(82.2, 83.42, 0.045, 200, 1800, { q: 4 }); // pressure builds
-    for (s = 0; s < 4; s++) tom(82.95 + s * 0.11, 90 + s * 8, 0.05 + s * 0.012, { dec: 0.1 });
-    jetBurst(83.45, 0.09);
-    stab(83.45, CH.Csm7.pad, 0.075, { rel: 1.0, cut0: 3000, cut1: 500 });
-    seq([['Csm7', 84], ['A', 86], ['B', 88], ['Bsus4', 90, 90.7]], function (c, t0, L, i) { churnBar(c, t0, L, 0.7 + 0.1 * i, i / 3); });
-    grind(84.3, 90.2, 0.016, 6, 320); // cuttings riding up
-    dropHook(90.45, 0.022, { tr: -7 }); // gap 90.4–91.0
-
-    // ---- 8 RETURNS + FLOW CHECK 90.7–106.5: gravity flow down the flowline, then near-silent watchfulness ----
-    kick(90.7, 0.42); crash(90.7, 0.03);
-    seq([['E', 90.7], ['BD', 92.7], ['Csm7', 94.7], ['A', 96.7, 98.5]], function (c, t0, L, i) {
-      pad(t0, t0 + L, c.pad, { vol: 0.044, att: 0.15, rel: 0.3, cut0: 850, cut1: 950, wet: 0.55, width: 0.95 });
-      groove(t0, c, i, { lv: 0.5 - 0.04 * i, br: 0.1, noKick1: i === 0 });
-      journey(t0, L, c, 0.5, 950, 0, -1);
+    bell(144.92, 71, 0.014, { dur: 1.0 }); bell(151.82, 74, 0.014, { dur: 1.0 }); bell(158.92, 78, 0.015, { dur: 1.0 });
+    seq([['Am', 159.6], ['B7sus', 159.6 + BAR, 166.1]], function (c, t0, L, i) {
+      steelBar(c, t0, L, 0.55 + 0.1 * i, { pv: 0.038, cut: 780, noTick: true, tv: 0.8 });
+      for (var q = 0; q < Math.round(L / (BEAT / 2) - 0.25); q++) { // the ticking motif: tick-tock 8ths + low chart 'tok'
+        tick(t0 + q * BEAT / 2, q % 2 ? 0.009 : 0.014, q % 2 ? 0.45 : -0.45);
+        if (q % 4 === 3) pluck(t0 + q * BEAT / 2, c.arp[q % 8 === 3 ? 1 : 2] - 12, { vol: 0.022, dur: 0.2, cut: 900, wet: 0.35 });
+      }
     });
-    flow(91, 94.8, 0.02, -0.6, 0.6); flow(94.6, 98.3, 0.018, 0.6, -0.6);
-    boom(98.5, 0.045, { dur: 1.6 }); bell(98.48, 81, 0.024, { dur: 2.4, wet: 0.75 }); // gap 98.4–99.0: drop to a tick
-    seq([['Fsm7', 98.5], ['Csm7', 100.5], ['Fsm7', 102.5], ['Bsus4', 104.5, 106.5]], function (c, t0, L, i) { watchBar(c, t0, L, 0.7 + 0.1 * i); });
-    drone(98.8, 106.0, [30, 37], 0.013, { cut: 300, att: 2.0, rel: 0.6, trem: 0.25 });
-    pad(100, 106.2, [69, 71], { type: 'triangle', vol: 0.012, att: 3, rel: 0.4, cut0: 1500, cut1: 2200, wet: 0.8, width: 1, lfo: 0.2 });
-    riser(105.3, 106.5, 0.045, 400, 3800);
+    riser(164.6, 166.08, 0.05, 300, 3800); tom(165.6, 98, 0.1, { dec: 0.3 }); tom(165.85, 82, 0.12, { dec: 0.35 });
 
-    // ---- 9 SOLIDS CONTROL 106.5–137.7: order from mess — a clean arpeggio that brightens stage by stage ----
-    for (s = 0; s < 4; s++) bell(106.24 + s * 0.07, [76, 80, 83, 88][s], 0.024, { dur: 1.5, pan: (s - 1.5) * 0.3, wet: 0.7 }); // gap 106.2–106.8
-    kick(106.5, 0.45); crash(106.5, 0.04, { dec: 2.0 });
-    var SOL = [['E', 106.5], ['A', 108.5], ['E', 110.5], ['B', 112.5], ['Csm7', 114.2], ['A', 116.2], ['E', 118.2], ['Bsus4', 120.2],
-      ['A', 122], ['Fsm7', 124], ['Csm7', 126], ['B', 128], ['E', 130], ['BD', 132], ['A', 134], ['Bsus4', 136, 137.7]];
-    seq(SOL, function (c, t0, L, i) {
-      var br = (t0 - 106.5) / 31.2;
-      var mode = t0 < 114.2 ? 'vibe' : t0 < 122 ? 'bubble' : t0 < 130 ? 'swirl' : 'spin';
-      cleanBar(c, t0, L, br, mode, t0 >= 125.6 ? 12 : 0); // desander (big cones, low) -> desilter (small cones, high)
+    // ---- 12 SERIES FINALE 166.1–172.4: five systems, one rig — E major, five rising notes, one quote per Part ----
+    var FIN = 166.1;
+    thump(FIN, 0.6, { dec: 1.0 }); kick(FIN, 0.45); crash(FIN, 0.05, { dec: 2.4 }); boom(FIN, 0.05, { dur: 1.4 });
+    seq([['Eadd9', FIN], ['E', 167.4], ['Csm7', 168.1], ['A', 168.9], ['Bsus4', 169.6], ['B', 170.3], ['E', 170.9, 172.4]], function (c, t0, L, i) {
+      pad(t0, t0 + L, c.pad, { vol: 0.055 + 0.004 * i, att: i ? 0.08 : 0.3, rel: 0.4, cut0: 950 + 50 * i, cut1: 1050 + 50 * i, wet: 0.6, width: 1 });
+      bass(t0, L - 0.05, c.b, { vol: 0.15, att: 0.02, rel: 0.25, drive: i === 6 });
     });
-    for (s = 0; s < 3; s++) bubble(113.64 + s * 0.12, 700 + s * 180, 0.03, { dur: 0.08, pan: (s - 1) * 0.4, wet: 0.6 }); // gap 113.6–114.2: degasser
-    bell(113.9, 83, 0.02, { dur: 1.3 }); kick(114.2, 0.42); crash(114.2, 0.025);
-    for (s = 0; s < 5; s++) pluck(121.44 + s * 0.1, [76, 80, 83, 80, 88][s], { vol: 0.035, dur: 0.3, cut: 2600, pan: 0.6 * Math.sin(s * 1.6), wet: 0.5 }); // gap 121.4–122: swirl
-    kick(122, 0.42); crash(122, 0.025);
-    riser(128.8, 129.95, 0.04, 500, 4000); chime(129.45, CH.E, 0.022); kick(130, 0.45); crash(130, 0.035); // gap 129.4–130: centrifuge
-    motorHum(130.2, 137.3, 0.012, 12);
+    for (var fb = 0; fb < 8; fb++) { // full theme pulse at 72 BPM: thump on beats, light backbeat, hats
+      var tb = FIN + fb * BEAT;
+      thump(tb, fb % 2 ? 0.26 : 0.4);
+      if (fb % 2) snare(tb, 0.045, { dec: 0.14, f: 2200 });
+      hat(tb + BEAT / 2, 0.02, { f: 8000 });
+    }
+    var REC = [[167.4, 71, 'power'], [168.1, 76, 'hoist'], [168.9, 78, 'rot'], [169.6, 80, 'circ'], [170.9, 83, 'wc']];
+    for (var r = 0; r < REC.length; r++) {
+      var rt = REC[r][0], rm = REC[r][1], kind = REC[r][2];
+      bell(rt, rm, 0.032 + 0.004 * r, { dur: r === 4 ? 2.6 : 1.3, pan: (r - 2) * 0.25, wet: 0.65 });
+      pluck(rt, rm - 12, { vol: 0.05, dur: 0.5, cut: 1400, wet: 0.4, pan: (r - 2) * -0.15 });
+      if (kind === 'power') zline(rt + 0.06, 0.62, CH.E, 0.75);                          // P1: 16th 'current'
+      if (kind === 'hoist') travel(rt + 0.06, 0.75, CH.Csm7, 1, 0.8, 1300);              // P2: climbing travel line
+      if (kind === 'rot') rotLine(rt + 0.06, 0.62, CH.A, 0.8, 1200, 12);                 // P3: circling rotation figure
+      if (kind === 'circ') { bubble(rt + 0.02, 900, 0.03, { dur: 0.07, wet: 0.6 }); journey(rt + 0.1, 1.2, CH.Bsus4, 0.8, 1200); } // P4: one drop + journey
+      if (kind === 'wc') {                                                                // P5: the thump + full resolve
+        thump(rt, 0.7, { dec: 1.4 }); kick(rt, 0.4); crash(rt, 0.06, { dec: 2.6 }); boom(rt, 0.06, { dur: 1.8 });
+        stab(rt, CH.E.pad.concat([71, 76]), 0.08, { rel: 1.6, cut0: 3000, cut1: 800, wet: 0.6 });
+        bass(rt, 1.5, 28, { vol: 0.08, rel: 0.6 });
+      }
+      crash(rt, 0.012 + 0.003 * r, { dec: 1.2 });
+    }
+    wcMotif(171.4, 0.03, WC_MAJ); // the purple figure, resolved, low under the 'success'
+    pad(171.0, 172.3, [76, 80, 83], { type: 'triangle', vol: 0.016, att: 0.4, rel: 0.6, cut0: 2200, cut1: 3000, wet: 0.85, width: 1 });
 
-    // ---- 10 MONITORING 137.7–145.7: focused counting pulse (driller's screen) ----
-    bell(137.45, 88, 0.024, { dur: 0.8, pan: -0.3 }); bell(137.62, 88, 0.02, { dur: 1.0, pan: 0.3 }); // gap 137.4–138.0
-    kick(137.7, 0.44); crash(137.7, 0.025);
-    seq([['Csm7', 137.7], ['A', 139.7], ['E', 141.7], ['Bsus4', 143.7, 145.7]], function (c, t0, L, i) { countBar(c, t0, L, 0.7 + 0.05 * i); });
-    pad(138, 145.3, [76, 80, 83], { type: 'triangle', vol: 0.012, att: 1.5, rel: 0.5, cut0: 2500, cut1: 3500, wet: 0.8, width: 1 });
-    rollTo(145.7, 6, 0.02, 0.011); riser(144.5, 145.7, 0.05, 500, 3800);
-
-    // ---- 11 RECAP 145.7–153.45: the loop closes — confident groove + journey motif, RESOLVED signature at 153.45 ----
-    lift(145.7, CH.E, 4); // gap 145.5–146.0
-    seq([['E', 145.7], ['BD', 147.7], ['Csm7', 149.7], ['A', 151.7], ['Bsus4', 152.7, 153.45]], function (c, t0, L, i) {
-      pad(t0, t0 + L, c.pad, { vol: 0.05, att: 0.15, rel: 0.3, cut0: 1000, cut1: 1150, wet: 0.55, width: 0.95 });
-      if (L >= 2) groove(t0, c, i, { lv: 0.75, br: 0.5, noKick1: i === 0 });
-      else { bass(t0, 0.45, c.b, { vol: 0.16 }); bass(t0 + 0.5, 0.2, c.b + 12, { vol: 0.11 }); kick(t0, 0.4); kick(t0 + 0.5, 0.28); hat(t0 + 0.25, 0.028); }
-      journey(t0, L, c, 0.6, 1100, 0, i % 2 ? -1 : 1);
+    // ---- 13 CTA 172.4–177.4: light, ducked, warm ----
+    seq([['Amaj7', 172.4], ['E', 172.4 + 2 * BEAT], ['Amaj7', 172.4 + 4 * BEAT], ['B', 172.4 + 5 * BEAT, 177.4]], function (c, t0, L, i) {
+      pad(t0, t0 + L, c.pad, { vol: 0.045, att: i ? 0.3 : 0.6, rel: 0.5, cut0: 900, cut1: 1000, wet: 0.65, width: 1 });
+      bass(t0, L - 0.1, c.b, { vol: 0.1, att: 0.2, rel: 0.4 });
     });
-    flow(146, 149.9, 0.022, -0.7, 0.7); flow(149.8, 153.3, 0.022, 0.7, -0.7);
-    var RES = 153.45; // gap 153.4–154.0
-    tom(RES - 0.5, 98, 0.12, { dec: 0.3 }); tom(RES - 0.25, 82, 0.14, { dec: 0.35 });
-    riser(RES - 1.6, RES, 0.06, 300, 5000);
-    kick(RES, 0.5); crash(RES, 0.07, { dec: 2.4 }); boom(RES, 0.08, { dur: 1.6 });
-    pad(RES, RES + 1.2, CH.Eadd9.pad.concat([71]), { vol: 0.11, att: 0.03, rel: 1.8, cut0: 2600, cut1: 700, wet: 0.7, width: 0.85 });
-    sig(RES, 0.085, { last: 2.4, st: 0.15 });
-    bass(RES, 1.6, 40, { vol: 0.18, rel: 0.8 }); bass(RES, 1.6, 28, { vol: 0.07, rel: 0.8 });
+    for (fb = 0; fb < 6; fb++) { thump(172.4 + fb * BEAT, fb % 2 ? 0.13 : 0.2); tick(172.4 + fb * BEAT + BEAT / 2, 0.008, fb % 2 ? 0.4 : -0.4); }
+    bell(176.95, 80, 0.016, { dur: 1.4 }); bell(177.08, 76, 0.014, { dur: 1.4, pan: 0.3 }); // gap 176.9–177.4
 
-    // ---- 12 CALL TO ACTION 155–161: warm, lighter groove (bells after the ~2.8 s CTA line) ----
-    var cta = [['E', 155], ['A', 157], ['Csm7', 159, 161]];
-    var ctaM = [[], [[0.3, 85], [1.3, 83]], [[0.5, 80], [1.0, 83]]];
-    seq(cta, function (c, t0, L, i) {
-      pad(t0, t0 + L, c.pad, { vol: 0.055, att: i ? 0.2 : 0.6, rel: 0.35, cut0: 1000, cut1: 1150, wet: 0.6, width: 1 });
-      groove(t0, c, i, { lv: 0.5, br: 0.5 });
-      bells(t0, ctaM[i], 0.02, { dur: 1.4 });
+    // ---- 14 TEASER EP06 Casing & Cementing 177.4–END: grey, layered, settling; fade from 182.0 ----
+    seq([['Eadd9', 177.4], ['Csm7', 179.6], ['A', 181.4, END]], function (c, t0, L, i) {
+      pad(t0, t0 + L, c.pad, { vol: 0.042 - 0.006 * i, att: 0.5, rel: 0.8, cut0: 850 - 120 * i, cut1: 780 - 120 * i, wet: 0.7, width: 1, det: 7 });
+      bass(t0, L - 0.1, c.b, { vol: 0.09, att: 0.3, rel: 0.5 });
     });
-    pad(155.5, 160.8, [76, 80, 83], { type: 'triangle', vol: 0.014, att: 1.5, rel: 0.5, cut0: 2500, cut1: 3500, wet: 0.8, width: 1 });
-    for (s = 0; s < 4; s++) bell(157.2 + s * 0.09, [80, 83, 88, 92][s], 0.016, { dur: 1.4, pan: (s - 1.5) * 0.3, wet: 0.7 });
-
-    // ---- 13 TEASER Part 5 161–END (Well Control, purple): 'question' signature with a minor 3rd, tense pulse ----
-    sig(161.02, 0.06, { notes: [71, 76, 78, 79], st: 0.13, last: 1.8, wet: 0.7 }); // gap 161.0–161.6
-    boom(161.5, 0.05, { dur: 1.8 });
-    seq([['Emadd9', 161.6], ['C', 163.6], ['Am', 165.6], ['B7sus', 167.6, END]], function (c, t0, L, i) { tenseBar(c, t0, L, 0.8 + 0.1 * i); });
-    drone(161.6, END - 0.8, [28, 35], 0.018, { cut: 280, att: 1.5, rel: 0.5, trem: 0.4 });
-    pad(162, END - 0.8, [79, 83], { type: 'triangle', vol: 0.012, att: 2, rel: 0.5, cut0: 1800, cut1: 2600, wet: 0.85, width: 1, lfo: 6 });
-    boom(END - 1.15, 0.06, { dur: 1.2 }); bell(END - 1.15, 71, 0.02, { dur: 1.2, wet: 0.8 }); // final VO gap
+    for (fb = 0; fb < 5; fb++) pluck(177.6 + fb * 0.12, [76, 71, 68, 64, 59][fb], { vol: 0.02, dur: 0.6, cut: 1100, pan: (fb - 2) * 0.25, wet: 0.6 }); // strings nest outer -> inner
+    thump(177.4, 0.26, { dec: 0.9 }); thump(179.6, 0.18, { dec: 0.9 }); thump(181.4, 0.14, { dec: 0.9 });
+    pad(179.6, 181.6, [64, 68], { type: 'triangle', vol: 0.01, att: 1.6, rel: 0.6, cut0: 1200, cut1: 1500, wet: 0.85, width: 1 }); // cement fills
+    bell(182.95, 64, 0.016, { dur: 0.6, wet: 0.8 }); // final VO gap
     // ============ SFX ============
-    var SFXLEN = { flow: 1.5, pulse: 0.5, vibe: 2.0, swirl: 2.0, spin: 2.0, torque: 0.8, engine: 3.3, zap: 1.0, winch: 3.0, chain: 0.6, whoosh: 0.8, alarm: 1.5, clunk: 0.6, impact: 2.0, hiss: 1.2, fire: 2.0, pump: 1.5, success: 1.0, blip: 0.15, bubble: 0.8 };
-    var DUCK = { flow: 0.85, pulse: 0.85, vibe: 0.85, swirl: 0.85, spin: 0.8, torque: 0.85, engine: 0.78, zap: 0.85, winch: 0.8, chain: 0.85, whoosh: 0.85, alarm: 0.75, clunk: 0.8, impact: 0.65, hiss: 0.8, fire: 0.72, pump: 0.8, success: 0.8, blip: 0.95, bubble: 0.88 };
+    var SFXLEN = { flow: 1.5, pulse: 0.5, vibe: 2.0, swirl: 2.0, spin: 2.0, torque: 0.8, engine: 3.3, zap: 1.0, winch: 3.0, chain: 0.6, whoosh: 0.8, alarm: 1.5, clunk: 0.6, impact: 2.0, hiss: 1.2, fire: 2.0, pump: 1.5, success: 1.0, blip: 0.15, bubble: 0.8,
+      hydraulic: function (cu) { return cueNum(cu, 'dur', 0.9, 0.2, 4) + 0.5; },
+      rubber: function (cu) { return cueNum(cu, 'dur', 1.2, 0.3, 4); },
+      shear: function (cu) { return cueNum(cu, 'pre', 0.35, 0, 2) + 1.6; },
+      powerdown: function (cu) { return cueNum(cu, 'dur', 2.2, 0.5, 6); },
+      ratchet: function (cu) { return cueNum(cu, 'dur', 1.2, 0.1, 6); },
+      tick: function (cu) { return Math.round(cueNum(cu, 'n', 1, 1, 64)) / cueNum(cu, 'rate', 2, 0.5, 20); },
+      valve: function (cu) { return cu && cu.open ? 0.8 : 0.45; },
+      gas: function (cu) { return cueNum(cu, 'dur', 2.5, 0.5, 10); },
+      flare: function (cu) { return cueNum(cu, 'dur', 3.0, 0.8, 20); } };
+    var DUCK = { flow: 0.85, pulse: 0.85, vibe: 0.85, swirl: 0.85, spin: 0.8, torque: 0.85, engine: 0.78, zap: 0.85, winch: 0.8, chain: 0.85, whoosh: 0.85, alarm: 0.75, clunk: 0.8, impact: 0.65, hiss: 0.8, fire: 0.72, pump: 0.8, success: 0.8, blip: 0.95, bubble: 0.88,
+      hydraulic: 0.8, rubber: 0.85, shear: 0.65, powerdown: 0.7, ratchet: 0.88, tick: 0.95, valve: 0.82, gas: 0.8, flare: 0.8 };
+    // numeric cue parameter with default + clamp (bad / missing values fall back to the default)
+    function cueNum(cu, k, def, lo, hi) {
+      var v = cu && typeof cu[k] === 'number' && isFinite(cu[k]) ? cu[k] : def;
+      return Math.max(lo, Math.min(hi, v));
+    }
+    // heavy steel-on-steel stop: low sine drop, damped body, low-passed knock, inharmonic partials of `base` Hz
+    function steelHit(tt, v, base, wet) {
+      if (!ok(tt)) return;
+      var oc = osc('sine', 95, tt, tt + 0.55);
+      oc.frequency.setValueAtTime(100, tt); oc.frequency.exponentialRampToValueAtTime(38, tt + 0.35);
+      var g = gain(0); decayEnv(g, tt, 0.75 * v, 0.5, 0.002); oc.connect(g);
+      var b = osc('triangle', 220, tt, tt + 0.18); b.frequency.setValueAtTime(240, tt); b.frequency.exponentialRampToValueAtTime(110, tt + 0.12);
+      var bg = gain(0); decayEnv(bg, tt, 0.3 * v, 0.15, 0.002); b.connect(bg); bg.connect(g);
+      var n = noise(tt, 0.07), lp = filt('lowpass', 1800, 0.9), ng = gain(0); decayEnv(ng, tt, 0.5 * v, 0.05, 0.0008); n.connect(lp); lp.connect(ng); ng.connect(g);
+      var P = [1, 2.32, 4.25, 6.63];
+      for (var i = 0; i < P.length; i++) {
+        var po = osc('sine', base * P[i], tt, tt + 0.62), pg = gain(0);
+        decayEnv(pg, tt, 0.07 * v / (i + 1), 0.6 - i * 0.1, 0.001); po.connect(pg); pg.connect(g);
+      }
+      outTo(g, { sfx: true, wet: wet == null ? 0.22 : wet });
+    }
 
     var SFX = {
       whoosh: function (t) {
@@ -1342,19 +1504,228 @@
         var rn = noise(t, d), rl = filt('lowpass', 250, 1), rg = gain(0);
         rg.gain.setValueAtTime(0, t); rg.gain.linearRampToValueAtTime(0.2, t + 0.5); rg.gain.linearRampToValueAtTime(0, t + d);
         rn.connect(rl); rl.connect(rg); outTo(rg, { sfx: true, wet: 0 });
+      },
+
+      // ===== EP05 P5 (Well Control) =====
+      // BOP ram close: fluid rushes into the bonnet (band-passed noise rising with pressure) + high-pressure hiss
+      // + ram/piston groan for `dur` s, then a heavy steel clunk at the mechanical stop and a short bleed
+      hydraulic: function (t, cu) {
+        var d = cueNum(cu, 'dur', 0.9, 0.2, 4), te = t + d;
+        var n = noise(t, d + 0.1), bp = filt('bandpass', 1200, 1.1), hs = filt('highshelf', 5000); hs.gain.value = -6;
+        bp.frequency.setValueAtTime(800, t); bp.frequency.exponentialRampToValueAtTime(2300, te);
+        var g = gain(0);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.17, t + 0.06);
+        g.gain.linearRampToValueAtTime(0.12, te - 0.04); g.gain.linearRampToValueAtTime(0, te + 0.03);
+        n.connect(bp); bp.connect(hs); hs.connect(g); outTo(g, { sfx: true, wet: 0.15, pan: -0.1 });
+        var n2 = noise(t, d), hp2 = filt('highpass', 4500, 0.7), g2 = gain(0);
+        g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(0.05, t + 0.1); g2.gain.linearRampToValueAtTime(0.075, te - 0.05); g2.gain.linearRampToValueAtTime(0, te + 0.02);
+        n2.connect(hp2); hp2.connect(g2); outTo(g2, { sfx: true, wet: 0.2, pan: 0.15 });
+        var gr = osc('sawtooth', 46, t, te + 0.05), gl = filt('lowpass', 260, 1.5), gg = gain(0);
+        gr.frequency.setValueAtTime(44, t); gr.frequency.linearRampToValueAtTime(66, te);
+        gg.gain.setValueAtTime(0, t); gg.gain.linearRampToValueAtTime(0.14, t + 0.18); gg.gain.setValueAtTime(0.14, te - 0.05); gg.gain.linearRampToValueAtTime(0, te + 0.02);
+        gr.connect(gl); gl.connect(gg); outTo(gg, { sfx: true, wet: 0.05 });
+        steelHit(te, 1.0, 165, 0.22);
+        var bn = noise(te + 0.08, 0.3), bh = filt('highpass', 3500, 0.7), bg = gain(0);
+        bg.gain.setValueAtTime(0, te + 0.08); bg.gain.linearRampToValueAtTime(0.05, te + 0.12); bg.gain.linearRampToValueAtTime(0, te + 0.38);
+        bn.connect(bh); bh.connect(bg); outTo(bg, { sfx: true, wet: 0.25, pan: 0.2 });
+      },
+      // annular squeeze: stick-slip creak — a slow jittered sawtooth 'slip rate' rising as the rubber tightens,
+      // exciting two resonances (rubber body), plus a low squish
+      rubber: function (t, cu) {
+        var d = cueNum(cu, 'dur', 1.2, 0.3, 4), stop = t + d + 0.05;
+        var rate = osc('sawtooth', 22, t, stop);
+        rate.frequency.setValueAtTime(18 + rnd() * 4, t); rate.frequency.linearRampToValueAtTime(46 + rnd() * 6, t + d * 0.85);
+        var jit = osc('sine', 3.3, t, stop), jg = gain(5); jit.connect(jg); jg.connect(rate.frequency);
+        var jit2 = osc('sine', 7.1, t, stop), jg2 = gain(3); jit2.connect(jg2); jg2.connect(rate.frequency);
+        var r1 = filt('bandpass', 480, 6), r2 = filt('bandpass', 1050, 5), lp = filt('lowpass', 1800, 0.7);
+        r1.frequency.setValueAtTime(440, t); r1.frequency.linearRampToValueAtTime(540, t + d);
+        r2.frequency.setValueAtTime(980, t); r2.frequency.linearRampToValueAtTime(1150, t + d);
+        var r2g = gain(0.6); rate.connect(r1); rate.connect(r2); r2.connect(r2g); r1.connect(lp); r2g.connect(lp);
+        var g = gain(0);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.15);
+        g.gain.setValueAtTime(0.3, t + d * 0.7); g.gain.linearRampToValueAtTime(0, t + d);
+        lp.connect(g); outTo(g, { sfx: true, wet: 0.2 });
+        var sn = noise(t, d), sl = filt('lowpass', 240, 1), sg = gain(0);
+        sg.gain.setValueAtTime(0, t); sg.gain.linearRampToValueAtTime(0.22, t + d * 0.4); sg.gain.linearRampToValueAtTime(0, t + d);
+        sn.connect(sl); sl.connect(sg); outTo(sg, { sfx: true, wet: 0.05 });
+      },
+      // blind-shear cut: strain groan + hydraulic hiss for `pre` s, then crunch/tear grains, a deep impact and a long
+      // inharmonic metallic ring (beating partial pairs)
+      shear: function (t, cu) {
+        var pre = cueNum(cu, 'pre', 0.35, 0, 2), tc = t + pre;
+        if (pre > 0.02) {
+          var gr = osc('sawtooth', 40, t, tc + 0.05), gl = filt('lowpass', 230, 1.6), gg = gain(0);
+          gr.frequency.setValueAtTime(38, t); gr.frequency.linearRampToValueAtTime(58, tc);
+          gg.gain.setValueAtTime(0, t); gg.gain.linearRampToValueAtTime(0.16, tc - 0.02); gg.gain.linearRampToValueAtTime(0, tc + 0.03);
+          gr.connect(gl); gl.connect(gg); outTo(gg, { sfx: true, wet: 0.05 });
+          var hn = noise(t, pre), hb = filt('bandpass', 2000, 1), hg = gain(0);
+          hg.gain.setValueAtTime(0, t); hg.gain.linearRampToValueAtTime(0.07, tc - 0.02); hg.gain.linearRampToValueAtTime(0, tc + 0.01);
+          hn.connect(hb); hb.connect(hg); outTo(hg, { sfx: true, wet: 0.15 });
+        }
+        for (var k = 0; k < 34; k++) { // crunch: dense metal-tear grains, thinning out
+          var x = k / 34, ct = tc + 0.3 * x * x + rnd() * 0.02, cn = noise(ct, 0.035), cb = filt('bandpass', 1200 + rnd() * 4000, 3), cg = gain(0);
+          decayEnv(cg, ct, (0.32 - 0.22 * x) * (0.7 + 0.3 * rnd()), 0.012 + rnd() * 0.02, 0.0008);
+          cn.connect(cb); cb.connect(cg); outTo(cg, { sfx: true, wet: 0.15, pan: rnd() * 0.8 - 0.4 });
+        }
+        var tn = noise(tc, 0.35), tb = filt('bandpass', 900, 1.2), tg = gain(0);
+        tg.gain.setValueAtTime(0, tc); tg.gain.linearRampToValueAtTime(0.3, tc + 0.01); tg.gain.exponentialRampToValueAtTime(0.0005, tc + 0.32);
+        tn.connect(tb); tb.connect(tg); outTo(tg, { sfx: true, wet: 0.2 });
+        boom(tc, 0.5, { sfx: true, dur: 1.2, f0: 90, f1: 32, wet: 0.3 });
+        steelHit(tc, 0.9, 140, 0.3);
+        var RING = [523, 1247, 1861, 2742, 3910];
+        var rg = gain(0); decayEnv(rg, tc + 0.01, 1, 2.6, 0.002);
+        for (var i = 0; i < RING.length; i++) for (var s2 = 0; s2 < 2; s2++) {
+          var ro = osc('sine', RING[i] + s2 * (1.3 + i * 0.4), tc, tc + 2.7), rpg = gain(0.045 / (1 + i * 0.7));
+          ro.connect(rpg); rpg.connect(rg);
+        }
+        outTo(rg, { sfx: true, wet: 0.5, pan: 0.1 });
+      },
+      // rig power off: generator hum fades in `pre` s before t; at t a breaker clack and the load drops, then the
+      // machine winds down (hum pitch + filter + falling alternator whine) over `dur` s; a felt low 'lights out' thud
+      powerdown: function (t, cu) {
+        var pre = Math.min(cueNum(cu, 'pre', 0.4, 0, 2), t), dn = cueNum(cu, 'dur', 2.2, 0.5, 6), t0 = t - pre, stop = t + dn + 0.05;
+        var lp = filt('lowpass', 700, 1.1);
+        lp.frequency.setValueAtTime(700, t0); lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(90, t + dn);
+        var H = [[60, 0.5, 'sawtooth'], [120, 0.25, 'sine'], [180, 0.12, 'sine'], [360, 0.05, 'sine']];
+        for (var i = 0; i < H.length; i++) {
+          var ho = osc(H[i][2], H[i][0], t0, stop);
+          ho.frequency.setValueAtTime(H[i][0], t); ho.frequency.exponentialRampToValueAtTime(H[i][0] * 0.15, t + dn);
+          var hg = gain(H[i][1]); ho.connect(hg); hg.connect(lp);
+        }
+        var g = gain(0);
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.3, t0 + Math.min(pre, 0.2) + 0.001);
+        g.gain.setValueAtTime(0.3, t); g.gain.linearRampToValueAtTime(0.2, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0005, t + dn);
+        lp.connect(g); outTo(g, { sfx: true, wet: 0.12 });
+        var wo = osc('sine', 1400, t, t + dn * 0.85), wg = gain(0);
+        wo.frequency.setValueAtTime(1400, t); wo.frequency.exponentialRampToValueAtTime(160, t + dn * 0.8);
+        wg.gain.setValueAtTime(0, t); wg.gain.linearRampToValueAtTime(0.03, t + 0.08); wg.gain.exponentialRampToValueAtTime(0.0005, t + dn * 0.8);
+        wo.connect(wg); outTo(wg, { sfx: true, wet: 0.3 });
+        // breaker clack
+        var cn = noise(t, 0.04), ch = filt('highpass', 2500, 0.8), cg = gain(0); decayEnv(cg, t, 0.32, 0.03, 0.0006);
+        cn.connect(ch); ch.connect(cg); outTo(cg, { sfx: true, wet: 0.2, pan: 0.2 });
+        var po = osc('sine', 880, t, t + 0.08), pg = gain(0); decayEnv(pg, t, 0.06, 0.06, 0.001); po.connect(pg); outTo(pg, { sfx: true, wet: 0.2, pan: 0.2 });
+        boom(t + 0.01, 0.28, { sfx: true, dur: 1.4, f0: 70, f1: 26, wet: 0.25 });
+      },
+      // handwheel / ratchet wrench: pawl clicks at `rate`/s in groups of five (the hand re-grips)
+      ratchet: function (t, cu) {
+        var d = cueNum(cu, 'dur', 1.2, 0.1, 6), rate = cueNum(cu, 'rate', 9, 2, 30);
+        function click(tt, v, f) {
+          var n = noise(tt, 0.025), bp = filt('bandpass', f, 6), g = gain(0);
+          decayEnv(g, tt, v, 0.018, 0.0006); n.connect(bp); bp.connect(g);
+          var po = osc('sine', f * 0.62, tt, tt + 0.04), pg = gain(0); decayEnv(pg, tt, v * 0.2, 0.03, 0.0008); po.connect(pg); pg.connect(g);
+          var lo = osc('sine', 380, tt, tt + 0.05), lg = gain(0); lo.frequency.setValueAtTime(380, tt); lo.frequency.exponentialRampToValueAtTime(240, tt + 0.04);
+          decayEnv(lg, tt, v * 0.3, 0.04, 0.001); lo.connect(lg); lg.connect(g);
+          outTo(g, { sfx: true, wet: 0.12, pan: 0.1 });
+        }
+        var tt = t, k = 0;
+        while (tt < t + d && k < 200) {
+          click(tt, (k % 5 === 4 ? 0.3 : 0.22) * (0.85 + 0.3 * rnd()), 3000 + rnd() * 900);
+          k++; tt += (1 / rate) * (0.9 + 0.2 * rnd()); if (k % 5 === 0) tt += 0.12;
+        }
+      },
+      // gauge / timer / chart-recorder tick: n short mechanical ticks at `rate`/s, alternating tick / tock
+      tick: function (t, cu) {
+        var n = Math.round(cueNum(cu, 'n', 1, 1, 64)), rate = cueNum(cu, 'rate', 2, 0.5, 20);
+        for (var k = 0; k < n; k++) {
+          var tt = t + k / rate, tk = k % 2;
+          if (!ok(tt)) break;
+          var ns = noise(tt, 0.015), hp = filt('highpass', 3500, 0.7), bp = filt('bandpass', tk ? 4600 : 5200, 2), g = gain(0);
+          decayEnv(g, tt, 0.16, 0.009, 0.0004); ns.connect(hp); hp.connect(bp); bp.connect(g);
+          var po = osc('sine', tk ? 2500 : 2900, tt, tt + 0.03), pg = gain(0); decayEnv(pg, tt, 0.035, 0.02, 0.0006); po.connect(pg); pg.connect(g);
+          var bo = osc('sine', 900, tt, tt + 0.02), bg = gain(0); decayEnv(bg, tt, 0.045, 0.012, 0.0006); bo.connect(bg); bg.connect(g);
+          outTo(g, { sfx: true, wet: 0.08, pan: 0.25 });
+        }
+      },
+      // gate valve seating: muffled heavy thunk (low sine + damped body + low-passed knock, faint steel);
+      // cue {open:true} adds a short fluid whoomph as flow starts
+      valve: function (t, cu) {
+        var oc = osc('sine', 72, t, t + 0.5);
+        oc.frequency.setValueAtTime(76, t); oc.frequency.exponentialRampToValueAtTime(38, t + 0.32);
+        var g = gain(0); decayEnv(g, t, 0.7, 0.45, 0.003); oc.connect(g);
+        var b = osc('triangle', 180, t, t + 0.15); b.frequency.setValueAtTime(190, t); b.frequency.exponentialRampToValueAtTime(115, t + 0.1);
+        var bg = gain(0); decayEnv(bg, t, 0.25, 0.12, 0.002); b.connect(bg); bg.connect(g);
+        var n = noise(t, 0.1), lp = filt('lowpass', 700, 1), ng = gain(0); decayEnv(ng, t, 0.45, 0.08, 0.001); n.connect(lp); lp.connect(ng); ng.connect(g);
+        var P = [610, 1430];
+        for (var i = 0; i < P.length; i++) { var po = osc('sine', P[i], t, t + 0.15), pg = gain(0); decayEnv(pg, t, 0.05 / (i + 1), 0.12, 0.001); po.connect(pg); pg.connect(g); }
+        outTo(g, { sfx: true, wet: 0.18 });
+        if (cu && cu.open) {
+          var fn = noise(t + 0.08, 0.7), fb = filt('bandpass', 400, 1.2), fg = gain(0);
+          fb.frequency.setValueAtTime(400, t + 0.08); fb.frequency.exponentialRampToValueAtTime(900, t + 0.5);
+          fg.gain.setValueAtTime(0, t + 0.08); fg.gain.linearRampToValueAtTime(0.14, t + 0.25); fg.gain.linearRampToValueAtTime(0, t + 0.75);
+          fn.connect(fb); fb.connect(fg); outTo(fg, { sfx: true, wet: 0.3 });
+        }
+      },
+      // gas through mud: accelerating bubbles + low glug; with vent (default) a turbulent roar swells in from 30 %
+      gas: function (t, cu) {
+        var d = cueNum(cu, 'dur', 2.5, 0.5, 10), vent = !(cu && cu.vent === false), stop = t + d + 0.05;
+        var nb = Math.round(d * 14);
+        for (var k = 0; k < nb; k++) {
+          var x = k / nb, bt = t + d * 0.9 * Math.sqrt(x) + rnd() * 0.04;
+          bubble(bt, 180 + rnd() * 520, (0.07 + 0.07 * rnd()) * (vent ? 1 - 0.5 * x : 1), { sfx: true, dur: 0.05 + rnd() * 0.09, pan: rnd() * 1.2 - 0.6, wet: 0.3 });
+        }
+        var gn = noise(t, d), gl = filt('lowpass', 300, 1.2), am = gain(0.7), lf = osc('sine', 6.5, t, stop), lfg = gain(0.3);
+        lf.connect(lfg); lfg.connect(am.gain);
+        var gg = gain(0); gg.gain.setValueAtTime(0, t); gg.gain.linearRampToValueAtTime(0.18, t + 0.3); gg.gain.linearRampToValueAtTime(0, t + d);
+        gn.connect(gl); gl.connect(am); am.connect(gg); outTo(gg, { sfx: true, wet: 0.1 });
+        if (vent) {
+          var v0 = t + d * 0.3;
+          var rn = noise(v0, d * 0.7), rb = filt('bandpass', 700, 0.6), rl = filt('lowpass', 2500, 0.7);
+          var ram = gain(0.75), s1 = osc('sine', 3.3, v0, stop), s2 = osc('sine', 5.7, v0, stop), s1g = gain(0.15), s2g = gain(0.1);
+          s1.connect(s1g); s1g.connect(ram.gain); s2.connect(s2g); s2g.connect(ram.gain);
+          var rg = gain(0);
+          rg.gain.setValueAtTime(0, v0); rg.gain.linearRampToValueAtTime(0.3, t + d * 0.6); rg.gain.setValueAtTime(0.3, t + d - 0.4); rg.gain.linearRampToValueAtTime(0, t + d);
+          rn.connect(rb); rb.connect(rl); rl.connect(ram); ram.connect(rg); outTo(rg, { sfx: true, wet: 0.25 });
+          var un = noise(v0, d * 0.7), ul = filt('lowpass', 120, 1), ug = gain(0);
+          ug.gain.setValueAtTime(0, v0); ug.gain.linearRampToValueAtTime(0.35, t + d * 0.6); ug.gain.linearRampToValueAtTime(0, t + d);
+          un.connect(ul); ul.connect(ug); outTo(ug, { sfx: true, wet: 0 });
+        }
+      },
+      // controlled flare: soft, warm, steady roar with a slow flicker, low rumble, faint burner hiss, rare soft pops
+      flare: function (t, cu) {
+        var d = cueNum(cu, 'dur', 3.0, 0.8, 20), stop = t + d + 0.05, rel = Math.min(0.8, d * 0.3);
+        var n = noise(t, d), lp = filt('lowpass', 650, 0.7), pk = filt('peaking', 180, 1); pk.gain.value = 4;
+        var g = gain(0);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.6); g.gain.setValueAtTime(0.3, t + d - rel); g.gain.linearRampToValueAtTime(0, t + d);
+        var am = gain(0.85), f1 = osc('sine', 0.9, t, stop), f2 = osc('sine', 3.7, t, stop), f1g = gain(0.08), f2g = gain(0.05);
+        f1.connect(f1g); f1g.connect(am.gain); f2.connect(f2g); f2g.connect(am.gain);
+        n.connect(lp); lp.connect(pk); pk.connect(am); am.connect(g); outTo(g, { sfx: true, wet: 0.3 });
+        var rn = noise(t, d), rl = filt('lowpass', 110, 1), rg = gain(0);
+        rg.gain.setValueAtTime(0, t); rg.gain.linearRampToValueAtTime(0.38, t + 0.8); rg.gain.setValueAtTime(0.38, t + d - rel); rg.gain.linearRampToValueAtTime(0, t + d);
+        rn.connect(rl); rl.connect(rg); outTo(rg, { sfx: true, wet: 0 });
+        var hn = noise(t, d), hb = filt('bandpass', 3000, 0.8), hg = gain(0);
+        hg.gain.setValueAtTime(0, t); hg.gain.linearRampToValueAtTime(0.022, t + 0.8); hg.gain.setValueAtTime(0.022, t + d - rel); hg.gain.linearRampToValueAtTime(0, t + d);
+        hn.connect(hb); hb.connect(hg); outTo(hg, { sfx: true, wet: 0.3, pan: 0.2 });
+        var np = Math.min(24, Math.round(d * 2));
+        for (var k = 0; k < np; k++) {
+          var ct = t + 0.4 + rnd() * Math.max(0.1, d - 0.9), cn = noise(ct, 0.04), cl = filt('lowpass', 900, 1), cg = gain(0);
+          decayEnv(cg, ct, 0.06 + rnd() * 0.05, 0.03 + rnd() * 0.03, 0.002);
+          cn.connect(cl); cl.connect(cg); outTo(cg, { sfx: true, wet: 0.2, pan: rnd() * 0.8 - 0.4 });
+        }
       }
     };
 
-    // ducking curve for music under SFX
+    // ---------- cues: each one renders into its own vol / pan stage, then ducks the music ----------
     var DR = 50, dn = Math.max(2, Math.ceil(END * DR) + 1);
     var dcurve = new Float32Array(dn);
     for (i = 0; i < dn; i++) dcurve[i] = 1;
     for (var q = 0; q < cues.length; q++) {
       var cu = cues[q];
-      if (!cu || typeof cu.t !== 'number' || !SFX.hasOwnProperty(cu.sfx)) continue;
+      if (!cu || typeof cu.t !== 'number' || !isFinite(cu.t) || typeof cu.sfx !== 'string' || !SFX.hasOwnProperty(cu.sfx)) continue; // unknown -> ignored
       if (cu.t < 0 || cu.t >= END) continue;
-      SFX[cu.sfx](cu.t, cu);
-      var ds = cu.t - 0.08, de = cu.t + SFXLEN[cu.sfx], amt = DUCK[cu.sfx];
+      var cvol = cueNum(cu, 'vol', 1, 0, 2);
+      if (cvol <= 0) continue;
+      var cdry = gain(cvol), cwet = gain(cvol);
+      if (typeof cu.pan === 'number' && isFinite(cu.pan) && cu.pan !== 0) {
+        var cpn = ctx.createStereoPanner(); cpn.pan.value = Math.max(-1, Math.min(1, cu.pan));
+        cdry.connect(cpn); cpn.connect(sfxBus);
+      } else cdry.connect(sfxBus);
+      cwet.connect(sfxVerbIn);
+      sfxOut = cdry; sfxVerbOut = cwet;
+      try { SFX[cu.sfx](cu.t, cu); } catch (e) { /* a malformed cue must never break the render */ }
+      sfxOut = null; sfxVerbOut = null;
+      var sl = SFXLEN[cu.sfx], slen = typeof sl === 'function' ? sl(cu) : sl;
+      var ds = cu.t - 0.08 - (cu.sfx === 'powerdown' ? cueNum(cu, 'pre', 0.4, 0, 2) : 0), de = cu.t + slen;
+      var amt = 1 - (1 - DUCK[cu.sfx]) * Math.min(1, cvol);
       for (i = 0; i < dn; i++) {
         var tt = i / DR, w = 0;
         if (tt >= ds && tt <= de) w = 1;
@@ -1367,16 +1738,63 @@
     duck.gain.setValueCurveAtTime(dcurve, 0, END);
 
     return ctx.startRendering().then(function (buf) {
-      var Lc = buf.getChannelData(0), Rc = buf.getChannelData(1), n = buf.length;
-      var peak = 0;
-      for (var i = 0; i < n; i++) {
-        var a = Math.abs(Lc[i]), b = Math.abs(Rc[i]);
-        if (a > peak) peak = a; if (b > peak) peak = b;
+      var Lc = buf.getChannelData(0), Rc = buf.getChannelData(1), n = buf.length, i, k;
+      // --- integrated loudness (ITU-R BS.1770-4: K-weighting, 400 ms blocks / 75 % overlap, -70 LUFS + relative -10 LU gates)
+      function kw(x) {
+        var y = new Float32Array(x.length);
+        var b0 = 1.53512485958697, b1 = -2.69169618940638, b2 = 1.19839281085285, a1 = -1.69065929318241, a2 = 0.73248077421585;
+        var d1 = -1.99004745483398, d2 = 0.99007225036621; // stage 2: RLB high-pass (b = 1, -2, 1)
+        var x1 = 0, x2 = 0, y1 = 0, y2 = 0, w1 = 0, w2 = 0;
+        for (var j = 0; j < x.length; j++) {
+          var s = b0 * x[j] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[j];
+          var o2 = s - 2 * y1 + y2 - d1 * w1 - d2 * w2; y2 = y1; y1 = s; w2 = w1; w1 = o2;
+          y[j] = o2;
+        }
+        return y;
       }
-      var g = peak > 1e-9 ? Math.pow(10, -1 / 20) / peak : 1;
+      var STEP = Math.round(0.1 * SR), nsub = Math.floor(n / STEP), subL = new Float64Array(nsub), kL = kw(Lc), kR = kw(Rc);
+      for (k = 0; k < nsub; k++) {
+        var acc = 0;
+        for (i = k * STEP; i < (k + 1) * STEP; i++) acc += kL[i] * kL[i] + kR[i] * kR[i];
+        subL[k] = acc / STEP;
+      }
+      var blocks = [];
+      for (k = 0; k + 4 <= nsub; k++) blocks.push((subL[k] + subL[k + 1] + subL[k + 2] + subL[k + 3]) / 4);
+      function lufs(p) { return -0.691 + 10 * Math.log10(Math.max(p, 1e-12)); }
+      var g1 = blocks.filter(function (p) { return lufs(p) > -70; });
+      var mean1 = g1.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, g1.length);
+      var g2 = g1.filter(function (p) { return lufs(p) > lufs(mean1) - 10; });
+      var mean2 = g2.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, g2.length);
+      var LI = g2.length ? lufs(mean2) : -70;
+      // --- true peak: sample peak + 4x windowed-sinc interpolation around the loud samples
+      var sp = 0;
+      for (i = 0; i < n; i++) { var a = Math.abs(Lc[i]), b = Math.abs(Rc[i]); if (a > sp) sp = a; if (b > sp) sp = b; }
+      var TAPS = 8, PH = [0.25, 0.5, 0.75], CO = [];
+      for (k = 0; k < PH.length; k++) {
+        var row = [];
+        for (var j = -TAPS + 1; j <= TAPS; j++) {
+          var xx = PH[k] - j, sinc = Math.abs(xx) < 1e-9 ? 1 : Math.sin(Math.PI * xx) / (Math.PI * xx);
+          var w = 0.5 + 0.5 * Math.cos(Math.PI * xx / (TAPS + 0.5));
+          row.push(sinc * w);
+        }
+        CO.push(row);
+      }
+      var tp = sp, thr = sp * 0.6;
+      [Lc, Rc].forEach(function (x) {
+        for (var m = TAPS; m < n - TAPS - 1; m++) {
+          if (Math.abs(x[m]) < thr && Math.abs(x[m + 1]) < thr) continue;
+          for (var p = 0; p < CO.length; p++) {
+            var s = 0, row = CO[p];
+            for (var jj = 0; jj < row.length; jj++) s += row[jj] * x[m - TAPS + 1 + jj];
+            if (Math.abs(s) > tp) tp = Math.abs(s);
+          }
+        }
+      });
+      var gL = Math.pow(10, (-20 - LI) / 20), gT = tp > 1e-9 ? Math.pow(10, -1.5 / 20) / tp : 1;
+      var g = Math.min(gL, gT);
       var fadeN = Math.min(n, Math.round(0.02 * SR));
       var dataLen = n * 4, out = new Uint8Array(44 + dataLen), dv = new DataView(out.buffer);
-      function str(o, s) { for (var k = 0; k < s.length; k++) out[o + k] = s.charCodeAt(k); }
+      function str(o, s) { for (var kk = 0; kk < s.length; kk++) out[o + kk] = s.charCodeAt(kk); }
       str(0, 'RIFF'); dv.setUint32(4, 36 + dataLen, true); str(8, 'WAVE');
       str(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
       dv.setUint32(24, SR, true); dv.setUint32(28, SR * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true);
@@ -1389,9 +1807,10 @@
         dv.setInt16(off + 2, Math.round(r * 32767), true);
         off += 4;
       }
+      Score.lastStats = { lufsPre: LI, truePeakPre: tp, gainDb: 20 * Math.log10(g), lufs: LI + 20 * Math.log10(g), truePeakDb: 20 * Math.log10(tp * g) };
       return out;
     });
   }
 
-  window.Score = { renderWav: renderWav, SAMPLE_RATE: SR, BPM: 120, DURATION: DURATION };
+  window.Score = { renderWav: renderWav, SAMPLE_RATE: SR, BPM: 72, DURATION: DURATION };
 })();
