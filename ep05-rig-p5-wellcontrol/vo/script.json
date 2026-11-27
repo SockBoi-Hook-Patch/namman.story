@@ -1,0 +1,652 @@
+{
+ "duration": 183.6,
+ "vo": [
+  {
+   "id": 1,
+   "t": 0.6,
+   "end": 5.9,
+   "text": "พาร์ทห้า ตอนสุดท้ายแล้วครับ มาดูเวล คอนโทรล ซิสเต็ม",
+   "text_display": "Part 5 ตอนสุดท้ายแล้วครับ มาดู Well Control System"
+  },
+  {
+   "id": 2,
+   "t": 6.2,
+   "end": 12.9,
+   "text": "จำคิกจาก อีพีสี่ ได้ไหมครับ ถ้ามัดกันแรงดันไม่อยู่ ด่านที่สองก็คือชุดนี้",
+   "text_display": "จำ Kick จาก EP04 ได้ไหม ถ้าโคลนกันแรงดันไม่อยู่ ด่านสองคือชุดนี้"
+  },
+  {
+   "id": 3,
+   "t": 13.2,
+   "end": 19.9,
+   "text": "ตัวหลักคือ บี-โอ-พี วาล์วหลายตัวซ้อนกัน กันไม่ให้เกิดโบลว์เอาท์",
+   "text_display": "ตัวหลักคือ BOP วาล์วหลายตัวซ้อนกัน กันไม่ให้เกิด Blowout"
+  },
+  {
+   "id": 4,
+   "t": 20.2,
+   "end": 25.3,
+   "text": "ไล่จากบนลงล่าง บนสุดคือแอนนิวลาร์ แล้วก็ไปป์แรม",
+   "text_display": "ไล่จากบนลงล่าง บนสุดคือ Annular แล้วก็ Pipe Ram"
+  },
+  {
+   "id": 5,
+   "t": 25.6,
+   "end": 31.4,
+   "text": "ต่อด้วยไบลน์ เชียร์ แรม แล้วก็สปูลที่มีทางออกด้านข้าง",
+   "text_display": "ต่อด้วย Blind Shear Ram แล้วก็ Spool ที่มีทางออกด้านข้าง"
+  },
+  {
+   "id": 6,
+   "t": 31.7,
+   "end": 36.5,
+   "text": "ล่างสุดไปป์แรมอีกชุด นั่งอยู่บนหัวหลุม",
+   "text_display": "ล่างสุด Pipe Ram อีกชุด นั่งอยู่บนหัวหลุม"
+  },
+  {
+   "id": 7,
+   "t": 36.8,
+   "end": 43.3,
+   "text": "แอนนิวลาร์คือยางโดนัทเสริมเหล็ก บีบปิดรอบท่อได้แทบทุกรูปทรง",
+   "text_display": "Annular คือยางโดนัทเสริมเหล็ก บีบปิดรอบท่อได้แทบทุกรูปทรง"
+  },
+  {
+   "id": 8,
+   "t": 43.6,
+   "end": 49.8,
+   "text": "ไม่มีท่อในหลุมก็ปิดได้ และปิดอยู่ก็ยังค่อยๆ ดันท่อผ่านได้",
+   "text_display": "ไม่มีท่อในหลุมก็ปิดได้ และปิดอยู่ก็ยังค่อยๆ ดันท่อผ่านได้"
+  },
+  {
+   "id": 9,
+   "t": 50.1,
+   "end": 56.0,
+   "text": "ส่วนแรมคือก้อนเหล็กสองฝั่ง ไปป์แรมพอดีกับท่อขนาดเดียว",
+   "text_display": "ส่วน Ram คือก้อนเหล็กสองฝั่ง Pipe Ram พอดีกับท่อขนาดเดียว"
+  },
+  {
+   "id": 10,
+   "t": 56.3,
+   "end": 63.4,
+   "text": "วี-บี-อาร์ ปิดได้หลายขนาด แรมล็อก กันแรมเปิดเองถ้าแรงดันไฮดรอลิกหาย",
+   "text_display": "VBR ปิดได้หลายขนาด Ram Lock กัน Ram เปิดเองถ้าแรงดันไฮดรอลิกหาย"
+  },
+  {
+   "id": 11,
+   "t": 63.7,
+   "end": 70.3,
+   "text": "แรงดันหมื่น พี-เอส-ไอ ดันใส่แรมที่ปิดอยู่ เป็นแรงกว่าหกร้อยตัน",
+   "text_display": "แรงดัน 10,000 psi ดันใส่ Ram ที่ปิดอยู่ เป็นแรงกว่า 600 ตัน"
+  },
+  {
+   "id": 12,
+   "t": 70.6,
+   "end": 77.3,
+   "text": "ไบลน์ เชียร์ แรม ตัดดริลไปป์ขาดแล้วปิดสนิท แต่ตัดทูลจอยต์ไม่ได้",
+   "text_display": "Blind Shear Ram ตัดก้านเจาะขาดแล้วปิดสนิท แต่ตัด Tool Joint ไม่ได้"
+  },
+  {
+   "id": 13,
+   "t": 77.6,
+   "end": 84.3,
+   "text": "กดสั่งจากแผง แต่แรงดันมาจากแอค-คิว-มู-เล-เตอร์ หรือคูมีย์ ยูนิต",
+   "text_display": "กดสั่งจากแผง แต่แรงดันมาจาก Accumulator หรือ Koomey Unit"
+  },
+  {
+   "id": 14,
+   "t": 84.6,
+   "end": 91.1,
+   "text": "ไนโตรเจนรองไว้พัน แล้วอัดน้ำมันไฮดรอลิกจนถึงสามพัน พี-เอส-ไอ",
+   "text_display": "ไนโตรเจนรองไว้ 1,000 แล้วอัดน้ำมันไฮดรอลิกจนถึง 3,000 psi"
+  },
+  {
+   "id": 15,
+   "t": 91.4,
+   "end": 97.9,
+   "text": "ไฟดับทั้งแท่นก็ยังปิดได้ แรมต้องปิดเสร็จไม่เกินสามสิบวินาที",
+   "text_display": "ไฟดับทั้งแท่นก็ยังปิดได้ Ram ต้องปิดเสร็จไม่เกิน 30 วินาที"
+  },
+  {
+   "id": 16,
+   "t": 98.2,
+   "end": 104.1,
+   "text": "ท่อโช้กมีวาล์วสองตัว ตัวในหมุนมือ ตัวนอกคือ เอช-ซี-อาร์",
+   "text_display": "ท่อ Choke มีวาล์วสองตัว ตัวในหมุนมือ ตัวนอกคือ HCR"
+  },
+  {
+   "id": 17,
+   "t": 104.4,
+   "end": 111.5,
+   "text": "เอช-ซี-อาร์ เปิดสุดหรือปิดสุดเท่านั้น ส่วนท่อคิลไว้สูบมัดเข้าหลุม",
+   "text_display": "HCR เปิดสุดหรือปิดสุดเท่านั้น ส่วนท่อ Kill ไว้สูบโคลนเข้าหลุม"
+  },
+  {
+   "id": 18,
+   "t": 111.8,
+   "end": 118.9,
+   "text": "ตัวคุมแรงดันจริงๆ คือโช้กปรับรูได้ บนโช้ก แมนิโฟลด์",
+   "text_display": "ตัวคุมแรงดันคือโช้กปรับรูได้ บน Choke Manifold ให้แรงดันก้นหลุมคงที่"
+  },
+  {
+   "id": 19,
+   "t": 119.2,
+   "end": 126.1,
+   "text": "จากโช้ก มัดปนแก๊สเข้าเอ็ม-จี-เอส แก๊สไปเผาที่แฟลร์ มัดกลับลงถัง",
+   "text_display": "จากโช้ก โคลนปนแก๊สเข้า MGS แก๊สไปเผาที่ Flare โคลนกลับลงถัง"
+  },
+  {
+   "id": 20,
+   "t": 126.4,
+   "end": 133.1,
+   "text": "ที่กันแก๊สไว้คือมัดในท่อตัวยู เป็นซีลที่รับได้แค่ราวห้า พี-เอส-ไอ",
+   "text_display": "ที่กันแก๊สไว้คือโคลนในท่อตัว U ซีลที่รับได้แค่ราว 5 psi"
+  },
+  {
+   "id": 21,
+   "t": 133.4,
+   "end": 139.3,
+   "text": "ส่วนตอนทริปท่อ ทริป แท้งค์ คอยวัดว่าเติมมัดลงหลุมครบไหม",
+   "text_display": "ส่วนตอนถอนท่อ Trip Tank คอยวัดว่าเติมโคลนลงหลุมครบไหม"
+  },
+  {
+   "id": 22,
+   "t": 139.6,
+   "end": 144.9,
+   "text": "ข้างในดริลสตริงก็มีวาล์วนะ ไอ-บี-โอ-พี บนท็อป ไดรฟ์",
+   "text_display": "ข้างในก้านเจาะก็มีวาล์วนะ IBOP บน Top Drive"
+  },
+  {
+   "id": 23,
+   "t": 145.2,
+   "end": 151.8,
+   "text": "เอฟ-โอ-เอส-วี เปิดค้างไว้บนพื้นแท่น และโฟลต วาล์ว อยู่เหนือบิท",
+   "text_display": "FOSV เปิดค้างไว้บนพื้นแท่น และ Float Valve เหนือดอกสว่าน"
+  },
+  {
+   "id": 24,
+   "t": 152.1,
+   "end": 158.9,
+   "text": "หลุมตื้นเสี่ยงแชลโลว์ แก๊ส ใช้ไดเวอร์เตอร์ เบี่ยงแก๊สออกห่างแท่น",
+   "text_display": "หลุมตื้นเสี่ยง Shallow Gas ใช้ Diverter เบี่ยงแก๊สออกห่างแท่น"
+  },
+  {
+   "id": 25,
+   "t": 159.2,
+   "end": 165.8,
+   "text": "ทดสอบแรงดันทุกไม่เกินยี่สิบเอ็ดวัน และทดสอบเปิดปิดทุกสัปดาห์",
+   "text_display": "ทดสอบแรงดันทุกไม่เกิน 21 วัน และทดสอบเปิดปิดทุกสัปดาห์"
+  },
+  {
+   "id": 26,
+   "t": 165.3,
+   "end": 172.1,
+   "text": "ครบห้าระบบแล้ว พาวเวอร์ ฮอยสติ้ง โรเทติ้ง เซอร์คิวเลติ้ง และเวล คอนโทรล",
+   "text_display": "ครบห้าระบบแล้ว ต้นกำลัง ยก หมุน ไหลเวียนโคลน และควบคุมหลุม"
+  },
+  {
+   "id": 27,
+   "t": 172.4,
+   "end": 176.9,
+   "text": "กดติดตามไว้ เพื่อไม่พลาดตอนต่อไปนะครับ",
+   "text_display": "กดติดตามไว้ เพื่อไม่พลาดตอนต่อไปนะครับ",
+   "reuse": "ep05-rig-p1-power/vo/vo12.mp3"
+  },
+  {
+   "id": 28,
+   "t": 177.2,
+   "end": 182.7,
+   "text": "ตอนต่อไปเราจะไปพูดถึง เคซิ่ง แอนด์ ซีเมนติ้ง กันครับ",
+   "text_display": "ตอนต่อไปเราจะไปพูดถึง Casing & Cementing กันครับ"
+  }
+ ],
+ "captions": [
+  {
+   "t0": 0.0,
+   "t1": 6.2,
+   "th": "Part 5/5: Well Control System",
+   "en": "Part 5 of 5: the well control system"
+  },
+  {
+   "t0": 6.2,
+   "t1": 13.2,
+   "th": "ด่านแรก Mud · ด่านสอง Well Control Equipment",
+   "en": "Mud is barrier one; this equipment is barrier two"
+  },
+  {
+   "t0": 13.2,
+   "t1": 20.2,
+   "th": "BOP: วาล์วหลายตัวซ้อนกัน ไม่ใช่ตัวเดียว",
+   "en": "The BOP is a stack of preventers, not one valve"
+  },
+  {
+   "t0": 20.2,
+   "t1": 25.6,
+   "th": "บนสุด Annular → Upper Pipe Ram (VBR)",
+   "en": "Top down: annular, then the upper pipe ram"
+  },
+  {
+   "t0": 25.6,
+   "t1": 31.7,
+   "th": "Blind Shear Ram → Drilling Spool",
+   "en": "Blind-shear ram, then the drilling spool"
+  },
+  {
+   "t0": 31.7,
+   "t1": 36.8,
+   "th": "Lower Pipe Ram บน Casing Head",
+   "en": "Lower pipe ram, sitting on the casing head"
+  },
+  {
+   "t0": 36.8,
+   "t1": 43.6,
+   "th": "Annular: ยางโดนัทเสริมเหล็ก ปิดได้ทุกรูปทรง",
+   "en": "Annular: a steel-reinforced rubber donut"
+  },
+  {
+   "t0": 43.6,
+   "t1": 50.1,
+   "th": "ปิดหลุมเปล่าได้ · Stripping ดันท่อผ่าน",
+   "en": "Seals open hole; pipe can strip through"
+  },
+  {
+   "t0": 50.1,
+   "t1": 56.3,
+   "th": "Ram: เหล็ก 2 ฝั่ง · Pipe Ram = ท่อ 1 ขนาด",
+   "en": "Rams close from both sides; one pipe size"
+  },
+  {
+   "t0": 56.3,
+   "t1": 63.7,
+   "th": "VBR หลายขนาด · Ram Lock ล็อกเชิงกล",
+   "en": "VBRs fit a range; ram locks hold mechanically"
+  },
+  {
+   "t0": 63.7,
+   "t1": 70.6,
+   "th": "10,000 psi ใต้ Ram ที่ปิด ≈ 660 ตัน",
+   "en": "10,000 psi under closed rams: about 660 t"
+  },
+  {
+   "t0": 70.6,
+   "t1": 77.6,
+   "th": "Blind Shear Ram: ตัดท่อแล้วปิดสนิท",
+   "en": "Blind-shear ram: cuts the pipe, then seals"
+  },
+  {
+   "t0": 77.6,
+   "t1": 84.6,
+   "th": "Accumulator (Koomey Unit) สั่งจาก Panel",
+   "en": "Panels command; the accumulator powers it"
+  },
+  {
+   "t0": 84.6,
+   "t1": 91.4,
+   "th": "N₂ Precharge 1,000 psi · ชาร์จถึง 3,000 psi",
+   "en": "1,000 psi nitrogen precharge, charged to 3,000"
+  },
+  {
+   "t0": 91.4,
+   "t1": 98.2,
+   "th": "ไฟดับก็ยังปิดได้ · Ram ปิด ≤ 30 วินาที",
+   "en": "Works with rig power off; rams close in ≤30 s"
+  },
+  {
+   "t0": 98.2,
+   "t1": 104.4,
+   "th": "Choke Line: Manual Valve + HCR",
+   "en": "Choke line: inner manual valve, outer HCR"
+  },
+  {
+   "t0": 104.4,
+   "t1": 111.8,
+   "th": "HCR เปิด/ปิดสุด · Kill Line สูบโคลนเข้า",
+   "en": "HCR is on/off; the kill line pumps in"
+  },
+  {
+   "t0": 111.8,
+   "t1": 119.2,
+   "th": "Choke Manifold: หรี่โช้ก คุม BHP คงที่",
+   "en": "The choke manifold holds bottomhole pressure"
+  },
+  {
+   "t0": 119.2,
+   "t1": 126.4,
+   "th": "MGS: แก๊ส → Flare · โคลน → ถัง",
+   "en": "MGS: gas to the flare, mud back to the tanks"
+  },
+  {
+   "t0": 126.4,
+   "t1": 133.4,
+   "th": "Mud Seal ตัว U รับได้แค่ ~5 psi",
+   "en": "A U-tube mud seal holds only about 5 psi"
+  },
+  {
+   "t0": 133.4,
+   "t1": 139.6,
+   "th": "Trip Tank: วัดโคลนที่เติมตอนถอนท่อ",
+   "en": "Trip tank: checks hole fill while tripping"
+  },
+  {
+   "t0": 139.6,
+   "t1": 145.2,
+   "th": "IBOP บน Top Drive ปิดในก้านเจาะ",
+   "en": "IBOPs on the top drive close the bore"
+  },
+  {
+   "t0": 145.2,
+   "t1": 152.1,
+   "th": "FOSV เปิดค้างไว้ · Float Valve เหนือ Bit",
+   "en": "FOSV kept open; float valve above the bit"
+  },
+  {
+   "t0": 152.1,
+   "t1": 159.2,
+   "th": "Diverter: เบี่ยงแก๊สตื้น ไม่ได้ปิดหลุม",
+   "en": "A diverter redirects shallow gas"
+  },
+  {
+   "t0": 159.2,
+   "t1": 166.1,
+   "th": "Pressure Test ≤ 21 วัน · Function ทุกสัปดาห์",
+   "en": "Pressure test ≤21 days; function test weekly"
+  },
+  {
+   "t0": 166.1,
+   "t1": 172.4,
+   "th": "ครบ 5 ระบบ: Drilling Rig 101",
+   "en": "All five systems of the drilling rig"
+  },
+  {
+   "t0": 172.4,
+   "t1": 177.4,
+   "th": "กดติดตามไว้ เพื่อไม่พลาดตอนต่อไป",
+   "en": "Follow so you don’t miss the next episode"
+  },
+  {
+   "t0": 177.4,
+   "t1": 183.3,
+   "th": "ตอนต่อไป: EP06 Casing & Cementing",
+   "en": "Next: EP06, casing and cementing"
+  }
+ ],
+ "cards": [
+  {
+   "t0": 0.4,
+   "t1": 5.9,
+   "kind": "title",
+   "title": "DRILLING RIG 101 · EP.05",
+   "lines": [
+    "PART 5 / 5",
+    "Well Control System",
+    "BOP · Choke Manifold · MGS"
+   ]
+  },
+  {
+   "t0": 6.4,
+   "t1": 12.9,
+   "kind": "fact",
+   "title": "Barriers",
+   "lines": [
+    "Primary: Mud Hydrostatic",
+    "Secondary: Well Control Equipment",
+    "BOP · Choke & Kill · Control Unit"
+   ]
+  },
+  {
+   "t0": 13.4,
+   "t1": 19.9,
+   "kind": "fact",
+   "title": "BOP = Blowout Preventer",
+   "lines": [
+    "Blowout = ของเหลวในหลุมพุ่งขึ้นมาจนคุมไม่ได้",
+    "Stack หลายตัว ใน Cellar ใต้พื้นแท่น",
+    "หนักรวมหลายสิบตัน"
+   ]
+  },
+  {
+   "t0": 20.4,
+   "t1": 36.5,
+   "kind": "diagram",
+   "title": "BOP Stack: บน → ล่าง",
+   "lines": [],
+   "tiers": [
+    {
+     "t": 21.1,
+     "label": "Annular Preventer",
+     "size": "5,000 psi"
+    },
+    {
+     "t": 23.2,
+     "label": "Upper Pipe Ram (VBR)",
+     "size": "Double Ram · ช่องบน"
+    },
+    {
+     "t": 26.2,
+     "label": "Blind Shear Ram",
+     "size": "Double Ram · ช่องล่าง"
+    },
+    {
+     "t": 28.6,
+     "label": "Drilling Spool",
+     "size": "Choke ⟷ Kill outlets"
+    },
+    {
+     "t": 32.3,
+     "label": "Lower Pipe Ram",
+     "size": "Single Ram"
+    },
+    {
+     "t": 34.3,
+     "label": "Casing Head",
+     "size": "Wellhead"
+    }
+   ],
+   "note": "ตัวอย่าง Land Stack 13-5/8 in · Ram 10,000 psi · Arrangement จริงต่างกันตามผู้ดำเนินการ"
+  },
+  {
+   "t0": 37.0,
+   "t1": 49.8,
+   "kind": "fact",
+   "title": "Annular Preventer",
+   "lines": [
+    "ยาง + Steel Inserts · ลูกสูบดันบีบ",
+    "ปิดได้: ท่อ · Tool Joint · Collar · หลุมเปล่า",
+    "Stripping: ลดแรงปิด ดันท่อผ่านช้าๆ"
+   ],
+   "note": "ปิดหลุมเปล่าทำให้ยางสึกเร็ว ใช้เมื่อจำเป็น"
+  },
+  {
+   "t0": 50.3,
+   "t1": 63.4,
+   "kind": "fact",
+   "title": "Ram Preventers",
+   "lines": [
+    "Pipe Ram: ร่องพอดีท่อ 1 ขนาด (เช่น 5 in)",
+    "VBR: หลายขนาด (เช่น 3½–5 in)",
+    "Ram Lock: ล็อกเชิงกล ถ้าไฮดรอลิกหาย"
+   ],
+   "note": "Front Packer + Top Seal · แรงดันหลุมช่วยดันซีลให้แน่น (แต่ไม่ได้ทำให้ Ram ปิด)"
+  },
+  {
+   "t0": 63.9,
+   "t1": 70.3,
+   "kind": "calc",
+   "title": "แรงบน Ram ที่ปิด",
+   "lines": [
+    "Bore 13-5/8 in ≈ 145.8 in²",
+    "× 10,000 psi ≈ 1.46 ล้าน lbf",
+    "≈ 660 ตัน (แรง)"
+   ],
+   "note": "คำนวณที่แรงดันใช้งานสูงสุดของ Stack 10M"
+  },
+  {
+   "t0": 70.8,
+   "t1": 77.3,
+   "kind": "fact",
+   "title": "Blind Shear Ram",
+   "lines": [
+    "ใบมีดตัด Drill Pipe แล้วซีลหลุม",
+    "ตัด Tool Joint / Drill Collar ไม่ได้",
+    "ต้อง Space Out ก่อน · ทางเลือกสุดท้าย"
+   ]
+  },
+  {
+   "t0": 77.8,
+   "t1": 91.1,
+   "kind": "fact",
+   "title": "Accumulator (Koomey Unit)",
+   "lines": [
+    "ถัง N₂ Precharge 1,000 psi",
+    "ชาร์จถึง 3,000 psi · Manifold ~1,500 psi",
+    "ไนโตรเจนเท่านั้น ห้ามใช้อากาศ"
+   ],
+   "note": "Koomey = ชื่อคน: Paul Koomey ผู้สร้างระบบยุคแรก"
+  },
+  {
+   "t0": 91.6,
+   "t1": 97.9,
+   "kind": "fact",
+   "title": "Closing Time (API 53)",
+   "lines": [
+    "Ram ≤ 30 s · Annular 13-5/8 in ≤ 30 s",
+    "ใช้พลังงานในถัง ไฟดับก็ปิดได้",
+    "หลังปิดยังเหลือ ≥ 1,200 psi"
+   ],
+   "note": "30 s คือเวลาสูงสุดที่ยอมให้ ไม่ใช่เวลาปกติ"
+  },
+  {
+   "t0": 98.4,
+   "t1": 111.5,
+   "kind": "fact",
+   "title": "Choke & Kill Lines",
+   "lines": [
+    "Choke: Manual (ใน) + HCR (นอก)",
+    "HCR = Gate Valve เปิด/ปิดสุด ≠ Choke",
+    "Kill Line: สูบเข้า Annulus ใต้ BOP"
+   ],
+   "note": "ท่อ Choke ใหญ่กว่าหรือเท่าท่อ Kill"
+  },
+  {
+   "t0": 112.0,
+   "t1": 118.9,
+   "kind": "fact",
+   "title": "Choke Manifold",
+   "lines": [
+    "Adjustable Choke: Manual + Remote",
+    "Panel: DP Pressure · Casing Pressure · Strokes",
+    "Choke หรี่ได้ แต่ไม่ใช่ตัวปิดสนิท"
+   ],
+   "note": "Kill ตาม EP04: คุม Bottomhole Pressure ให้คงที่"
+  },
+  {
+   "t0": 119.4,
+   "t1": 133.1,
+   "kind": "fact",
+   "title": "Mud Gas Separator",
+   "lines": [
+    "แก๊ส → Vent Line 8–12 in → Flare",
+    "โคลน → Shaker / Trip Tank / Pits",
+    "Mud Leg ≥ 10 ft ≈ 5 psi"
+   ],
+   "note": "≠ Vacuum Degasser (Part 4) · ทำงานแรงดันต่ำแค่ไม่กี่ psi"
+  },
+  {
+   "t0": 133.6,
+   "t1": 139.3,
+   "kind": "fact",
+   "title": "Trip Tank",
+   "lines": [
+    "ถังแคบ สูง มีสเกลวัด",
+    "เติมน้อยกว่าที่คำนวณ = ระวัง Kick",
+    "ร่วมกับ Flow Sensor · PVT (Part 4)"
+   ]
+  },
+  {
+   "t0": 139.8,
+   "t1": 151.8,
+   "kind": "fact",
+   "title": "ปิดข้างในก้านเจาะ",
+   "lines": [
+    "Upper IBOP: Remote · Lower IBOP: Manual",
+    "FOSV: Ball Valve เปิดค้าง พร้อมขันเข้า",
+    "Float Valve: Check Valve เหนือ Bit"
+   ],
+   "note": "BOP ปิด Annulus · วาล์วเหล่านี้ปิดใน Drill String"
+  },
+  {
+   "t0": 152.3,
+   "t1": 158.9,
+   "kind": "fact",
+   "title": "Diverter",
+   "lines": [
+    "ติดบน Conductor ก่อนติด BOP",
+    "ปิดแล้วเปิด Vent Line ออกห่างแท่น",
+    "เบี่ยงทาง ไม่หยุดการไหล"
+   ],
+   "note": "ปิดหลุมตื้นอาจทำให้ชั้นหินแตก แก๊สขึ้นรอบแท่น"
+  },
+  {
+   "t0": 159.4,
+   "t1": 165.8,
+   "kind": "fact",
+   "title": "BOP Testing (API 53)",
+   "lines": [
+    "Low 250–350 psi → High · Hold ≥ 5 min",
+    "Pressure Test ≤ 21 วัน",
+    "Function Test ทุก 7 วัน"
+   ],
+   "note": "ข้อกำหนดแต่ละประเทศอาจต่างกัน"
+  },
+  {
+   "t0": 166.3,
+   "t1": 172.1,
+   "kind": "recap",
+   "title": "Drilling Rig 101: 5 ระบบ",
+   "lines": [
+    "Power · Hoisting · Rotating",
+    "Circulating · Well Control"
+   ],
+   "chips": [
+    {
+     "label": "Power",
+     "color": "#f59e0b"
+    },
+    {
+     "label": "Hoisting",
+     "color": "#3b82f6"
+    },
+    {
+     "label": "Rotating",
+     "color": "#ef4444"
+    },
+    {
+     "label": "Circulating",
+     "color": "#14b8a6"
+    },
+    {
+     "label": "Well Control",
+     "color": "#a855f7"
+    }
+   ]
+  },
+  {
+   "t0": 172.6,
+   "t1": 176.9,
+   "kind": "cta",
+   "title": "กดติดตาม",
+   "lines": [
+    "namman.story"
+   ]
+  },
+  {
+   "t0": 177.4,
+   "t1": 182.7,
+   "kind": "teaser",
+   "title": "EP.06",
+   "lines": [
+    "Casing & Cementing",
+    "ท่อกรุ · ซีเมนต์หลุม"
+   ]
+  }
+ ]
+}
